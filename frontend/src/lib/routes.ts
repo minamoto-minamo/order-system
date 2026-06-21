@@ -1,0 +1,16 @@
+export const ROUTES = {
+  root:              '/',
+  login:             '/login',
+  hall:              '/hall',
+  hallGroup:         (id: number | string) => `/hall/group/${id}`,
+  hallGroupPattern:  '/hall/group/:id',
+  kitchen:           '/kitchen',
+  kitchenGroup:      (id: number | string) => `/kitchen/group/${id}`,
+  kitchenGroupPattern: '/kitchen/group/:id',
+  admin:             '/admin',
+  adminSeats:        '/admin/seats',
+  adminProducts:     '/admin/products',
+  adminReport:       '/admin/report',
+  adminSettings:     '/admin/settings',
+  adminStaff:        '/admin/staff',
+} as const

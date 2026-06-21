@@ -1,0 +1,8 @@
+CREATE TABLE "SeatTable" (
+    "id"    SERIAL PRIMARY KEY,
+    "label" TEXT NOT NULL,
+    "x"     DOUBLE PRECISION NOT NULL,
+    "y"     DOUBLE PRECISION NOT NULL,
+    "w"     DOUBLE PRECISION NOT NULL,
+    "h"     DOUBLE PRECISION NOT NULL
+);

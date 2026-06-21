@@ -1,0 +1,21 @@
+.draggable {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.palette-item {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: var(--color-surface-deep) !important;
+  }
+}

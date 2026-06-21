@@ -1,0 +1,9 @@
+.seat-cell {
+  transition: background 0.1s ease, border-color 0.1s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.93);
+  }
+}

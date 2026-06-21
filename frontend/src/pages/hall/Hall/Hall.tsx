@@ -1,0 +1,283 @@
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { AppHeader, SubHeader, BottomSheetModal, QuantityControl, Button } from "@/components";
+import { api } from "@/lib/api";
+import { socket } from "@/lib/socket";
+import { ROUTES } from "@/lib/routes";
+import { EP } from "@/lib/endpoints";
+import { SOCKET_EVENTS as SE } from "@/lib/events";
+import type { Seat, SeatTable, Group, OrderItem } from "@order-system/shared";
+import { SeatCell } from "./SeatCell";
+import type { SeatStatus } from "./SeatCell";
+import "./Hall.scss";
+
+const G = 48;
+
+function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
+  const g = groups.find(gr => gr.seatIds.includes(seat.id) && gr.status !== 'closed');
+  if (!g) return 'empty';
+  if (g.status === 'bill_requested') return 'bill';
+  return 'occupied';
+}
+
+function TableRect({ table, seats, groups, isSelected, onTap }: {
+  table: SeatTable; seats: Seat[]; groups: Group[]; isSelected: boolean; onTap: (table: SeatTable) => void;
+}) {
+  const tableSeats = seats.filter(s => s.tableId === table.id);
+  const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+  return (
+    <>
+      <div
+        className={`absolute z-1 rounded-lg border-[1.5px] border-dashed ${
+          isSelected ? 'bg-info-bg border-info' : hasOccupied ? 'bg-surface border-line' : 'tappable bg-white border-divider'
+        }`}
+        style={{ left: table.x, top: table.y, width: table.w, height: table.h }}
+        onClick={() => onTap(table)}
+      />
+      <span
+        className={`absolute z-20 text-micro pointer-events-none ${isSelected ? 'text-info' : 'text-dim'}`}
+        style={{ left: table.x + 6, top: table.y + 4 }}
+      >
+        {table.label}
+      </span>
+    </>
+  );
+}
+
+export default function Hall() {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [seats, setSeats]           = useState<Seat[]>([]);
+  const [seatTables, setSeatTables] = useState<SeatTable[]>([]);
+  const [groups, setGroups]         = useState<Group[]>([]);
+  const [readyOrders, setReadyOrders] = useState<OrderItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [guestCount, setGuestCount] = useState(1);
+
+  useEffect(() => {
+    Promise.all([
+      api.get<Seat[]>(EP.seats),
+      api.get<SeatTable[]>(EP.seatTables),
+      api.get<Group[]>(`${EP.groups}?status=active,bill_requested`),
+      api.get<OrderItem[]>(`${EP.orders}?status=ready`),
+    ]).then(([s, st, g, o]) => {
+      setSeats(s);
+      setSeatTables(st);
+      setGroups(g);
+      setReadyOrders(o);
+    }).catch(console.error);
+
+    const onGroupCreated = (g: Group) => setGroups(prev => [...prev, g]);
+    const onGroupUpdated = (g: Group) => setGroups(prev =>
+      g.status === 'closed'
+        ? prev.filter(x => x.id !== g.id)
+        : prev.map(x => x.id === g.id ? g : x)
+    );
+    const onSeatUpdated = (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x));
+    const onOrderCreated = (o: OrderItem) => {
+      if (o.status === 'ready') setReadyOrders(prev => [...prev, o]);
+    };
+    const onOrderUpdated = (o: OrderItem) => {
+      setReadyOrders(prev => {
+        const filtered = prev.filter(x => x.id !== o.id);
+        return o.status === 'ready' ? [...filtered, o] : filtered;
+      });
+    };
+    const onOrderCancelled = (id: number) => setReadyOrders(prev => prev.filter(o => o.id !== id));
+
+    socket.on(SE.groupCreated,   onGroupCreated);
+    socket.on(SE.groupUpdated,   onGroupUpdated);
+    socket.on(SE.seatUpdated,    onSeatUpdated);
+    socket.on(SE.orderCreated,   onOrderCreated);
+    socket.on(SE.orderUpdated,   onOrderUpdated);
+    socket.on(SE.orderCancelled, onOrderCancelled);
+
+    return () => {
+      socket.off(SE.groupCreated,   onGroupCreated);
+      socket.off(SE.groupUpdated,   onGroupUpdated);
+      socket.off(SE.seatUpdated,    onSeatUpdated);
+      socket.off(SE.orderCreated,   onOrderCreated);
+      socket.off(SE.orderUpdated,   onOrderUpdated);
+      socket.off(SE.orderCancelled, onOrderCancelled);
+    };
+  }, []);
+
+  const tables = seatTables;
+
+  const readyCountByGroup = useMemo(() => {
+    const counts: Record<number, number> = {};
+    readyOrders.forEach(o => { counts[o.groupId] = (counts[o.groupId] ?? 0) + 1; });
+    return counts;
+  }, [readyOrders]);
+
+  const handleTap = (seat: Seat) => {
+    const group = groups.find(g => g.seatIds.includes(seat.id) && g.status !== 'closed');
+    if (group) {
+      navigate(ROUTES.hallGroup(group.id));
+      return;
+    }
+    setSelectedIds(prev =>
+      prev.includes(seat.id) ? prev.filter(id => id !== seat.id) : [...prev, seat.id]
+    );
+  };
+
+  const handleTableTap = (table: SeatTable) => {
+    const tableSeats = seats.filter(s => s.tableId === table.id);
+    const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+    if (hasOccupied) return;
+    const ids = tableSeats.map(s => s.id);
+    if (ids.length === 0) return;
+    const allSelected = ids.every(id => selectedIds.includes(id));
+    setSelectedIds(prev =>
+      allSelected
+        ? prev.filter(id => !ids.includes(id))
+        : [...prev.filter(id => !ids.includes(id)), ...ids]
+    );
+  };
+
+  const selectedEmptySeats = selectedIds.filter(id =>
+    !groups.some(g => g.seatIds.includes(id) && g.status !== 'closed')
+  );
+
+  const groupName = (() => {
+    if (selectedEmptySeats.length === 0) return '';
+    const seenTableIds = new Set<number>();
+    const tableParts: string[] = [];
+    const standaloneParts: string[] = [];
+    for (const id of selectedEmptySeats) {
+      const seat = seats.find(s => s.id === id);
+      if (!seat) continue;
+      if (seat.tableId !== null) {
+        if (!seenTableIds.has(seat.tableId)) {
+          seenTableIds.add(seat.tableId);
+          const table = tables.find(t => t.id === seat.tableId);
+          if (table) tableParts.push(table.label);
+        }
+      } else {
+        standaloneParts.push(seat.label);
+      }
+    }
+    return [...tableParts, ...standaloneParts].join('・');
+  })();
+
+  const canCreate = selectedEmptySeats.length > 0;
+
+  const handleCreateGroup = async () => {
+    try {
+      const group = await api.post<Group>(EP.groups, {
+        name: groupName,
+        guestCount,
+        seatIds: selectedEmptySeats,
+      });
+      navigate(ROUTES.hallGroup(group.id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const emptyCnt    = seats.filter(s => getSeatStatus(s, groups) === 'empty').length;
+  const occupiedCnt = seats.filter(s => getSeatStatus(s, groups) === 'occupied').length;
+  const billCnt     = seats.filter(s => getSeatStatus(s, groups) === 'bill').length;
+  const readyCnt    = seats.filter(s => {
+    const g = groups.find(gr => gr.seatIds.includes(s.id) && gr.status !== 'closed');
+    return g && (readyCountByGroup[g.id] ?? 0) > 0;
+  }).length;
+
+  const canvasW = seats.length > 0 ? Math.max(...seats.map(s => s.x)) + G * 2 : G * 10;
+  const canvasH = seats.length > 0 ? Math.max(...seats.map(s => s.y)) + G * 2 : G * 10;
+
+  return (
+    <>
+      <div className="min-h-dvh bg-surface flex flex-col">
+
+        <AppHeader title={t('hall.title')} />
+
+        <SubHeader
+          left={
+            <div className="flex gap-4">
+              {[
+                { label: t('hall.emptySeat'),      count: emptyCnt,    color: "var(--color-faint)" },
+                { label: t('hall.occupied'),       count: occupiedCnt, color: "var(--color-open)" },
+                { label: t('common.readyToServe'), count: readyCnt,    color: "var(--color-amber)" },
+                { label: t('hall.billRequested'),  count: billCnt,     color: "var(--color-bill)" },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-1.25">
+                  <div className="w-1.75 h-1.75 rounded-full" style={{ background: item.color }}/>
+                  <span className="text-label text-muted">{item.label} {item.count}</span>
+                </div>
+              ))}
+            </div>
+          }
+        />
+
+        <div className="flex-1 overflow-auto p-4 animate-[fadeIn_0.3s_ease_both]">
+          <div
+            className="relative bg-white border border-divider rounded-[10px]"
+            style={{ width: canvasW, height: canvasH, minWidth: canvasW }}
+          >
+            {tables.map(table => {
+              const tableSeats = seats.filter(s => s.tableId === table.id);
+              const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+              const ids = tableSeats.map(s => s.id);
+              const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
+              return (
+                <TableRect key={table.id} table={table} seats={seats} groups={groups} isSelected={isSelected} onTap={handleTableTap} />
+              );
+            })}
+            {seats.map(seat => {
+              const status = getSeatStatus(seat, groups);
+              const group = groups.find(g => g.seatIds.includes(seat.id) && g.status !== 'closed') ?? null;
+              return (
+                <SeatCell
+                  key={seat.id}
+                  seat={seat}
+                  status={status}
+                  group={group}
+                  readyCount={group ? (readyCountByGroup[group.id] ?? 0) : 0}
+                  isSelected={selectedIds.includes(seat.id)}
+                  onTap={handleTap}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {canCreate && (
+          <div className="fixed bottom-0 left-0 right-0 px-5 py-3.5 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+            <div className="text-label text-muted mb-2 text-center">
+              {t('hall.seatsSelected', { seats: groupName })}
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => { setGuestCount(1); setShowCreateModal(true); }}
+              className="w-full rounded-[10px] p-3.5 text-sm font-medium tracking-[0.04em]"
+            >
+              {t('hall.createGroup')}
+            </Button>
+          </div>
+        )}
+
+        <BottomSheetModal
+          show={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          secondaryAction={{ label: t('common.cancel'), onClick: () => setShowCreateModal(false) }}
+          primaryAction={{ label: t('hall.createGroupAction', { count: guestCount }), onClick: () => { handleCreateGroup(); } }}
+        >
+          <div className="text-sub font-medium text-ink mb-1">
+            {t('hall.createGroup')}
+          </div>
+          <div className="text-xs text-muted mb-5">
+            {groupName}
+          </div>
+          <div className="mb-6">
+            <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
+            <QuantityControl value={guestCount} onChange={setGuestCount} min={1} unit="名" />
+          </div>
+        </BottomSheetModal>
+
+      </div>
+    </>
+  );
+}

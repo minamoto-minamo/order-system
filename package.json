@@ -1,0 +1,23 @@
+{
+  "name": "order-system",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup-env.js",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "dev": "concurrently \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\"",
+    "build": "pnpm --filter frontend build && pnpm --filter backend build",
+    "typecheck": "pnpm -r typecheck",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:ui:wsl": "playwright test --ui --ui-host=0.0.0.0 --ui-port=9323"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@prisma/client": "^5.17.0",
+    "@types/node": "^22.19.21",
+    "concurrently": "^8.2.0",
+    "dotenv": "^17.4.2"
+  }
+}

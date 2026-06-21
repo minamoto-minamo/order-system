@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  open
+  closed
+}
+
+enum SeatType {
+  counter
+  table
+}
+
+enum GroupStatus {
+  active
+  bill_requested
+  closed
+}
+
+enum OrderItemStatus {
+  pending
+  ready
+  served
+  cancelled
+}
+
+enum TakeoutType {
+  dine_in
+  both
+  takeout
+}
+
+model Session {
+  id       Int           @id @default(autoincrement())
+  status   SessionStatus @default(open)
+  openedAt DateTime      @default(now())
+  closedAt DateTime?
+
+  groups Group[]
+}
+
+model SeatTable {
+  id    Int    @id @default(autoincrement())
+  label String
+  x     Float
+  y     Float
+  w     Float
+  h     Float
+
+  seats Seat[]
+}
+
+model Seat {
+  id      Int        @id @default(autoincrement())
+  label   String
+  type    SeatType
+  x       Float
+  y       Float
+  tableId Int?
+  table   SeatTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  groupSeats GroupSeat[]
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String
+  sort Int    @default(0)
+
+  subCategories SubCategory[]
+  menuItems     MenuItem[]
+}
+
+model SubCategory {
+  id         Int    @id @default(autoincrement())
+  categoryId Int
+  name       String
+  sort       Int    @default(0)
+
+  category  Category   @relation(fields: [categoryId], references: [id])
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id            Int         @id @default(autoincrement())
+  name          String
+  price         Int
+  categoryId    Int
+  subCategoryId Int
+  soldOut       Boolean     @default(false)
+  takeout       TakeoutType @default(dine_in)
+
+  category    Category    @relation(fields: [categoryId], references: [id])
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id])
+
+  drinkPlanItems  DrinkPlanItem[]
+  courseFoodItems CourseFoodItem[]
+  orderItems      OrderItem[]
+
+  @@index([categoryId])
+  @@index([subCategoryId])
+}
+
+model DrinkPlan {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  items   DrinkPlanItem[]
+  courses Course[]
+  groups  Group[]
+}
+
+model DrinkPlanItem {
+  drinkPlanId Int
+  menuItemId  Int
+
+  drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id])
+  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id])
+
+  @@id([drinkPlanId, menuItemId])
+}
+
+model Course {
+  id          Int    @id @default(autoincrement())
+  name        String
+  price       Int
+  drinkPlanId Int?
+
+  drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
+
+  foodItems CourseFoodItem[]
+  groups    Group[]
+}
+
+model CourseFoodItem {
+  courseId   Int
+  menuItemId Int
+  qty        Int @default(1)
+
+  course   Course   @relation(fields: [courseId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@id([courseId, menuItemId])
+}
+
+model Group {
+  id          Int         @id @default(autoincrement())
+  name        String
+  guestCount  Int
+  status      GroupStatus @default(active)
+  sessionId   Int
+  courseId    Int?
+  drinkPlanId Int?
+  createdAt   DateTime    @default(now())
+
+  session   Session    @relation(fields: [sessionId], references: [id])
+  course    Course?    @relation(fields: [courseId], references: [id])
+  drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
+
+  seats      GroupSeat[]
+  orderItems OrderItem[]
+
+  @@index([sessionId])
+  @@index([status])
+}
+
+model GroupSeat {
+  groupId Int
+  seatId  Int
+
+  group Group @relation(fields: [groupId], references: [id])
+  seat  Seat  @relation(fields: [seatId], references: [id])
+
+  @@id([groupId, seatId])
+  @@index([seatId])
+}
+
+model OrderItem {
+  id           Int             @id @default(autoincrement())
+  groupId      Int
+  menuItemId   Int
+  menuItemName String
+  price        Int
+  qty          Int
+  status       OrderItemStatus @default(pending)
+  isTakeout    Boolean         @default(false)
+  courseId     Int?
+  orderedAt    DateTime        @default(now())
+
+  group    Group    @relation(fields: [groupId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([groupId])
+  @@index([status])
+}
+
+model Setting {
+  id             Int    @id @default(1)
+  storeName      String
+  closingTime    String
+  taxRateInHouse Float
+  taxRateTakeout Float
+}
+
+model Staff {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("staff")
+  createdAt    DateTime @default(now())
+
+  @@map("staff")
+}

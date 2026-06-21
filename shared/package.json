@@ -1,0 +1,10 @@
+{
+  "name": "@order-system/shared",
+  "private": true,
+  "version": "0.1.0",
+  "main": "types/index.ts",
+  "types": "types/index.ts",
+  "exports": {
+    ".": "./types/index.ts"
+  }
+}
