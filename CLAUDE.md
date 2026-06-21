@@ -52,16 +52,16 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 
 | ID  | 画面名               | パス                                      | アクター   |
 |-----|----------------------|-------------------------------------------|------------|
-| S01 | ログイン             | `/login`                                  | 全員       |
-| S02 | ホーム               | `/`                                       | 全員       |
-| S03 | ホール               | `/hall`                                   | ホール店員 |
-| S04 | グループ詳細         | `/hall/group/:id` `/kitchen/group/:id`    | 共通       |
-| S05 | キッチン             | `/kitchen`                                | キッチン   |
-| S06 | 管理者メニュー       | `/admin`                                  | 管理者     |
-| S07 | 商品設定             | `/admin/products`                         | 管理者     |
-| S08 | 席レイアウト設定     | `/admin/seats`                            | 管理者     |
-| S09 | 日次レポート         | `/admin/report`                           | 管理者     |
-| S10 | 詳細設定             | `/admin/settings`                         | 管理者     |
-| S11 | スタッフ管理         | `/admin/staff`                            | 管理者     |
+| S100 | ホーム               | `/`                                       | 全員       |
+| S101 | ログイン             | `/login`                                  | 全員       |
+| S102 | グループ詳細         | `/hall/group/:id` `/kitchen/group/:id`    | 共通       |
+| S200 | ホール               | `/hall`                                   | ホール店員 |
+| S300 | キッチン             | `/kitchen`                                | キッチン   |
+| S400 | 管理者メニュー       | `/admin`                                  | 管理者     |
+| S401 | 商品設定             | `/admin/products`                         | 管理者     |
+| S402 | 席レイアウト設定     | `/admin/seats`                            | 管理者     |
+| S403 | 日次レポート         | `/admin/report`                           | 管理者     |
+| S404 | 詳細設定             | `/admin/settings`                         | 管理者     |
+| S405 | スタッフ管理         | `/admin/staff`                            | 管理者     |
 
 詳細仕様は `docs/screen-spec.md`、ビジュアルは `docs/screen-definition.html` を参照。
