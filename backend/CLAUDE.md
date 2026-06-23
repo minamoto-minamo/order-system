@@ -14,7 +14,7 @@ pnpm --filter backend start        # ビルド済みサーバー起動
 
 ## ディレクトリ構成
 
-```
+```txt
 src/
 ├── index.ts          # エントリポイント。dotenv ロード → buildApp() 起動
 ├── app.ts            # Fastify インスタンス生成・プラグイン登録・ルート登録
@@ -25,14 +25,14 @@ src/
 ├── routes/           # 1ファイル = 1リソース
 │   ├── auth.ts       # POST /auth/login, GET /auth/me
 │   ├── sessions.ts   # GET/POST /sessions, GET /sessions/current, GET /sessions/:id/report
-│   ├── seats.ts      # GET /seats, PUT /seats/:id, DELETE /seats/:id
-│   ├── groups.ts     # CRUD /groups, PATCH /groups/:id
-│   ├── orders.ts     # POST /orders, POST /orders/:id/cancel
+│   ├── seats.ts      # GET/POST /seats, GET/PUT/DELETE /seats/:id
+│   ├── groups.ts     # GET/POST /groups, GET/PUT /groups/:id
+│   ├── orders.ts     # POST /orders, PUT /orders/:id/cancel
 │   ├── menus.ts      # CRUD /menus
 │   ├── categories.ts # CRUD /categories
 │   ├── subcategories.ts
-│   ├── courses.ts    # GET /courses
-│   ├── drinkPlans.ts # GET /drink-plans
+│   ├── courses.ts    # CRUD /courses
+│   ├── drinkPlans.ts # CRUD /drink-plans
 │   ├── settings.ts   # GET/PUT /settings
 │   ├── staff.ts      # GET/POST/PUT/DELETE /staff
 │   └── seatTables.ts # GET/POST/PUT/DELETE /seat-tables
@@ -66,14 +66,14 @@ src/
 
 `plugins/socket.ts` で初期化。イベント型は `@order-system/shared` の `ServerToClientEvents` / `ClientToServerEvents` を使う。
 
-| 方向 | イベント | 発火タイミング |
-|---|---|---|
-| Server → Client | `order:created/updated/cancelled` | 注文 CRUD 時 |
-| Server → Client | `group:created/updated` | グループ CRUD 時 |
-| Server → Client | `seat:updated` | 席更新時 |
-| Server → Client | `menu:soldout` | 品切れ更新時 |
-| Server → Client | `session:updated` | セッション開閉時 |
-| Server → Client | `settings:updated` | 設定更新時 |
-| Client → Server | `order:complete` / `order:serve` | キッチンからの状態変更 |
+| 方向            | イベント                          | 発火タイミング         |
+| --------------- | --------------------------------- | ---------------------- |
+| Server → Client | `order:created/updated/cancelled` | 注文 CRUD 時           |
+| Server → Client | `group:created/updated`           | グループ CRUD 時       |
+| Server → Client | `seat:updated`                    | 席更新時               |
+| Server → Client | `menu:soldout`                    | 品切れ更新時           |
+| Server → Client | `session:updated`                 | セッション開閉時       |
+| Server → Client | `settings:updated`                | 設定更新時             |
+| Client → Server | `order:complete` / `order:serve`  | キッチンからの状態変更 |
 
 emit は各ルートハンドラ内で `fastify.io.emit(...)` を呼ぶ。

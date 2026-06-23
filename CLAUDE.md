@@ -26,7 +26,7 @@ pnpm --filter backend db:seed     # 初期データ投入
 
 ## 構成
 
-```
+```txt
 order-system/
 ├── frontend/   @order-system/frontend  — React 18 + Vite + React Router v6
 ├── backend/    @order-system/backend   — Fastify + Socket.io + Prisma
@@ -39,7 +39,7 @@ order-system/
 
 env ファイルは `env/` ディレクトリで管理。
 
-```
+```txt
 env/backend.env.example  → env/backend.env   # NODE_ENV, DATABASE_URL, JWT_SECRET, CORS_ORIGIN など
 env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビルド時のみ）
 ```
@@ -50,8 +50,8 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 
 ## 画面構成
 
-| ID  | 画面名               | パス                                      | アクター   |
-|-----|----------------------|-------------------------------------------|------------|
+| ID   | 画面名               | パス                                      | アクター   |
+|------|----------------------|-------------------------------------------|------------|
 | S100 | ホーム               | `/`                                       | 全員       |
 | S101 | ログイン             | `/login`                                  | 全員       |
 | S102 | グループ詳細         | `/hall/group/:id` `/kitchen/group/:id`    | 共通       |
@@ -64,4 +64,4 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 | S404 | 詳細設定             | `/admin/settings`                         | 管理者     |
 | S405 | スタッフ管理         | `/admin/staff`                            | 管理者     |
 
-詳細仕様は `docs/screen-spec.md`、ビジュアルは `docs/screen-definition.html` を参照。
+詳細仕様は `docs/screens/`、ドキュメント一覧は `docs/DOCUMENTS.md` を参照。
