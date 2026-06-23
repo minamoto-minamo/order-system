@@ -3,19 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppHeader, SubHeader, BottomSheetModal, QuantityControl, Button } from "@/components";
 import { api } from "@/lib/api";
-import { socket } from "@/lib/socket";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { useSocketListeners } from "@/hooks/useSocketListeners";
+import { isGroupActive } from "@/lib/utils";
 import type { Seat, SeatTable, Group, OrderItem } from "@order-system/shared";
 import { SeatCell } from "./SeatCell";
 import type { SeatStatus } from "./SeatCell";
 import "./Hall.scss";
 
+// 席セルの基本グリッドサイズ (px)。キャンバスの余白計算に使う
 const G = 48;
 
 function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
-  const g = groups.find(gr => gr.seatIds.includes(seat.id) && gr.status !== 'closed');
+  const g = groups.find(gr => gr.seatIds.includes(seat.id) && isGroupActive(gr));
   if (!g) return 'empty';
   if (g.status === 'bill_requested') return 'bill';
   return 'occupied';
@@ -25,7 +27,7 @@ function TableRect({ table, seats, groups, isSelected, onTap }: {
   table: SeatTable; seats: Seat[]; groups: Group[]; isSelected: boolean; onTap: (table: SeatTable) => void;
 }) {
   const tableSeats = seats.filter(s => s.tableId === table.id);
-  const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+  const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
   return (
     <>
       <div
@@ -68,41 +70,27 @@ export default function Hall() {
       setGroups(g);
       setReadyOrders(o);
     }).catch(console.error);
+  }, []);
 
-    const onGroupCreated = (g: Group) => setGroups(prev => [...prev, g]);
-    const onGroupUpdated = (g: Group) => setGroups(prev =>
-      g.status === 'closed'
-        ? prev.filter(x => x.id !== g.id)
-        : prev.map(x => x.id === g.id ? g : x)
-    );
-    const onSeatUpdated = (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x));
-    const onOrderCreated = (o: OrderItem) => {
+  useSocketListeners({
+    [SE.groupCreated]: (g: Group) => setGroups(prev => [...prev, g]),
+    [SE.groupUpdated]: (g: Group) => setGroups(prev =>
+      isGroupActive(g)
+        ? prev.map(x => x.id === g.id ? g : x)
+        : prev.filter(x => x.id !== g.id)
+    ),
+    [SE.seatUpdated]: (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x)),
+    [SE.orderCreated]: (o: OrderItem) => {
       if (o.status === 'ready') setReadyOrders(prev => [...prev, o]);
-    };
-    const onOrderUpdated = (o: OrderItem) => {
+    },
+    [SE.orderUpdated]: (o: OrderItem) => {
       setReadyOrders(prev => {
         const filtered = prev.filter(x => x.id !== o.id);
         return o.status === 'ready' ? [...filtered, o] : filtered;
       });
-    };
-    const onOrderCancelled = (id: number) => setReadyOrders(prev => prev.filter(o => o.id !== id));
-
-    socket.on(SE.groupCreated,   onGroupCreated);
-    socket.on(SE.groupUpdated,   onGroupUpdated);
-    socket.on(SE.seatUpdated,    onSeatUpdated);
-    socket.on(SE.orderCreated,   onOrderCreated);
-    socket.on(SE.orderUpdated,   onOrderUpdated);
-    socket.on(SE.orderCancelled, onOrderCancelled);
-
-    return () => {
-      socket.off(SE.groupCreated,   onGroupCreated);
-      socket.off(SE.groupUpdated,   onGroupUpdated);
-      socket.off(SE.seatUpdated,    onSeatUpdated);
-      socket.off(SE.orderCreated,   onOrderCreated);
-      socket.off(SE.orderUpdated,   onOrderUpdated);
-      socket.off(SE.orderCancelled, onOrderCancelled);
-    };
-  }, []);
+    },
+    [SE.orderCancelled]: (id: number) => setReadyOrders(prev => prev.filter(o => o.id !== id)),
+  });
 
   const tables = seatTables;
 
@@ -113,7 +101,7 @@ export default function Hall() {
   }, [readyOrders]);
 
   const handleTap = (seat: Seat) => {
-    const group = groups.find(g => g.seatIds.includes(seat.id) && g.status !== 'closed');
+    const group = groups.find(g => g.seatIds.includes(seat.id) && isGroupActive(g));
     if (group) {
       navigate(ROUTES.hallGroup(group.id));
       return;
@@ -125,10 +113,11 @@ export default function Hall() {
 
   const handleTableTap = (table: SeatTable) => {
     const tableSeats = seats.filter(s => s.tableId === table.id);
-    const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+    const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
     if (hasOccupied) return;
     const ids = tableSeats.map(s => s.id);
     if (ids.length === 0) return;
+    // 全席が選択済みならトグルで解除。重複を防ぐため先に既存 ids を除いてから追加
     const allSelected = ids.every(id => selectedIds.includes(id));
     setSelectedIds(prev =>
       allSelected
@@ -137,10 +126,12 @@ export default function Hall() {
     );
   };
 
+  // 選択中でも占有済みの席はグループ作成対象から除く（選択後に他スタッフが着席した場合の競合防止）
   const selectedEmptySeats = selectedIds.filter(id =>
-    !groups.some(g => g.seatIds.includes(id) && g.status !== 'closed')
+    !groups.some(g => g.seatIds.includes(id) && isGroupActive(g))
   );
 
+  // グループ名を席ラベルから自動生成。テーブル単位のラベルを先にまとめ、単独席を後ろに並べる
   const groupName = (() => {
     if (selectedEmptySeats.length === 0) return '';
     const seenTableIds = new Set<number>();
@@ -181,10 +172,11 @@ export default function Hall() {
   const occupiedCnt = seats.filter(s => getSeatStatus(s, groups) === 'occupied').length;
   const billCnt     = seats.filter(s => getSeatStatus(s, groups) === 'bill').length;
   const readyCnt    = seats.filter(s => {
-    const g = groups.find(gr => gr.seatIds.includes(s.id) && gr.status !== 'closed');
+    const g = groups.find(gr => gr.seatIds.includes(s.id) && isGroupActive(gr));
     return g && (readyCountByGroup[g.id] ?? 0) > 0;
   }).length;
 
+  // 最大座標 + 1グリッド分の余白でキャンバスサイズを確定。席がない場合のデフォルト値も確保
   const canvasW = seats.length > 0 ? Math.max(...seats.map(s => s.x)) + G * 2 : G * 10;
   const canvasH = seats.length > 0 ? Math.max(...seats.map(s => s.y)) + G * 2 : G * 10;
 
@@ -219,7 +211,7 @@ export default function Hall() {
           >
             {tables.map(table => {
               const tableSeats = seats.filter(s => s.tableId === table.id);
-              const hasOccupied = tableSeats.some(s => groups.some(g => g.status !== 'closed' && g.seatIds.includes(s.id)));
+              const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
               const ids = tableSeats.map(s => s.id);
               const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
               return (
@@ -228,7 +220,7 @@ export default function Hall() {
             })}
             {seats.map(seat => {
               const status = getSeatStatus(seat, groups);
-              const group = groups.find(g => g.seatIds.includes(seat.id) && g.status !== 'closed') ?? null;
+              const group = groups.find(g => g.seatIds.includes(seat.id) && isGroupActive(g)) ?? null;
               return (
                 <SeatCell
                   key={seat.id}
