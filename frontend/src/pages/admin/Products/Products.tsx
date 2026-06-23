@@ -1,25 +1,20 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, Button, InputModal } from "@/components";
+import { AppHeader, InputModal } from "@/components";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
+import { useToast } from "@/hooks/useToast";
 import type { Category, SubCategory, MenuItem } from "@order-system/shared";
 import { ProductModal } from "./ProductModal";
-import { toMeta } from "./types";
-import type { Cat, Sub, Product, ProductFormData } from "./types";
-
-type ModalState = null
-  | { type: "addCat" }
-  | { type: "editCat"; payload: Cat }
-  | { type: "addSub"; payload: { catId: number } }
-  | { type: "editSub"; payload: { cat: Cat; sub: Sub } }
-  | { type: "addProduct" }
-  | { type: "editProduct"; payload: Product };
+import { CategorySidebar } from "./CategorySidebar";
+import { ProductList } from "./ProductList";
+import type { Cat, Product, ProductFormData, ModalState } from "./types";
 
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [cats, setCats]         = useState<Cat[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
@@ -60,7 +55,7 @@ export default function Products() {
       setCats(prev => [...prev, { id: cat.id, label: cat.name, subs: [] }])
       setExpandedCats(prev => ({ ...prev, [cat.id]: true }))
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const editCat = async (catId: number, label: string) => {
@@ -68,7 +63,7 @@ export default function Products() {
       await api.put(EP.category(catId), { name: label })
       setCats(prev => prev.map(c => c.id === catId ? { ...c, label } : c))
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const deleteCat = async (catId: number) => {
@@ -79,7 +74,7 @@ export default function Products() {
       if (selectedSubId && cats.find(c => c.id === catId)?.subs.some(s => s.id === selectedSubId)) {
         setSelectedSubId(null)
       }
-    } catch {}
+    } catch { showToast(t('common.deleteFailed')) }
   };
 
   const addSub = async (catId: number, label: string) => {
@@ -87,7 +82,7 @@ export default function Products() {
       const sub = await api.post<SubCategory>(EP.subcategories, { name: label, categoryId: catId })
       setCats(prev => prev.map(c => c.id === catId ? { ...c, subs: [...c.subs, { id: sub.id, label: sub.name }] } : c))
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const editSub = async (catId: number, subId: number, label: string) => {
@@ -98,7 +93,7 @@ export default function Products() {
         : c
       ))
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const deleteSub = async (catId: number, subId: number) => {
@@ -110,7 +105,7 @@ export default function Products() {
       ))
       setProducts(prev => prev.filter(p => p.subId !== subId))
       if (selectedSubId === subId) setSelectedSubId(null)
-    } catch {}
+    } catch { showToast(t('common.deleteFailed')) }
   };
 
   // ── 商品操作 ───────────────────────────────────────────────
@@ -127,7 +122,7 @@ export default function Products() {
         soldOut: item.soldOut, takeout: item.takeout,
       }])
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const editProduct = async (id: number, { name, price, subId, takeout }: ProductFormData) => {
@@ -137,14 +132,14 @@ export default function Products() {
       await api.put(EP.menu(id), { name, price, categoryId: cat.id, subCategoryId: subId, takeout })
       setProducts(prev => prev.map(p => p.id === id ? { ...p, name, price, catId: cat.id, subId, takeout } : p))
       setModal(null)
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   const deleteProduct = async (id: number) => {
     try {
       await api.delete(EP.menu(id))
       setProducts(prev => prev.filter(p => p.id !== id))
-    } catch {}
+    } catch { showToast(t('common.deleteFailed')) }
   };
 
   const toggleSoldOut = async (id: number) => {
@@ -154,7 +149,7 @@ export default function Products() {
     try {
       await api.put(EP.menu(id), { soldOut: newSoldOut })
       setProducts(prev => prev.map(p => p.id === id ? { ...p, soldOut: newSoldOut } : p))
-    } catch {}
+    } catch { showToast(t('common.saveFailed')) }
   };
 
   // ── 表示フィルタ ───────────────────────────────────────────
@@ -181,145 +176,28 @@ export default function Products() {
         <div className="flex-1 flex overflow-hidden">
 
           {/* 左：カテゴリツリー */}
-          <div className={`${sidebarOpen ? 'w-40' : 'w-0'} bg-white border-r border-divider flex flex-col shrink-0 overflow-hidden transition-[width] duration-200`}>
-            {/* すべて */}
-            <div className={`tappable px-4 py-2.75 text-note border-b border-surface-deep ${selectedSubId === null ? 'text-ink font-medium bg-surface' : 'text-dim bg-transparent'}`}
-              onClick={() => { setSelectedSubId(null); setSidebarOpen(false); }}>
-              {t('common.all')}
-              <span className="text-label text-muted ml-1.5">
-                {products.length}
-              </span>
-            </div>
-
-            {/* 大分類ツリー */}
-            {cats.map(cat => (
-              <div key={cat.id}>
-                {/* 大分類行 */}
-                <div className="flex items-center pl-4 pr-3 py-2.25 border-b border-divider bg-surface">
-                  <div
-                    className="tappable flex-1 flex items-center gap-1.25"
-                    onClick={() => setExpandedCats(prev => ({ ...prev, [cat.id]: !prev[cat.id] }))}
-                  >
-                    <span className="text-caption text-dim">
-                      {expandedCats[cat.id] ? "▾" : "▸"}
-                    </span>
-                    <span className="text-note font-semibold text-ink">{cat.label}</span>
-                  </div>
-                  {/* 大分類操作 */}
-                  <button
-                    className="action-btn w-6 h-6 flex items-center justify-center rounded text-muted text-note"
-                    onClick={() => setModal({ type: "editCat", payload: cat })}
-                  >
-                    ⚙
-                  </button>
-                </div>
-
-                {/* 小分類 */}
-                {expandedCats[cat.id] && (
-                  <>
-                    {cat.subs.map(sub => (
-                      <div key={sub.id}
-                        className={`tappable flex items-center pl-7 pr-2.5 py-2 border-b border-surface ${selectedSubId === sub.id ? 'bg-info-bg' : 'bg-white'}`}
-                      >
-                        <div onClick={() => { setSelectedSubId(sub.id); setSidebarOpen(false); }}
-                          className={`flex-1 text-xs ${selectedSubId === sub.id ? 'text-info-dark' : 'text-dim'}`}>
-                          {sub.label}
-                          <span className="text-caption text-dim ml-1.25">
-                            {products.filter(p => p.subId === sub.id).length}
-                          </span>
-                        </div>
-                        <button
-                          className="action-btn w-6 h-6 flex items-center justify-center rounded text-dim text-caption"
-                          onClick={() => setModal({ type: "editSub", payload: { cat, sub } })}
-                        >
-                          ⚙
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* 小分類追加 */}
-                    <div className="tappable pl-7 pr-2.5 py-1.75 text-label text-muted border-b border-surface"
-                      onClick={() => setModal({ type: "addSub", payload: { catId: cat.id } })}>
-                      {t('productSettings.addSubCategory')}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-
-            {/* 大分類追加 */}
-            <div className="tappable px-4 py-2.75 text-xs text-muted mt-1"
-              onClick={() => setModal({ type: "addCat" })}>
-              {t('productSettings.addCategory')}
-            </div>
-          </div>
+          <CategorySidebar
+            cats={cats}
+            products={products}
+            selectedSubId={selectedSubId}
+            expandedCats={expandedCats}
+            sidebarOpen={sidebarOpen}
+            onSelectAll={() => { setSelectedSubId(null); setSidebarOpen(false); }}
+            onSelectSub={(subId) => { setSelectedSubId(subId); setSidebarOpen(false); }}
+            onToggleCat={(catId) => setExpandedCats(prev => ({ ...prev, [catId]: !prev[catId] }))}
+            setModal={setModal}
+          />
 
           {/* 右：商品一覧 */}
-          <div className="flex-1 flex flex-col overflow-hidden" onClick={() => { if (sidebarOpen) setSidebarOpen(false); }}>
-            {/* 商品エリアヘッダー */}
-            <div className="px-3 py-3 border-b border-divider flex items-center gap-2 bg-white shrink-0">
-              <button
-                className="action-btn w-7 h-7 flex items-center justify-center rounded text-dim text-note shrink-0"
-                onClick={() => setSidebarOpen(prev => !prev)}
-              >
-                {sidebarOpen ? '←' : '☰'}
-              </button>
-              <div className="text-note text-dim flex-1">
-                {selectedLabel}
-                <span className="text-label text-muted ml-1.5">
-                  {visibleProducts.length}件
-                </span>
-              </div>
-              <Button variant="primary" className="rounded-[7px] px-3 py-1.5 text-xs whitespace-nowrap shrink-0"
-                onClick={() => setModal({ type: "addProduct" })}>
-                {t('productSettings.addProductBtn')}
-              </Button>
-            </div>
-
-            {/* 商品リスト */}
-            <div className="flex-1 overflow-y-auto">
-              {visibleProducts.length === 0 && (
-                <div className="py-10 text-center text-muted text-note">
-                  {t('productSettings.noProducts')}
-                </div>
-              )}
-              {visibleProducts.map(p => {
-                const cat = cats.find(c => c.id === p.catId);
-                const sub = cat?.subs.find(s => s.id === p.subId);
-                return (
-                  <div key={p.id}
-                    className={`tappable px-3 py-3 border-b border-surface flex items-center gap-2 bg-white ${p.soldOut ? 'opacity-50' : 'opacity-100'}`}
-                    onClick={() => setModal({ type: "editProduct", payload: p })}
-                  >
-                    <div className="flex-1">
-                      <div className="text-sm text-ink mb-0.75">
-                        {p.name}
-                        {p.soldOut && (
-                          <span className="ml-2 text-caption text-danger bg-danger-bg border border-danger-border px-1.5 py-px rounded-full">{t('productSettings.soldOut')}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5 items-center flex-wrap">
-                        <span className="text-xs text-muted">¥{p.price.toLocaleString()}</span>
-                        {cat && sub && (
-                          <span className="text-caption text-dim">
-                            {cat.label} › {sub.label}
-                          </span>
-                        )}
-                        {(() => {
-                          const m = toMeta(p.takeout);
-                          return (
-                            <span className="text-caption px-1.5 py-px rounded-full border"
-                              style={{ color: m.color, background: m.bg, borderColor: m.border }}>{t(m.labelKey)}</span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    <span className="w-7 h-7 flex items-center justify-center text-muted text-note shrink-0">⚙</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <ProductList
+            cats={cats}
+            visibleProducts={visibleProducts}
+            selectedLabel={selectedLabel}
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen(prev => !prev)}
+            onCollapseSidebar={() => { if (sidebarOpen) setSidebarOpen(false); }}
+            setModal={setModal}
+          />
         </div>
       </div>
 
@@ -335,7 +213,7 @@ export default function Products() {
       {modal?.type === "addSub" && (
         <InputModal title={t('productSettings.addSubCategoryTitle')}
           sub={cats.find(c => c.id === modal.payload.catId)?.label}
-          placeholder="例：アルコール"
+          placeholder={t('productSettings.categoryNamePlaceholder')}
           onConfirm={(v) => addSub(modal.payload.catId, v)} onClose={() => setModal(null)} />
       )}
       {modal?.type === "editSub" && (

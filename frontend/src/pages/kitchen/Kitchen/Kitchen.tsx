@@ -18,13 +18,13 @@ import "./Kitchen.scss";
 
 const CAT_COLORS = ['#4a9eff', '#3ec97a', '#f59e0b', '#e53935', '#9c27b0'];
 
-function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[]): DisplayOrder {
+function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: number) => string): DisplayOrder {
   const g = groups.find(x => x.id === o.groupId);
   const m = menus.find(x => x.id === o.menuItemId);
   const seatLabels = g ? getSeatLabels(seats, g.seatIds) : '';
   return {
     id: o.id, groupId: o.groupId,
-    groupName: g?.name ?? `グループ${o.groupId}`,
+    groupName: g?.name ?? getGroupName(o.groupId),
     seats: seatLabels,
     item: o.menuItemName,
     qty: o.qty,
@@ -105,8 +105,8 @@ export default function Kitchen() {
   , [categories, subCategories]);
 
   const displayOrders = useMemo(() =>
-    orders.map(o => buildDisplay(o, menus, groups, seats))
-  , [orders, menus, groups, seats]);
+    orders.map(o => buildDisplay(o, menus, groups, seats, (id) => t('common.unknownGroup', { id })))
+  , [orders, menus, groups, seats, t]);
 
   const handleReady  = (id: number) => socket.emit(SE.orderComplete, id);
   const handleServed = (id: number) => socket.emit(SE.orderServe, id);

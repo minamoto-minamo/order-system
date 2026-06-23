@@ -293,7 +293,7 @@ export default function GroupDetail() {
                   <div className="text-label text-info mb-1.5 font-medium">🍺 {plan.name}{t('group.drinkPlanNote')}</div>
                   <div className="bg-info-bg border border-info-border rounded-lg px-3.5 py-2 flex flex-wrap gap-1">
                     {plan.menuItemIds.map(mid => {
-                      const name = menus.find(m => m.id === mid)?.name ?? `商品${mid}`;
+                      const name = menus.find(m => m.id === mid)?.name ?? t('common.unknownItem', { id: mid });
                       return (
                         <span key={mid} className="text-label text-info bg-white border border-info-border px-2 py-0.5 rounded-full">{name}</span>
                       );
@@ -307,7 +307,7 @@ export default function GroupDetail() {
                 <div className="text-label text-course mb-1.5 font-medium">🍽 {t('group.courseFoodLabel')}</div>
                 <div className="bg-surface border border-divider rounded-lg px-3.5 py-2.5">
                   {showCourseConfirm.foodItems.map((fi, i) => {
-                    const name = menus.find(m => m.id === fi.menuItemId)?.name ?? `商品${fi.menuItemId}`;
+                    const name = menus.find(m => m.id === fi.menuItemId)?.name ?? t('common.unknownItem', { id: fi.menuItemId });
                     return (
                       <div key={i} className={`flex justify-between py-1.25 ${i < showCourseConfirm.foodItems.length - 1 ? 'border-b border-surface-deep' : ''}`}>
                         <span className="text-note text-secondary">{name}</span>
