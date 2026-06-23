@@ -59,7 +59,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const id = Number((request.params as { id: string }).id)
     if (id === request.user.userId) {
-      return reply.status(400).send({ error: '自分自身は削除できません' })
+      return reply.status(422).send({ error: '自分自身は削除できません' })
     }
     const existing = await prisma.staff.findUnique({ where: { id } })
     if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })

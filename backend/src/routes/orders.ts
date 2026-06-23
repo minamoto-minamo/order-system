@@ -72,7 +72,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const missing = menuItemIds.filter(id => !menuItemMap.has(id))
     if (missing.length > 0) {
-      return reply.status(400).send({ error: `menuItem ${missing.join(',')} が見つかりません` })
+      return reply.status(422).send({ error: `menuItem ${missing.join(',')} が見つかりません` })
     }
 
     const soldOut = body.items.filter(i => menuItemMap.get(i.menuItemId)?.soldOut)
