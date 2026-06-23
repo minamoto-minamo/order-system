@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, BottomSheetModal, TabNavigation, Button, QuantityControl } from "@/components";
+import { AppHeader, BottomSheetModal, ConfirmModal, TabNavigation, QuantityControl } from "@/components";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { useSocketListeners } from "@/hooks/useSocketListeners";
+import { useToast } from "@/hooks/useToast";
+import { getSeatLabels } from "@/lib/utils";
 import type { Group, OrderItem, MenuItem, Category, SubCategory, Course, DrinkPlan, Seat, Setting } from "@order-system/shared";
 import { CancelModal } from "./CancelModal";
 import { OrderHistory } from "./OrderHistory";
 import { MenuAdd } from "./MenuAdd";
+import { BillFooter } from "./BillFooter";
+import { CourseTab } from "./CourseTab";
 import "./GroupDetail.scss";
 
 // ── メイン ───────────────────────────────────────────────────
@@ -37,7 +42,7 @@ export default function GroupDetail() {
   const [cancelTarget, setCancelTarget]     = useState<OrderItem | null>(null);
   const [showBillConfirm, setShowBillConfirm]   = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [addedToast, setAddedToast]         = useState<string | null>(null);
+  const { toast: addedToast, showToast } = useToast();
 
   useEffect(() => {
     Promise.all([
@@ -61,47 +66,26 @@ export default function GroupDetail() {
       setSeats(s);
       setTaxRates({ inHouse: st.taxRateInHouse, takeout: st.taxRateTakeout });
     }).catch(console.error);
-
-    const onOrderCreated = (o: OrderItem) => {
-      if (o.groupId === groupId) setItems(prev => prev.some(i => i.id === o.id) ? prev : [...prev, o]);
-    };
-    const onOrderUpdated = (o: OrderItem) => {
-      if (o.groupId === groupId) setItems(prev => prev.map(i => i.id === o.id ? o : i));
-    };
-    const onOrderCancelled = (id: number) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i));
-    const onGroupUpdated = (g: Group) => {
-      if (g.id === groupId) setGroup(g);
-    };
-
-    const onSettingsUpdated = (s: Setting) => setTaxRates({ inHouse: s.taxRateInHouse, takeout: s.taxRateTakeout });
-
-    socket.on(SE.orderCreated,    onOrderCreated);
-    socket.on(SE.orderUpdated,    onOrderUpdated);
-    socket.on(SE.orderCancelled,  onOrderCancelled);
-    socket.on(SE.groupUpdated,    onGroupUpdated);
-    socket.on(SE.settingsUpdated, onSettingsUpdated);
-
-    return () => {
-      socket.off(SE.orderCreated,    onOrderCreated);
-      socket.off(SE.orderUpdated,    onOrderUpdated);
-      socket.off(SE.orderCancelled,  onOrderCancelled);
-      socket.off(SE.groupUpdated,    onGroupUpdated);
-      socket.off(SE.settingsUpdated, onSettingsUpdated);
-    };
   }, [groupId]);
+
+  useSocketListeners({
+    [SE.orderCreated]: (o: OrderItem) => {
+      if (o.groupId === groupId) setItems(prev => prev.some(i => i.id === o.id) ? prev : [...prev, o]);
+    },
+    [SE.orderUpdated]: (o: OrderItem) => {
+      if (o.groupId === groupId) setItems(prev => prev.map(i => i.id === o.id ? o : i));
+    },
+    [SE.orderCancelled]: (id: number) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i)),
+    [SE.groupUpdated]: (g: Group) => {
+      if (g.id === groupId) setGroup(g);
+    },
+    [SE.settingsUpdated]: (s: Setting) => setTaxRates({ inHouse: s.taxRateInHouse, takeout: s.taxRateTakeout }),
+  });
 
   const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;
   const activeDrinkPlan = drinkPlans.find(p => p.id === group?.drinkPlanId) ?? null;
 
-  const seatLabels = seats
-    .filter(s => group?.seatIds.includes(s.id))
-    .map(s => s.label)
-    .join('・');
-
-  const showToast = (msg: string) => {
-    setAddedToast(msg);
-    setTimeout(() => setAddedToast(null), 1800);
-  };
+  const seatLabels = getSeatLabels(seats, group?.seatIds ?? []);
 
   const handleCourseOrder = async (course: Course, qty: number) => {
     if (!group) return;
@@ -224,114 +208,28 @@ export default function GroupDetail() {
                 onChangeStatus={handleChangeStatus}
                 onCancelTap={setCancelTarget}
               />
-              <div className="px-4 pt-4 pb-5 border-t border-divider bg-surface shrink-0">
-                {(() => {
-                  const activeItems = items.filter(i => i.status !== 'cancelled');
-                  const subtotal = activeItems.reduce((s, i) => s + i.price * i.qty, 0);
-                  const tax = activeItems.reduce((s, i) => s + Math.floor(i.price * i.qty * (i.isTakeout ? taxRates.takeout : taxRates.inHouse) / 100), 0);
-                  return (
-                    <div className="mb-3.5">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="text-note text-dim">{t('group.total')}</span>
-                        <span className="text-lg font-medium text-ink">¥{subtotal.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-xs text-muted">{t('group.tax')}</span>
-                        <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  );
-                })()}
-                {group?.status === 'bill_requested' ? (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      className="flex-1 rounded-[10px] py-3.5 text-note font-medium"
-                      onClick={handleBillCancel}
-                    >
-                      {t('group.billCancel')}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      className="flex-1 rounded-[10px] py-3.5 text-note font-medium"
-                      onClick={() => setShowResetConfirm(true)}
-                    >
-                      {t('group.checkOut')}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    className="w-full border-none rounded-[10px] py-3.5 text-sub font-medium text-white disabled:opacity-40"
-                    style={{ background: 'var(--color-ink)' }}
-                    onClick={() => setShowBillConfirm(true)}
-                    disabled={items.some(i => i.status === 'pending' || i.status === 'ready')}
-                  >
-                    {t('group.bill')}
-                  </Button>
-                )}
-              </div>
+              <BillFooter
+                items={items}
+                taxRates={taxRates}
+                groupStatus={group?.status}
+                onBillRequest={() => setShowBillConfirm(true)}
+                onBillCancel={handleBillCancel}
+                onCheckOut={() => setShowResetConfirm(true)}
+              />
             </>
           ) : tab === "menu" ? (
             <MenuAdd menus={menus} categories={categories} subCategories={subCategories} onAdd={handleAdd} />
           ) : (
-            <div className="flex-1 overflow-y-auto">
-              {appliedCourse && (
-                <div className="mt-3 mx-5 px-3.5 py-2.5 bg-course-bg border border-open-border rounded-lg text-xs text-open-fg flex items-center gap-1.5">
-                  <span>✓</span>
-                  <span className="flex-1"><b>{appliedCourse.name}</b> {t('group.courseActiveLabel')}</span>
-                  {activeDrinkPlan && (
-                    <span className="text-info">／ {activeDrinkPlan.name} {t('group.drinkPlanActive')}</span>
-                  )}
-                  <button
-                    className="ml-1 text-muted underline bg-transparent border-none cursor-pointer text-caption"
-                    onClick={handleCourseRemove}
-                  >
-                    {t('group.courseRemove')}
-                  </button>
-                </div>
-              )}
-
-              {courses.map(course => {
-                const plan = course.drinkPlanId ? drinkPlans.find(p => p.id === course.drinkPlanId) : null;
-                const isApplied = appliedCourse?.id === course.id;
-                return (
-                  <div key={course.id} className={`px-5 py-3.5 border-b border-surface ${isApplied ? 'bg-white' : 'bg-white'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-ink mb-1">{course.name}</div>
-                        <div className="text-xs text-muted mb-2">¥{course.price.toLocaleString()} {t('common.perPerson')}</div>
-                        {plan && (
-                          <div className="mb-1.5">
-                            <span className="text-caption text-info bg-info-bg border border-info-border px-1.75 py-0.5 rounded-full">
-                              🍺 {plan.name}
-                            </span>
-                          </div>
-                        )}
-                        {course.foodItems.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {course.foodItems.map((fi, i) => {
-                              const name = menus.find(m => m.id === fi.menuItemId)?.name ?? `商品${fi.menuItemId}`;
-                              return (
-                                <span key={i} className="text-caption text-dim bg-surface border border-divider px-1.75 py-0.5 rounded-full">
-                                  {name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        className={`border-none rounded-lg px-4 py-2 text-xs whitespace-nowrap shrink-0 ${isApplied ? 'bg-surface-deep text-muted' : 'bg-ink text-white'}`}
-                        onClick={() => { setShowCourseConfirm(course); setCourseQty(group?.guestCount ?? 1); }}
-                        disabled={isApplied}
-                      >
-                        {isApplied ? t('group.courseApplyDone') : t('group.courseApply')}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <CourseTab
+              courses={courses}
+              drinkPlans={drinkPlans}
+              menus={menus}
+              appliedCourse={appliedCourse}
+              activeDrinkPlan={activeDrinkPlan}
+              groupGuestCount={group?.guestCount ?? 1}
+              onApply={(course) => { setShowCourseConfirm(course); setCourseQty(group?.guestCount ?? 1); }}
+              onRemove={handleCourseRemove}
+            />
           )}
         </div>
 
@@ -349,27 +247,30 @@ export default function GroupDetail() {
           </div>
         )}
 
-        <BottomSheetModal
+        <ConfirmModal
           show={showBillConfirm}
           title={t('group.billConfirmTitle')}
           description={t('group.billConfirmDesc')}
+          cancelLabel={t('common.back')}
+          confirmLabel={t('group.billConfirmAction')}
+          onConfirm={handleBillConfirm}
           onClose={() => setShowBillConfirm(false)}
-          secondaryAction={{ label: t('common.back'), onClick: () => setShowBillConfirm(false) }}
-          primaryAction={{ label: t('group.billConfirmAction'), onClick: handleBillConfirm }}
         />
 
-        <BottomSheetModal
+        <ConfirmModal
           show={showResetConfirm}
+          cancelLabel={t('common.back')}
+          confirmLabel={t('group.checkOutAction')}
+          variant="danger"
+          onConfirm={handleResetConfirm}
           onClose={() => setShowResetConfirm(false)}
-          secondaryAction={{ label: t('common.back'), onClick: () => setShowResetConfirm(false) }}
-          primaryAction={{ label: t('group.checkOutAction'), onClick: handleResetConfirm, variant: 'danger' }}
         >
           <div className="mb-5 text-center">
             <div className="text-3xl mb-3">🚪</div>
             <div className="text-sub font-semibold text-ink mb-2">{t('group.checkOutConfirmTitle')}</div>
             <div className="text-xs text-danger font-medium">{t('group.checkOutConfirmDesc')}</div>
           </div>
-        </BottomSheetModal>
+        </ConfirmModal>
 
         {showCourseConfirm && (
           <BottomSheetModal
