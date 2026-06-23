@@ -1,6 +1,17 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, StatusBadge } from "@/components";
 import type { OrderItem } from "@order-system/shared";
+
+function OrderSection({ title, children }: { title?: string; children: ReactNode }) {
+  if (title === undefined) return <>{children}</>;
+  return (
+    <div className="mt-1">
+      <div className="px-5 pt-2.5 pb-1.5 text-label text-muted tracking-[0.08em]">{title}</div>
+      {children}
+    </div>
+  );
+}
 
 export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
   items: OrderItem[];
@@ -11,6 +22,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
   const active    = items.filter(i => i.status !== "cancelled" && i.status !== "served");
   const cancelled = items.filter(i => i.status === "cancelled");
 
+  // 同一商品・同一価格・同一テイクアウト区分でまとめて表示行数を削減する
   const servedGroups = items
     .filter(i => i.status === "served")
     .reduce<{ key: string; menuItemName: string; price: number; isTakeout: boolean; totalQty: number; rep: OrderItem }[]>((acc, item) => {
@@ -23,6 +35,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
 
   return (
     <div className="flex-1 overflow-y-auto pb-5">
+      <OrderSection>
       {active.map(item => (
         <div key={item.id} className="px-5 py-3 border-b border-surface flex items-center gap-2.5">
           <div className="flex-1">
@@ -58,10 +71,10 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
           </Button>
         </div>
       ))}
+      </OrderSection>
 
       {servedGroups.length > 0 && (
-        <div className="mt-1">
-          <div className="px-5 pt-2.5 pb-1.5 text-label text-muted tracking-[0.08em]">{t('group.served')}</div>
+        <OrderSection title={t('group.served')}>
           {servedGroups.map(g => (
             <div key={g.key} className="px-5 py-2.5 border-b border-surface flex items-center gap-2 opacity-60">
               <div className="flex-1">
@@ -80,19 +93,18 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
               </Button>
             </div>
           ))}
-        </div>
+        </OrderSection>
       )}
 
       {cancelled.length > 0 && (
-        <div className="mt-1">
-          <div className="px-5 pt-2.5 pb-1.5 text-label text-muted tracking-[0.08em]">{t('group.cancelledItems')}</div>
+        <OrderSection title={t('group.cancelledItems')}>
           {cancelled.map(item => (
             <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2 opacity-45">
               <span className="flex-1 text-note text-dim line-through">{item.menuItemName}</span>
               <span className="text-label text-muted">×{item.qty}</span>
             </div>
           ))}
-        </div>
+        </OrderSection>
       )}
 
     </div>

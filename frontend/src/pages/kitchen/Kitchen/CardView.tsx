@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { getSeatLabels } from "@/lib/utils";
 import { elapsed, elapsedColor } from "./utils";
 import type { DisplayOrder } from "./types";
 import type { Group, Seat } from "@order-system/shared";
@@ -15,7 +16,8 @@ export function CardView({ groups, orders, seats, onComplete, onCardClick }: {
     <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 p-4 animate-[fadeIn_0.25s_ease_both]">
       {groups.map(g => {
         const groupOrders = orders.filter(o => o.groupId === g.id);
-        const seatLabels = seats.filter(s => g.seatIds.includes(s.id)).map(s => s.label).join('・');
+        const seatLabels = getSeatLabels(seats, g.seatIds);
+        // グループ内で最も古い注文の時刻をカード右上の経過時間表示に使う
         const firstOrder = groupOrders[0] ?? null;
         return (
           <div
@@ -39,6 +41,7 @@ export function CardView({ groups, orders, seats, onComplete, onCardClick }: {
                 <div className="px-3.5 py-2 text-note text-muted">{t('kitchen.noOrders')}</div>
               ) : (
                 groupOrders.map(o => (
+                  // カード全体クリック（onCardClick）との競合を防ぐ
                   <div key={o.id} onClick={e => e.stopPropagation()} className="flex items-center px-3.5 py-1.5 gap-2">
                     <span className="flex-1 text-note text-ink">{o.item}</span>
                     <span className="text-xs text-muted">×{o.qty}</span>

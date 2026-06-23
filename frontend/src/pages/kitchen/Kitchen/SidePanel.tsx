@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { getSeatLabels } from "@/lib/utils";
 import type { Group, Seat } from "@order-system/shared";
 import type { DisplayCat, DisplayOrder } from "./types";
 
@@ -15,12 +16,13 @@ export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onSer
   const { t } = useTranslation();
   const group = groups.find(g => g.id === groupId);
   if (!group) return null;
-  const seatLabels = seats.filter(s => group.seatIds.includes(s.id)).map(s => s.label).join('・');
+  const seatLabels = getSeatLabels(seats, group.seatIds);
   const items = orders.filter(o => o.groupId === groupId);
   const readyItems   = items.filter(o => o.status === "ready");
   const pendingItems = items.filter(o => o.status === "pending");
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {/* 背景タップでパネルを閉じるためのオーバーレイ */}
       <div onClick={onClose} className="flex-1 bg-black/20"/>
       <div className="side-panel w-75 bg-white border-l border-divider flex flex-col h-full animate-[slideIn_0.2s_ease_both]">
         <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
