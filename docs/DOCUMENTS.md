@@ -23,50 +23,56 @@
   - 起動手順、環境変数一覧、デプロイ手順、Runbook、バックアップ/復旧手順を格納。
 
 運用上の注意:
+
 - 各ファイルは冒頭に「目的」と「対象読者」を必ず記載する。
 - ドキュメントの削除・移動は PR で管理することを推奨する。
 
 ---
 
-作成予定ファイル一覧（例）
+作成済みファイル一覧
 
-screens/
-- S100-home.md
-- S101-login.md
-- S102-group-detail.md
-- S200-hall.md
-- S300-kitchen.md
-- S400-admin-menu.md
-- S401-admin-products.md
-- S402-admin-seats.md
-- S403-admin-report.md
-- S404-admin-settings.md
-- S405-admin-staff.md
+- screens/
+  - S100-home.md
+  - S101-login.md
+  - S102-group-detail.md
+  - S200-hall.md
+  - S300-kitchen.md
+  - S400-admin-menu.md
+  - S401-admin-products.md
+  - S402-admin-seats.md
+  - S403-admin-report.md
+  - S404-admin-settings.md
+  - S405-admin-staff.md
 
-api/
-- api-spec.md (高レベルまとめ)
-- openapi.yaml (OpenAPI/Swagger 定義)
-- endpoints.md (EP 別サマリ)
-- auth.md (認証フロー)
-- sessions.md
-- seats.md
-- groups.md
-- orders.md
-- menus.md
-- reports.md
-- settings.md
+- api/
+  - specs/                    — 仕様ファイル
+    - api-spec.md
+  - websockets/               — Socket イベント仕様（server→client / client→server）
+    - websockets.md
+  - endpoints/                — 各エンドポイントの詳細（requests, responses）
+    - E000-endpoints.md       (短い参照一覧)
+    - E001-auth.md
+    - E002-sessions.md
+    - E003-groups.md
+    - E004-orders.md
+    - E005-seats.md
+    - E006-menus.md
+    - E007-courses.md
+    - E008-drink-plans.md
+    - E009-staff.md
+    - E010-settings.md
+    - E011-reports.md
 
-data-model/
-- prisma-summary.md
-- er-diagram.png
-- accounting-notes.md
-- migrations.md
+- data-model/
+  - data-model.md
+  - prisma-summary.md
+  - accounting-notes.md
+  - migrations.md
 
-ops/
-- runbook.md
-- deploy.md
-- env.md
-- backup-and-restore.md
-- ci-cd.md
+- ops/
+  - runbook.md
+  - deploy.md
+  - env.md
+  - backup-and-restore.md
 
 必要なファイルがあればここに追加してください。実際の作成は指示を受けてから行います。
