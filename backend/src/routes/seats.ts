@@ -36,7 +36,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const seat = await prisma.seat.findUnique({ where: { id: Number(id) } })
-    if (!seat) return reply.status(404).send({ error: 'Not found' })
+    if (!seat) return reply.status(404).send({ error: '席が見つかりません' })
     return seat
   })
 
@@ -66,7 +66,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
       return seat
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: '席が見つかりません' })
       }
       throw e
     }

@@ -47,7 +47,7 @@ const seatTablesRoutes: FastifyPluginAsync = async (fastify) => {
       return table
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'テーブルが見つかりません' })
       }
       throw e
     }

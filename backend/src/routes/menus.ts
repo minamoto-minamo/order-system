@@ -46,7 +46,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const item = await prisma.menuItem.findUnique({ where: { id: Number(id) } })
-    if (!item) return reply.status(404).send({ error: 'Not found' })
+    if (!item) return reply.status(404).send({ error: 'メニューが見つかりません' })
     return item
   })
 
@@ -77,7 +77,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const current = await prisma.menuItem.findUnique({ where: { id: Number(id) } })
-      if (!current) return reply.status(404).send({ error: 'Not found' })
+      if (!current) return reply.status(404).send({ error: 'メニューが見つかりません' })
 
       const item = await prisma.menuItem.update({
         where: { id: Number(id) },
@@ -98,7 +98,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       return item
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'メニューが見つかりません' })
       }
       throw e
     }
@@ -110,7 +110,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       await prisma.menuItem.delete({ where: { id: Number(id) } })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'Not found' })
+        if (e.code === 'P2025') return reply.status(404).send({ error: 'メニューが見つかりません' })
         if (e.code === 'P2003') return reply.status(409).send({ error: '注文済みのメニューは削除できません' })
       }
       throw e

@@ -46,7 +46,7 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
       return category
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'カテゴリが見つかりません' })
       }
       throw e
     }
@@ -58,7 +58,7 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
       await prisma.category.delete({ where: { id: Number(id) } })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'Not found' })
+        if (e.code === 'P2025') return reply.status(404).send({ error: 'カテゴリが見つかりません' })
         if (e.code === 'P2003') return reply.status(409).send({ error: '使用中のカテゴリは削除できません' })
       }
       throw e

@@ -18,7 +18,7 @@ declare module '@fastify/jwt' {
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (request.user?.role !== 'admin') {
-    return reply.status(403).send({ error: 'Forbidden' })
+    return reply.status(403).send({ error: '権限がありません' })
   }
 }
 
@@ -37,7 +37,7 @@ export default fp(async (fastify) => {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: 'Unauthorized' })
+      reply.status(401).send({ error: '認証が必要です' })
     }
   })
 })

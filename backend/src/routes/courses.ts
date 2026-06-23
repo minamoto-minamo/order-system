@@ -87,7 +87,7 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       return toCourse(course)
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'コースが見つかりません' })
       }
       throw e
     }
@@ -99,7 +99,7 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       await prisma.course.delete({ where: { id: Number(id) } })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'Not found' })
+        if (e.code === 'P2025') return reply.status(404).send({ error: 'コースが見つかりません' })
         if (e.code === 'P2003') return reply.status(409).send({ error: '使用中のコースは削除できません' })
       }
       throw e

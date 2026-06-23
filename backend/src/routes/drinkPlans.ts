@@ -61,7 +61,7 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
       return toDrinkPlan(plan)
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
       }
       throw e
     }
@@ -73,7 +73,7 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
       await prisma.drinkPlan.delete({ where: { id: Number(id) } })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'Not found' })
+        if (e.code === 'P2025') return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
         if (e.code === 'P2003') return reply.status(409).send({ error: '使用中の飲み放題プランは削除できません' })
       }
       throw e

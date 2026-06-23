@@ -58,7 +58,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const sessionId = Number(id)
 
     const session = await prisma.session.findUnique({ where: { id: sessionId } })
-    if (!session) return reply.status(404).send({ error: 'Not found' })
+    if (!session) return reply.status(404).send({ error: 'セッションが見つかりません' })
 
     const groups = await prisma.group.findMany({
       where: { sessionId },
@@ -166,7 +166,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       return result
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'セッションが見つかりません' })
       }
       throw e
     }

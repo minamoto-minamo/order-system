@@ -53,7 +53,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       where: { id: Number(id) },
       include: { seats: true },
     })
-    if (!group) return reply.status(404).send({ error: 'Not found' })
+    if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
     return toGroup(group)
   })
 
@@ -140,7 +140,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       return result
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: 'グループが見つかりません' })
       }
       throw e
     }

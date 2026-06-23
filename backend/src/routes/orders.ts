@@ -129,7 +129,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         }
       })
 
-      if (result === null) return reply.status(404).send({ error: 'Not found' })
+      if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
       if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })
 
       const mapped = toOrderItem(result)
@@ -141,7 +141,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       return mapped
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'Not found' })
+        return reply.status(404).send({ error: '注文が見つかりません' })
       }
       throw e
     }
