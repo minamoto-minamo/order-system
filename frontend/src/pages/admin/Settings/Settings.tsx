@@ -123,8 +123,12 @@ export default function Settings() {
 
             <div className="px-5 pt-2.5 pb-3.5">
               <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
-                💡 深夜営業の場合は24以上の時刻を入力してください。<br/>
-                例）翌1:00 の場合は <strong className="text-dim">25:00</strong> と入力
+                {t('settings.closingTimeHint').split('\n').map((line, i) => (
+                  <span key={i}>
+                    {i > 0 && <br/>}
+                    {line}
+                  </span>
+                ))}
               </div>
             </div>
           </Section>
@@ -161,7 +165,7 @@ export default function Settings() {
             </SettingRow>
             <div className="px-5 pt-2.5 pb-3.5">
               <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
-                💡 日本の標準税率は店内10%・テイクアウト8%です。
+                {t('settings.taxHint')}
               </div>
             </div>
           </Section>

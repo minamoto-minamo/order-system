@@ -53,7 +53,7 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, activeDri
                 {course.foodItems.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {course.foodItems.map((fi, i) => {
-                      const name = menus.find(m => m.id === fi.menuItemId)?.name ?? `商品${fi.menuItemId}`;
+                      const name = menus.find(m => m.id === fi.menuItemId)?.name ?? t('common.unknownItem', { id: fi.menuItemId });
                       return (
                         <span key={i} className="text-caption text-dim bg-surface border border-divider px-1.75 py-0.5 rounded-full">
                           {name}

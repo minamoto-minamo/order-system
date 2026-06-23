@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { TicketCard } from "./TicketCard";
 import type { DisplayCat, DisplayOrder } from "./types";
 
@@ -30,6 +31,7 @@ export function CategoryLane({ cat, orders, onComplete, onTicketClick }: {
   onComplete: (id: number) => void;
   onTicketClick: (groupId: number) => void;
 }) {
+  const { t } = useTranslation();
   const catOrders = orders.filter(o => o.catId === cat.id);
   if (catOrders.length === 0) return null;
   return (
@@ -38,7 +40,7 @@ export function CategoryLane({ cat, orders, onComplete, onTicketClick }: {
         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cat.color }}/>
         <span className="text-note font-medium text-ink">{cat.label}</span>
         <span className="text-label px-2 py-px rounded-full" style={{ color: cat.color, background: `${cat.color}18` }}>
-          {catOrders.length}件
+          {t('kitchen.pendingCount', { count: catOrders.length })}
         </span>
       </div>
       <div className="px-4 py-3 flex flex-col gap-3.5">
@@ -52,9 +54,10 @@ export function CategoryLane({ cat, orders, onComplete, onTicketClick }: {
             onTicketClick={onTicketClick}
           />
         ))}
+        {/* サブカテゴリ未設定またはDBから削除済みのサブカテゴリに属する注文を末尾にまとめる */}
         {catOrders.filter(o => !cat.subs.find(s => s.id === o.subId)).length > 0 && (
           <SubLane
-            sub={{ id: 0, label: "その他" }}
+            sub={{ id: 0, label: t('kitchen.otherCategory') }}
             orders={catOrders.filter(o => !cat.subs.find(s => s.id === o.subId))}
             accentColor={cat.color}
             onComplete={onComplete}
