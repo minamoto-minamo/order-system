@@ -29,10 +29,12 @@ export default fp(async (fastify) => {
   await fastify.register(cookie)
   await fastify.register(jwt, {
     secret,
+    // JWT 自体が署名済みのため cookie 署名は二重になるだけで不要
     cookie: { cookieName: 'token', signed: false },
   })
 
   fastify.addHook('preHandler', async (request, reply) => {
+    // login/logout はトークン取得・破棄エンドポイントなので認証前にアクセス可能にする
     if (request.url === '/api/auth/login' || request.url === '/api/auth/logout') return
     try {
       await request.jwtVerify()

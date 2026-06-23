@@ -10,6 +10,7 @@ export function toGroup(g: {
     name: g.name,
     guestCount: g.guestCount,
     seatIds: g.seats.map(s => s.seatId),
+    // Prisma は string 型で返すが shared 型は union literal なのでキャストする
     status: g.status as GroupStatus,
     sessionId: g.sessionId,
     courseId: g.courseId,

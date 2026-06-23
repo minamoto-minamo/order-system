@@ -19,11 +19,14 @@ import settingsRoutes from './routes/settings.js'
 import staffRoutes from './routes/staff.js'
 import seatTablesRoutes from './routes/seatTables.js'
 
+// ESM では __dirname が存在しないため import.meta.url から生成
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export async function buildApp() {
   const app = Fastify({ logger: true })
 
+  // 登録順: cors → socket → auth の順を守る
+  // socket は CORS 設定を参照するため cors より後、auth はルート登録前に必要
   await app.register(corsPlugin)
   await app.register(socketPlugin)
   await app.register(authPlugin)
@@ -46,6 +49,7 @@ export async function buildApp() {
 
   const frontendDist = resolve(__dirname, '../../frontend/dist')
   await app.register(staticPlugin, { root: frontendDist, prefix: '/' })
+  // React Router のクライアントサイドルーティングに対応するため未知パスを index.html にフォールバック
   app.setNotFoundHandler((_request, reply) => {
     reply.sendFile('index.html')
   })

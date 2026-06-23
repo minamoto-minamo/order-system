@@ -4,6 +4,7 @@ import cors from '@fastify/cors'
 import { parseCorsOrigins } from '../lib/config.js'
 
 const corsPlugin: FastifyPluginAsync = async (fastify) => {
+  // credentials: true は httpOnly cookie を cross-origin で送受信するために必要
   await fastify.register(cors, { origin: parseCorsOrigins(), credentials: true })
 }
 
