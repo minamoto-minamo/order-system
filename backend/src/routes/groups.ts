@@ -1,25 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
-import type { GroupStatus } from '@order-system/shared'
 import { prisma } from '../lib/prisma.js'
-
-function toGroup(g: {
-  id: number; name: string; guestCount: number; status: string; sessionId: number;
-  courseId: number | null; drinkPlanId: number | null; createdAt: Date;
-  seats: { seatId: number }[];
-}) {
-  return {
-    id: g.id,
-    name: g.name,
-    guestCount: g.guestCount,
-    seatIds: g.seats.map(s => s.seatId),
-    status: g.status as GroupStatus,
-    sessionId: g.sessionId,
-    courseId: g.courseId,
-    drinkPlanId: g.drinkPlanId,
-    createdAt: g.createdAt.toISOString(),
-  }
-}
+import { toGroup } from '../lib/mappers.js'
 
 const createBodySchema = {
   type: 'object',

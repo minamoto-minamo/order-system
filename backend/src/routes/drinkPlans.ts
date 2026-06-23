@@ -2,10 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
-
-function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: number }[] }) {
-  return { id: p.id, name: p.name, menuItemIds: p.items.map(i => i.menuItemId) }
-}
+import { toDrinkPlan } from '../lib/mappers.js'
 
 const createBodySchema = {
   type: 'object',

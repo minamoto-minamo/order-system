@@ -2,19 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
-
-function toCourse(c: {
-  id: number; name: string; price: number; drinkPlanId: number | null;
-  foodItems: { menuItemId: number; qty: number }[];
-}) {
-  return {
-    id: c.id,
-    name: c.name,
-    price: c.price,
-    drinkPlanId: c.drinkPlanId,
-    foodItems: c.foodItems.map(f => ({ menuItemId: f.menuItemId, qty: f.qty })),
-  }
-}
+import { toCourse } from '../lib/mappers.js'
 
 const foodItemSchema = {
   type: 'object',
