@@ -1,0 +1,218 @@
+# E006 — Menus / Categories / SubCategories
+
+## Purpose
+
+メニュー項目（MenuItem）・カテゴリ（Category）・サブカテゴリ（SubCategory）に関する参照・管理 API。
+
+## Audience
+
+フロント実装者、バックエンド実装者
+
+## ID / Paths / Auth
+
+- ID: E006
+- Base: `/api/menus`, `/api/categories`, `/api/subcategories`
+- Auth: JWT cookie（全エンドポイント要認証。POST/PUT/DELETE は admin 限定）
+
+---
+
+## Menus
+
+### Summary
+
+| Method | Path | Auth | 説明 |
+|---|---|---|---|
+| GET | `/api/menus` | staff+ | メニュー一覧 |
+| GET | `/api/menus/:id` | staff+ | メニュー詳細 |
+| POST | `/api/menus` | admin | メニュー作成 |
+| PUT | `/api/menus/:id` | admin | メニュー更新 |
+| DELETE | `/api/menus/:id` | admin | メニュー削除 |
+
+### Response Schema（MenuItem）
+
+```json
+{
+  "id": 1,
+  "name": "パスタ",
+  "price": 1200,
+  "categoryId": 1,
+  "subCategoryId": 2,
+  "soldOut": false,
+  "takeout": "dine_in"
+}
+```
+
+- `takeout`: `"dine_in"` | `"both"` | `"takeout"`
+
+### GET /api/menus — メニュー一覧
+
+Query parameters（全て省略可）:
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| `categoryId` | integer | カテゴリでフィルタ |
+| `subCategoryId` | integer | サブカテゴリでフィルタ |
+| `takeout` | string | `dine_in` / `both` / `takeout` でフィルタ |
+| `soldOut` | boolean | `true` で品切れのみ / `false` で販売中のみ |
+
+Response 200: MenuItem の配列
+
+### POST /api/menus — メニュー作成
+
+Request body（`name`, `price`, `categoryId`, `subCategoryId` は必須）:
+
+```json
+{
+  "name": "パスタ",
+  "price": 1200,
+  "categoryId": 1,
+  "subCategoryId": 2,
+  "soldOut": false,
+  "takeout": "dine_in"
+}
+```
+
+Response 201: 作成した MenuItem オブジェクト
+
+### PUT /api/menus/:id — メニュー更新
+
+Request body（全フィールド省略可）:
+
+```json
+{
+  "name": "パスタ（改）",
+  "price": 1300,
+  "soldOut": true
+}
+```
+
+Response 200: 更新後の MenuItem オブジェクト  
+Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）
+
+### DELETE /api/menus/:id — メニュー削除
+
+Response 204: No Content  
+Response 404: `{ "error": "メニューが見つかりません" }`  
+Response 409: `{ "error": "注文済みのメニューは削除できません" }`
+
+---
+
+## Categories
+
+### Summary
+
+| Method | Path | Auth | 説明 |
+|---|---|---|---|
+| GET | `/api/categories` | staff+ | カテゴリ一覧（sort 昇順） |
+| POST | `/api/categories` | admin | カテゴリ作成 |
+| PUT | `/api/categories/:id` | admin | カテゴリ更新 |
+| DELETE | `/api/categories/:id` | admin | カテゴリ削除 |
+
+### Response Schema（Category）
+
+```json
+{
+  "id": 1,
+  "name": "フード",
+  "sort": 0
+}
+```
+
+### POST /api/categories — カテゴリ作成
+
+Request body（`name` は必須、`sort` 省略時は 0）:
+
+```json
+{
+  "name": "フード",
+  "sort": 0
+}
+```
+
+Response 201: 作成した Category オブジェクト
+
+### PUT /api/categories/:id — カテゴリ更新
+
+Request body（全フィールド省略可）:
+
+```json
+{
+  "name": "ドリンク",
+  "sort": 1
+}
+```
+
+Response 200: 更新後の Category オブジェクト  
+Response 404: `{ "error": "カテゴリが見つかりません" }`
+
+### DELETE /api/categories/:id — カテゴリ削除
+
+Response 204: No Content  
+Response 404: `{ "error": "カテゴリが見つかりません" }`  
+Response 409: `{ "error": "使用中のカテゴリは削除できません" }`
+
+---
+
+## SubCategories
+
+### Summary
+
+| Method | Path | Auth | 説明 |
+|---|---|---|---|
+| GET | `/api/subcategories` | staff+ | サブカテゴリ一覧（sort 昇順） |
+| POST | `/api/subcategories` | admin | サブカテゴリ作成 |
+| PUT | `/api/subcategories/:id` | admin | サブカテゴリ更新 |
+| DELETE | `/api/subcategories/:id` | admin | サブカテゴリ削除 |
+
+### GET /api/subcategories — サブカテゴリ一覧
+
+Query parameters:
+
+| パラメータ | 型 | 説明 |
+|---|---|---|
+| `categoryId` | integer | 親カテゴリでフィルタ（省略可） |
+
+### Response Schema（SubCategory）
+
+```json
+{
+  "id": 1,
+  "name": "パスタ",
+  "categoryId": 1,
+  "sort": 0
+}
+```
+
+### POST /api/subcategories — サブカテゴリ作成
+
+Request body（`name`, `categoryId` は必須、`sort` 省略時は 0）:
+
+```json
+{
+  "name": "パスタ",
+  "categoryId": 1,
+  "sort": 0
+}
+```
+
+Response 201: 作成した SubCategory オブジェクト
+
+### PUT /api/subcategories/:id — サブカテゴリ更新
+
+Request body（全フィールド省略可）:
+
+```json
+{
+  "name": "ピザ",
+  "sort": 1
+}
+```
+
+Response 200: 更新後の SubCategory オブジェクト  
+Response 404: `{ "error": "サブカテゴリが見つかりません" }`
+
+### DELETE /api/subcategories/:id — サブカテゴリ削除
+
+Response 204: No Content  
+Response 404: `{ "error": "サブカテゴリが見つかりません" }`  
+Response 409: `{ "error": "使用中のサブカテゴリは削除できません" }`
