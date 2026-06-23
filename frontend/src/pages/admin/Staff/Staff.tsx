@@ -6,9 +6,18 @@ import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
 import type { StaffMember } from "@order-system/shared";
 import { useAuthStore } from "@/stores/auth";
+import { useForm } from "@/hooks/useForm";
 import { RoleBadge } from "./RoleBadge";
 
 type ModalMode = "add" | "edit" | null;
+
+type StaffForm = {
+  username: string;
+  password: string;
+  role: "admin" | "staff";
+};
+
+const EMPTY_FORM: StaffForm = { username: "", password: "", role: "staff" };
 
 export default function Staff() {
   const { t } = useTranslation();
@@ -17,10 +26,7 @@ export default function Staff() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
-  const [formUsername, setFormUsername] = useState("");
-  const [formPassword, setFormPassword] = useState("");
-  const [formRole, setFormRole] = useState<"admin" | "staff">("staff");
-  const [formError, setFormError] = useState<string | null>(null);
+  const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StaffForm>(EMPTY_FORM);
   const usernameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,19 +38,13 @@ export default function Staff() {
   }, [modalMode]);
 
   const openAdd = () => {
-    setFormUsername("");
-    setFormPassword("");
-    setFormRole("staff");
-    setFormError(null);
+    reset(EMPTY_FORM);
     setEditTarget(null);
     setModalMode("add");
   };
 
   const openEdit = (s: StaffMember) => {
-    setFormUsername(s.username);
-    setFormPassword("");
-    setFormRole(s.role as "admin" | "staff");
-    setFormError(null);
+    reset({ username: s.username, password: "", role: s.role as "admin" | "staff" });
     setEditTarget(s);
     setModalMode("edit");
   };
@@ -60,14 +60,14 @@ export default function Staff() {
     try {
       if (modalMode === "add") {
         const created = await api.post<StaffMember>(EP.staff, {
-          username: formUsername,
-          password: formPassword,
-          role: formRole,
+          username: form.username,
+          password: form.password,
+          role: form.role,
         });
         setStaffList(prev => [...prev, created]);
       } else if (modalMode === "edit" && editTarget) {
-        const body: Record<string, string> = { username: formUsername, role: formRole };
-        if (formPassword) body.password = formPassword;
+        const body: Record<string, string> = { username: form.username, role: form.role };
+        if (form.password) body.password = form.password;
         const updated = await api.put<StaffMember>(EP.staffMember(editTarget.id), body);
         setStaffList(prev => prev.map(s => s.id === updated.id ? updated : s));
       }
@@ -89,7 +89,7 @@ export default function Staff() {
       setStaffList(prev => prev.filter(s => s.id !== deleteTarget.id));
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("400")) alert(t("staff.errorSelf"));
+      if (msg.includes("422")) alert(t("staff.errorSelf"));
     }
     setDeleteTarget(null);
   };
@@ -100,8 +100,8 @@ export default function Staff() {
   };
 
   const isSaveDisabled =
-    !formUsername.trim() ||
-    (modalMode === "add" && !formPassword);
+    !form.username.trim() ||
+    (modalMode === "add" && !form.password);
 
   return (
     <div className="min-h-dvh bg-surface flex flex-col">
@@ -134,7 +134,7 @@ export default function Staff() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-medium text-ink truncate">{s.username}</span>
                     {s.id === me?.id && (
-                      <span className="text-caption text-muted">(自分)</span>
+                      <span className="text-caption text-muted">{t("staff.selfLabel")}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -182,8 +182,8 @@ export default function Staff() {
                 <input
                   ref={usernameRef}
                   className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full"
-                  value={formUsername}
-                  onChange={e => setFormUsername(e.target.value)}
+                  value={form.username}
+                  onChange={e => setValue("username", e.target.value)}
                 />
               </div>
               <div>
@@ -196,8 +196,8 @@ export default function Staff() {
                 <input
                   type="password"
                   className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full"
-                  value={formPassword}
-                  onChange={e => setFormPassword(e.target.value)}
+                  value={form.password}
+                  onChange={e => setValue("password", e.target.value)}
                   placeholder={modalMode === "edit" ? t("staff.passwordHint") : ""}
                 />
               </div>
@@ -205,8 +205,8 @@ export default function Staff() {
                 <label className="text-label text-muted block mb-1.5">{t("staff.role")}</label>
                 <select
                   className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full bg-white appearance-none"
-                  value={formRole}
-                  onChange={e => setFormRole(e.target.value as "admin" | "staff")}
+                  value={form.role}
+                  onChange={e => setValue("role", e.target.value as "admin" | "staff")}
                 >
                   <option value="staff">{t("staff.roleStaff")}</option>
                   <option value="admin">{t("staff.roleAdmin")}</option>
