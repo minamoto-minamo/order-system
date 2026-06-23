@@ -1,0 +1,74 @@
+# WebSockets / Socket.io Events
+
+## Purpose
+
+サーバーとクライアント間でやり取りする Socket.io イベントの仕様を一覧化する。
+
+## Audience
+
+フロント実装者、バックエンド実装者、QA
+
+## Conventions
+
+- イベント名は小文字のコロン区切り（例: `order:created`）
+- Payload は JSON。必須フィールドを明記する
+- 型定義は `shared/types/index.ts` の `ServerToClientEvents` / `ClientToServerEvents` を参照
+
+## 認証
+
+Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場合は接続を拒否する。
+
+## Server → Client
+
+- `order:created`
+  - Description: 注文作成時にブロードキャスト
+  - Payload: `OrderItem`
+
+- `order:updated`
+  - Description: 注文の状態変化（`pending` → `ready` → `served`）をブロードキャスト
+  - Payload: `OrderItem`
+
+- `order:cancelled`
+  - Description: 注文キャンセル時にブロードキャスト
+  - Payload: `itemId: number`
+
+- `group:created`
+  - Description: グループ作成時にブロードキャスト
+  - Payload: `Group`
+
+- `group:updated`
+  - Description: グループ更新時（ステータス変更・コース適用等）にブロードキャスト
+  - Payload: `Group`
+
+- `seat:updated`
+  - Description: 席の占有状態変化時にブロードキャスト
+  - Payload: `Seat`
+
+- `menu:soldout`
+  - Description: メニュー品目の品切れ状態変化時にブロードキャスト
+  - Payload: `(menuItemId: number, soldOut: boolean)`（2引数）
+
+- `session:updated`
+  - Description: 営業セッションの開始/終了時にブロードキャスト
+  - Payload: `Session`
+
+- `settings:updated`
+  - Description: 店舗設定変更時にブロードキャスト
+  - Payload: `Setting`
+
+## Client → Server
+
+- `order:complete`
+  - Description: キッチンが調理完了を報告（`pending` → `ready` に遷移）
+  - Payload: `itemId: number`
+
+- `order:serve`
+  - Description: ホールが提供完了を報告（`ready` → `served` に遷移）
+  - Payload: `itemId: number`
+
+> 注文作成は REST `POST /api/orders` 経由で行う。Socket では行わない。
+
+## Notes
+
+- 主要な状態遷移は Socket イベントで同期される。REST は参照用および操作に利用する。
+- イベント一覧は実装に合わせて随時更新すること。
