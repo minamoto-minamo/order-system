@@ -50,6 +50,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       path: '/',
       maxAge,
       sameSite: 'lax',
+      // 開発環境は http のため secure を外す（本番は https 必須）
       secure: process.env.NODE_ENV === 'production',
     })
     return { id: user.id, username: user.username, role: user.role }

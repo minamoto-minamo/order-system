@@ -30,6 +30,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/current', async (_request, reply) => {
     const session = await prisma.session.findFirst({ where: { status: 'open' } })
+    // return null だと Fastify が本文なしで応答するため reply.send を使う
     if (!session) return reply.send(null)
     return {
       id: session.id,
@@ -153,6 +154,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
         where: { id: Number(id) },
         data: {
           status,
+          // 再開（closed → open）時は closedAt をクリアする
           closedAt: status === 'closed' ? new Date() : null,
         },
       })

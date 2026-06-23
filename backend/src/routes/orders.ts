@@ -86,6 +86,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           data: {
             groupId: body.groupId,
             menuItemId: item.menuItemId,
+            // 注文時点の名称・価格をスナップショット保存（後からメニューを変更・削除しても履歴が壊れない）
             menuItemName: menuItemMap.get(item.menuItemId)!.name,
             price: menuItemMap.get(item.menuItemId)!.price,
             qty: item.qty,
@@ -109,6 +110,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const { qty } = request.body as { qty: number }
 
     try {
+      // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
       const result = await prisma.$transaction(async (tx) => {
         const order = await tx.orderItem.findUnique({ where: { id: Number(id) } })
         if (!order) return null
@@ -133,6 +135,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })
 
       const mapped = toOrderItem(result)
+      // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
       if (result.status === 'cancelled') {
         fastify.io.emit('order:cancelled', mapped.id)
       } else {

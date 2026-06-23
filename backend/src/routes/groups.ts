@@ -36,6 +36,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       if (Array.isArray(status)) {
         where.status = { in: status }
       } else {
+        // クライアントが ?status=active,bill_requested のようにカンマ区切りで渡す場合も受け付ける
         where.status = status.includes(',') ? { in: status.split(',') } : status
       }
     }
@@ -92,6 +93,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const result = toGroup(group)
     fastify.io.emit('group:created', result)
 
+    // ホール画面の席カードが占有状態をリアルタイムで反映できるよう通知する
     const seatRecords = await prisma.seat.findMany({ where: { id: { in: body.seatIds } } })
     for (const seat of seatRecords) {
       fastify.io.emit('seat:updated', seat)
@@ -115,6 +117,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     if (body.guestCount !== undefined) updateData.guestCount = body.guestCount
 
     if (body.seatIds !== undefined) {
+      // 差分更新ではなく全置換（deleteMany → create）で席割り当てを更新する
       updateData.seats = {
         deleteMany: {},
         create: body.seatIds.map(seatId => ({ seatId })),
