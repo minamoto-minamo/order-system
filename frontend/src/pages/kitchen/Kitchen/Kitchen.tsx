@@ -7,6 +7,8 @@ import { socket } from "@/lib/socket";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { useSocketListeners } from "@/hooks/useSocketListeners";
+import { getSeatLabels, isGroupActive } from "@/lib/utils";
 import type { OrderItem, Group, Seat, MenuItem, Category, SubCategory } from "@order-system/shared";
 import { CategoryLane } from "./CategoryLane";
 import { CardView } from "./CardView";
@@ -19,9 +21,7 @@ const CAT_COLORS = ['#4a9eff', '#3ec97a', '#f59e0b', '#e53935', '#9c27b0'];
 function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[]): DisplayOrder {
   const g = groups.find(x => x.id === o.groupId);
   const m = menus.find(x => x.id === o.menuItemId);
-  const seatLabels = g
-    ? seats.filter(s => g.seatIds.includes(s.id)).map(s => s.label).join('・')
-    : '';
+  const seatLabels = g ? getSeatLabels(seats, g.seatIds) : '';
   return {
     id: o.id, groupId: o.groupId,
     groupName: g?.name ?? `グループ${o.groupId}`,
@@ -65,46 +65,30 @@ export default function Kitchen() {
       setSubCategories(sc);
     }).catch(console.error);
 
-    const t = setInterval(() => setTick(n => n + 1), 60000);
+    const tickTimer = setInterval(() => setTick(n => n + 1), 60000);
+    return () => clearInterval(tickTimer);
+  }, []);
 
-    const onOrderCreated = (o: OrderItem) => {
+  useSocketListeners({
+    [SE.orderCreated]: (o: OrderItem) => {
       if (o.status === 'pending' || o.status === 'ready') setOrders(prev => [...prev, o]);
-    };
-    const onOrderUpdated = (o: OrderItem) => {
+    },
+    [SE.orderUpdated]: (o: OrderItem) => {
       setOrders(prev => {
         const filtered = prev.filter(x => x.id !== o.id);
         return (o.status === 'pending' || o.status === 'ready') ? [...filtered, o] : filtered;
       });
-    };
-    const onOrderCancelled = (id: number) => setOrders(prev => prev.filter(o => o.id !== id));
-    const onGroupCreated = (g: Group) => setGroups(prev => [...prev, g]);
-    const onGroupUpdated = (g: Group) => setGroups(prev =>
-      g.status === 'closed' ? prev.filter(x => x.id !== g.id) : prev.map(x => x.id === g.id ? g : x)
-    );
-    const onSeatUpdated = (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x));
-    const onMenuSoldout = (menuItemId: number, soldOut: boolean) => {
+    },
+    [SE.orderCancelled]: (id: number) => setOrders(prev => prev.filter(o => o.id !== id)),
+    [SE.groupCreated]: (g: Group) => setGroups(prev => [...prev, g]),
+    [SE.groupUpdated]: (g: Group) => setGroups(prev =>
+      isGroupActive(g) ? prev.map(x => x.id === g.id ? g : x) : prev.filter(x => x.id !== g.id)
+    ),
+    [SE.seatUpdated]: (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x)),
+    [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) => {
       setMenus(prev => prev.map(m => m.id === menuItemId ? { ...m, soldOut } : m));
-    };
-
-    socket.on(SE.orderCreated,   onOrderCreated);
-    socket.on(SE.orderUpdated,   onOrderUpdated);
-    socket.on(SE.orderCancelled, onOrderCancelled);
-    socket.on(SE.groupCreated,   onGroupCreated);
-    socket.on(SE.groupUpdated,   onGroupUpdated);
-    socket.on(SE.seatUpdated,    onSeatUpdated);
-    socket.on(SE.menuSoldout,    onMenuSoldout);
-
-    return () => {
-      clearInterval(t);
-      socket.off(SE.orderCreated,   onOrderCreated);
-      socket.off(SE.orderUpdated,   onOrderUpdated);
-      socket.off(SE.orderCancelled, onOrderCancelled);
-      socket.off(SE.groupCreated,   onGroupCreated);
-      socket.off(SE.groupUpdated,   onGroupUpdated);
-      socket.off(SE.seatUpdated,    onSeatUpdated);
-      socket.off(SE.menuSoldout,    onMenuSoldout);
-    };
-  }, []);
+    },
+  });
 
   const displayCats = useMemo<DisplayCat[]>(() =>
     categories
@@ -140,10 +124,10 @@ export default function Kitchen() {
             <>
               {t('kitchen.title')}
               {pendingCount > 0 && (
-                <span className="ml-2 text-label bg-surface-deep border border-line text-secondary px-2 py-0.5 rounded-full">{pendingCount}件</span>
+                <span className="ml-2 text-label bg-surface-deep border border-line text-secondary px-2 py-0.5 rounded-full">{t('kitchen.pendingCount', { count: pendingCount })}</span>
               )}
               {readyCount > 0 && (
-                <span className="ml-1.5 text-label bg-amber-bg text-bill border border-amber-border px-2 py-0.5 rounded-full">{`🍽 ${t('common.readyToServe')} ${readyCount}件`}</span>
+                <span className="ml-1.5 text-label bg-amber-bg text-bill border border-amber-border px-2 py-0.5 rounded-full">{`🍽 ${t('common.readyToServe')} ${t('kitchen.pendingCount', { count: readyCount })}`}</span>
               )}
             </>
           }
