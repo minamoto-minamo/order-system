@@ -9,7 +9,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: 'include',
     ...init,
   })
+  // /auth 自身が 401 を返したときに再帰ループしないよう除外
   if (res.status === 401 && !path.startsWith('/auth')) {
+    // React コンテキスト外から Zustand を直接更新
     useAuthStore.getState().setUser(null)
     throw new Error('401 Unauthorized')
   }
