@@ -74,6 +74,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    // bill_requested も会計完了前は席を占有しているため削除不可とする
     const inUse = await prisma.groupSeat.findFirst({
       where: {
         seatId: Number(id),

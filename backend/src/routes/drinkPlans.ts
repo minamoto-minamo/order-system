@@ -47,6 +47,7 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
     if (body.menuItemIds !== undefined) {
+      // 差分更新ではなく全置換。courses.ts の foodItems と同じ戦略
       data.items = {
         deleteMany: {},
         create: body.menuItemIds.map(menuItemId => ({ menuItemId })),

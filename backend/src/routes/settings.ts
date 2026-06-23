@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 
+// 設定はシングルトン構成。id=1 の1レコードのみ使用する
 const DEFAULT_SETTING = {
   id: 1,
   storeName: '居酒屋',

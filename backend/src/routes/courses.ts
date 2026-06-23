@@ -73,6 +73,7 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
     if (body.price !== undefined) data.price = body.price
     if (body.drinkPlanId !== undefined) data.drinkPlanId = body.drinkPlanId
     if (body.foodItems !== undefined) {
+      // 差分更新ではなく全置換。foodItems の順序管理を簡略化するための設計
       data.foodItems = {
         deleteMany: {},
         create: body.foodItems.map(f => ({ menuItemId: f.menuItemId, qty: f.qty })),

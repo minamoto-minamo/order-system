@@ -24,6 +24,7 @@ const updateBodySchema = {
   additionalProperties: false,
 } as const
 
+// passwordHash をレスポンスに含めないための明示的な select
 const select = { id: true, username: true, role: true, createdAt: true }
 
 const staffRoutes: FastifyPluginAsync = async (fastify) => {

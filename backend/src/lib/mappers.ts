@@ -47,6 +47,7 @@ export function toOrderItem(o: {
     menuItemName: o.menuItemName,
     price: o.price,
     qty: o.qty,
+    // toGroup と同様 — Prisma は string を返すが shared 型は union literal なのでキャストする
     status: o.status as OrderItemStatus,
     isTakeout: o.isTakeout,
     courseId: o.courseId,

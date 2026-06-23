@@ -39,6 +39,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     if (categoryId) where.categoryId = Number(categoryId)
     if (subCategoryId) where.subCategoryId = Number(subCategoryId)
     if (takeout) where.takeout = takeout
+    // クエリパラメータは常に文字列なので boolean に変換する
     if (soldOut !== undefined) where.soldOut = soldOut === 'true'
     return prisma.menuItem.findMany({ where })
   })
@@ -91,6 +92,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         },
       })
 
+      // 値が実際に変わった場合のみ emit して不要なクライアント再描画を抑制する
       if (body.soldOut !== undefined && body.soldOut !== current.soldOut) {
         fastify.io.emit('menu:soldout', item.id, item.soldOut)
       }
