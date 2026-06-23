@@ -34,6 +34,7 @@ export default function GroupDetail() {
   const [drinkPlans, setDrinkPlans] = useState<DrinkPlan[]>([]);
   const [seats, setSeats]           = useState<Seat[]>([]);
 
+  // Settings ロード完了後に上書きされる。ロード前に BillFooter を表示しても概算が出るようデフォルト値を設定
   const [taxRates, setTaxRates] = useState({ inHouse: 10, takeout: 8 });
 
   const [tab, setTab]                       = useState("menu");
@@ -69,12 +70,14 @@ export default function GroupDetail() {
   }, [groupId]);
 
   useSocketListeners({
+    // Socket と初期ロードの二重受信を防ぐため id 重複チェックを行う
     [SE.orderCreated]: (o: OrderItem) => {
       if (o.groupId === groupId) setItems(prev => prev.some(i => i.id === o.id) ? prev : [...prev, o]);
     },
     [SE.orderUpdated]: (o: OrderItem) => {
       if (o.groupId === groupId) setItems(prev => prev.map(i => i.id === o.id ? o : i));
     },
+    // orderCancelled は id だけ届くため、アイテム全体はローカルで status だけ更新
     [SE.orderCancelled]: (id: number) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i)),
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup(g);
@@ -87,6 +90,7 @@ export default function GroupDetail() {
 
   const seatLabels = getSeatLabels(seats, group?.seatIds ?? []);
 
+  // 食事アイテムを先に注文として登録してからグループの courseId/drinkPlanId を更新する
   const handleCourseOrder = async (course: Course, qty: number) => {
     if (!group) return;
     try {
@@ -187,6 +191,7 @@ export default function GroupDetail() {
           breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
         />
 
+        {/* bill_requested / closed 状態ではメニュー追加・コース操作を禁止するためタブを history のみに制限 */}
         <TabNavigation
           tabs={group?.status === 'active'
             ? [

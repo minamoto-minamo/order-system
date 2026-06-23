@@ -48,6 +48,7 @@ export default function App() {
     return () => { socket.off(SE.sessionUpdated, onSessionUpdated) }
   }, [setUser, setInitialized, setSession])
 
+  // 初期認証確認が終わるまで描画しないことでルートのフラッシュを防ぐ
   if (!initialized) return null
 
   return (

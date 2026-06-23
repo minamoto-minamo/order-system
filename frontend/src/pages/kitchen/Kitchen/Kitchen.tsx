@@ -16,6 +16,7 @@ import { SidePanel } from "./SidePanel";
 import type { DisplayCat, DisplayOrder } from "./types";
 import "./Kitchen.scss";
 
+// カテゴリ数が増えても色が足りなくなるのを防ぐため5色でローテーション
 const CAT_COLORS = ['#4a9eff', '#3ec97a', '#f59e0b', '#e53935', '#9c27b0'];
 
 function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: number) => string): DisplayOrder {
@@ -46,6 +47,7 @@ export default function Kitchen() {
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [view, setView]             = useState("ticket");
   const [panelGroupId, setPanelGroupId] = useState<number | null>(null);
+  // 1分ごとに再レンダリングして経過時間表示を最新化するためのダミー state
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function Kitchen() {
     },
     [SE.orderCancelled]: (id: number) => setOrders(prev => prev.filter(o => o.id !== id)),
     [SE.groupCreated]: (g: Group) => setGroups(prev => [...prev, g]),
+    // active でなくなったグループ（会計済み等）はリストから除去
     [SE.groupUpdated]: (g: Group) => setGroups(prev =>
       isGroupActive(g) ? prev.map(x => x.id === g.id ? g : x) : prev.filter(x => x.id !== g.id)
     ),

@@ -50,6 +50,7 @@ export default function DailyReport() {
         const catMap: Record<string, string> = {};
         cats.forEach((c, i) => { catMap[c] = PALETTE[i % PALETTE.length]; });
         const subMap: Record<string, string> = {};
+        // cats.length 分オフセットしてカテゴリとサブカテゴリで色が隣接しないよう分散
         subs.forEach((s, i) => { subMap[s] = PALETTE[(i + cats.length) % PALETTE.length]; });
         setCatColorMap(catMap);
         setSubColorMap(subMap);

@@ -15,6 +15,7 @@ export function BillFooter({ items, taxRates, groupStatus, onBillRequest, onBill
   const { t } = useTranslation();
   const activeItems = items.filter(i => i.status !== 'cancelled');
   const subtotal = activeItems.reduce((s, i) => s + i.price * i.qty, 0);
+  // Math.floor で端数切り捨て（円未満の税額が生じないようにする）
   const tax = activeItems.reduce((s, i) => s + Math.floor(i.price * i.qty * (i.isTakeout ? taxRates.takeout : taxRates.inHouse) / 100), 0);
 
   return (
@@ -51,6 +52,7 @@ export function BillFooter({ items, taxRates, groupStatus, onBillRequest, onBill
           className="w-full border-none rounded-[10px] py-3.5 text-sub font-medium text-white disabled:opacity-40"
           style={{ background: 'var(--color-ink)' }}
           onClick={onBillRequest}
+          // 調理中・提供待ちの注文が残っている間は会計リクエストを送れない
           disabled={items.some(i => i.status === 'pending' || i.status === 'ready')}
         >
           {t('group.bill')}

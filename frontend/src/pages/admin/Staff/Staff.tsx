@@ -34,6 +34,7 @@ export default function Staff() {
   }, []);
 
   useEffect(() => {
+    // アニメーション（slideUp 0.2s）開始直後はDOMが未レンダリングのため50ms遅延してフォーカス
     if (modalMode) setTimeout(() => usernameRef.current?.focus(), 50);
   }, [modalMode]);
 
