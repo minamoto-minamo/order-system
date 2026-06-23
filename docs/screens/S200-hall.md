@@ -36,9 +36,10 @@
 
 - GET `/api/seats`
 - GET `/api/seat-tables` — テーブル枠の取得
+- GET `/api/groups?status=active,bill_requested` — アクティブグループ一覧
 - GET `/api/orders?status=ready` — 提供待ち注文数の取得
 - POST `/api/groups`
-- Socket（購読）: group:created, seat:updated, group:updated, order:created, order:updated, order:cancelled
+- Socket（購読）: group:created, group:updated, seat:updated, order:created, order:updated, order:cancelled
 
 ## Acceptance Criteria
 
