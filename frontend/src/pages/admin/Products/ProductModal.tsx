@@ -1,8 +1,15 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components";
+import { useForm } from "@/hooks/useForm";
 import { TO_OPTIONS } from "./types";
 import type { Cat, Product, ProductFormData } from "./types";
+
+type ProductForm = {
+  name: string;
+  price: number | string;
+  subId: number | null;
+  takeout: string;
+};
 
 export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, onToggleSoldOut, onDelete }: {
   product?: Product;
@@ -14,10 +21,13 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
   onDelete?: () => void;
 }) {
   const { t } = useTranslation();
-const [name,    setName]    = useState(product?.name    ?? "");
-  const [price,   setPrice]   = useState(product?.price   ?? "");
-  const [subId,   setSubId]   = useState<number | null>(product?.subId ?? initialSubId ?? null);
-  const [takeout, setTakeout] = useState(product?.takeout ?? "both");
+  const { values: form, setValue } = useForm<ProductForm>({
+    name: product?.name ?? "",
+    price: product?.price ?? "",
+    subId: product?.subId ?? initialSubId ?? null,
+    takeout: product?.takeout ?? "both",
+  });
+  const { name, price, subId, takeout } = form;
 
   const contextLabel = !product && subId
     ? (() => {
@@ -46,22 +56,22 @@ const [name,    setName]    = useState(product?.name    ?? "");
         </div>
 
         <div className="text-caption text-muted mb-0.75">{t('productSettings.productName')}</div>
-        <input value={name} onChange={e => setName(e.target.value)}
-          placeholder="例：生ビール"
+        <input value={name} onChange={e => setValue("name", e.target.value)}
+          placeholder={t('productSettings.namePlaceholder')}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
         />
 
         <div className="text-caption text-muted mb-0.75">{t('productSettings.price')}</div>
-        <input value={price} onChange={e => setPrice(e.target.value)}
+        <input value={price} onChange={e => setValue("price", e.target.value)}
           placeholder="例：550" type="number"
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
         />
 
         <div className="text-caption text-muted mb-0.75">{t('productSettings.category')}</div>
-        <select value={subId ?? ""} onChange={e => setSubId(e.target.value ? Number(e.target.value) : null)}
+        <select value={subId ?? ""} onChange={e => setValue("subId", e.target.value ? Number(e.target.value) : null)}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-2 appearance-none"
         >
-          {!subId && <option value="">— 選択してください —</option>}
+          {!subId && <option value="">{t('productSettings.selectPrompt')}</option>}
           {cats.map(c => (
             <optgroup key={c.id} label={c.label}>
               {c.subs.map(s => (
@@ -72,7 +82,7 @@ const [name,    setName]    = useState(product?.name    ?? "");
         </select>
 
         <div className="text-caption text-muted mb-0.75">{t('productSettings.takeoutType')}</div>
-        <select value={takeout} onChange={e => setTakeout(e.target.value)}
+        <select value={takeout} onChange={e => setValue("takeout", e.target.value)}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-3 appearance-none"
         >
           {TO_OPTIONS.map(opt => (

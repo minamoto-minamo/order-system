@@ -6,6 +6,9 @@ import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { TableRect } from "./TableRect";
 import { SeatCell } from "./SeatCell";
+import { Palette } from "./Palette";
+import { EditModal } from "./EditModal";
+import { FooterBar } from "./FooterBar";
 import type { TableData, SeatData, SelectedItem, DragState, ApiSeat, ApiTable } from "./types";
 import { G } from "./types";
 import "./SeatLayout.scss";
@@ -32,6 +35,7 @@ export default function SeatLayout() {
 
   const originalSeatsRef   = useRef<ApiSeat[]>([]);
   const originalTablesRef  = useRef<ApiTable[]>([]);
+  // 仮ID: 負数にすることでDBが発行する正数IDと衝突しない
   const nextSeatIdRef      = useRef(-1);
   const nextTableIdRef     = useRef(-1);
 
@@ -201,7 +205,7 @@ export default function SeatLayout() {
     const y = snap(Math.max(0, clientY - rect.top  - G / 2));
     if (type === "table") {
       const tableId = nextTableIdRef.current--;
-      const newTable: TableData = { id: tableId, label: `テーブル${tables.length + 1}`, x, y, w: G*3, h: G*2 };
+      const newTable: TableData = { id: tableId, label: t('seatEditor.defaultTableLabel', { n: tables.length + 1 }), x, y, w: G*3, h: G*2 };
       setTables(prev => [...prev, newTable]);
       setSelected({ kind: "table", id: tableId });
     } else {
@@ -300,43 +304,12 @@ export default function SeatLayout() {
         <div className="flex-1 flex overflow-hidden">
 
           {/* 左サイドバー */}
-          <div className={`bg-white border-r border-divider shrink-0 flex flex-col overflow-y-auto overflow-x-hidden transition-[width] duration-200 ${sidebarOpen ? 'w-39' : 'w-10'}`}>
-            <button
-              className="action-btn self-end m-1.5 w-5 h-5 flex items-center justify-center rounded text-muted text-note shrink-0"
-              onClick={() => setSidebarOpen(v => !v)}
-            >
-              {sidebarOpen ? '«' : '»'}
-            </button>
-            <div className={`flex flex-col flex-1 ${sidebarOpen ? 'px-3 pb-4' : 'px-1.5 pb-3'}`}>
-              {sidebarOpen
-                ? <div className="text-label text-muted tracking-widest mb-2.5">{t('common.add')}</div>
-                : <div className="text-caption text-dim text-center mb-1.5">追加</div>
-              }
-              {paletteItems.map(item => (
-                <div
-                  key={item.type}
-                  className={`palette-item mb-1.75 flex items-center ${sidebarOpen ? 'bg-surface border border-divider rounded-lg gap-2 px-2.5 py-2.25' : 'justify-center p-1.5'}`}
-                  onPointerDown={(e) => handlePalettePointerDown(e, item.type, item.icon)}
-                  title={item.label}
-                >
-                  <div className={`w-6.5 h-6.5 bg-surface-deep border border-line flex items-center justify-center text-xs text-dim shrink-0 ${item.type === 'seat' ? 'rounded-full' : 'rounded-[5px]'}`}>
-                    {item.icon}
-                  </div>
-                  {sidebarOpen && (
-                    <div className="min-w-0">
-                      <div className="text-label text-secondary font-medium">{item.label}</div>
-                      <div className="text-caption text-dim mt-px">{item.sub}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {sidebarOpen && (
-                <div className="text-caption text-dim text-center pt-1.5 pb-3.5 leading-[1.7]">
-                  {t('seatEditor.dragHintLine1')}<br />{t('seatEditor.dragHintLine2')}
-                </div>
-              )}
-            </div>
-          </div>
+          <Palette
+            sidebarOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen(v => !v)}
+            items={paletteItems}
+            onPalettePointerDown={handlePalettePointerDown}
+          />
 
           {/* キャンバスエリア */}
           <div className="flex-1 overflow-auto pb-52">
@@ -377,59 +350,23 @@ export default function SeatLayout() {
         </div>
 
       {/* 編集モーダル */}
-      {selectedItem && (
-        <div className="fixed bottom-0 left-0 right-0 z-200 flex justify-center pointer-events-none animate-[slideUp_0.2s_ease_both]">
-          <div className="pointer-events-auto bg-white rounded-t-2xl px-5 pt-4 pb-8 w-full max-w-lg shadow-xl border-t border-divider">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium text-ink">
-                {selected?.kind === "table" ? t('seatEditor.editTable') : t('seatEditor.editSeat')}
-              </div>
-              <button className="action-btn w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={() => setSelected(null)}>×</button>
-            </div>
-            <div className="text-label text-dim mb-1">{t('seatEditor.labelName')}</div>
-            <input
-              value={selectedItem.label}
-              onChange={(e) => handleLabelChange(e.target.value)}
-              className="input-field w-full border border-line rounded-[7px] px-3 py-2.25 text-sm outline-none text-ink mb-3"
-            />
-            {selected?.kind === "table" && (
-              <div className="text-caption text-dim mb-3 leading-[1.6]">
-                {Math.round((selectedItem as TableData).w / G)} × {Math.round((selectedItem as TableData).h / G)} セル
-                <span className="ml-1">（右下ドラッグでリサイズ）</span>
-              </div>
-            )}
-            {selected?.kind === "seat" && (
-              <div className="text-caption text-dim mb-3 leading-[1.6]">
-                {t('seatEditor.tableHint')}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button className="action-btn flex-1 py-2.25 border border-danger-border rounded-lg text-note text-danger bg-white" onClick={handleDelete}>
-                {t('common.delete')}
-              </button>
-              <button className="action-btn flex-1 py-2.25 border-none rounded-lg text-note text-white bg-ink font-medium" onClick={() => setSelected(null)}>
-                {t('common.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {selectedItem && selected && (
+        <EditModal
+          item={selectedItem}
+          selected={selected}
+          onLabelChange={handleLabelChange}
+          onDelete={handleDelete}
+          onClose={() => setSelected(null)}
+        />
       )}
 
         {/* フッター */}
-        <div className="bg-white border-t border-divider px-5 py-2.5 flex gap-5 items-center shrink-0">
-          <div className="text-xs text-muted">
-            {t('seatEditor.footerTables')}：<span className="text-dim font-medium">{tables.length}</span>
-          </div>
-          <div className="text-xs text-muted">
-            {t('seatEditor.footerTableSeats')}：<span className="text-dim font-medium">{tableSeats.length}{t('seatEditor.seatUnit')}</span>
-          </div>
-          <div className="text-xs text-muted">
-            {t('seatEditor.footerCounter')}：<span className="text-dim font-medium">{counterSeats.length}{t('seatEditor.seatUnit')}</span>
-          </div>
-          <div className="text-xs text-muted ml-auto">
-            {t('seatEditor.footerTotal')}：<span className="text-dim font-medium">{seats.length}{t('seatEditor.seatUnit')}</span>
-          </div>
-        </div>
+        <FooterBar
+          tableCount={tables.length}
+          tableSeatCount={tableSeats.length}
+          counterSeatCount={counterSeats.length}
+          totalSeatCount={seats.length}
+        />
       </div>
     </>
   );

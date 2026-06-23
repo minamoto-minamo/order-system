@@ -1,13 +1,12 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useSessionStore } from "@/stores/session";
 import { useAuthStore } from "@/stores/auth";
+import { useSessionActions } from "@/hooks/useSessionActions";
 import { BottomSheetModal } from "@/components/modal/BottomSheetModal";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import type { Session } from "@order-system/shared";
+import { isAdmin } from "@/lib/utils";
 import homeIcon    from "@/assets/icons/home.png";
 import hallIcon    from "@/assets/icons/hall.png";
 import kitchenIcon from "@/assets/icons/kitchen.png";
@@ -24,45 +23,27 @@ interface NavDrawerProps {
 export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { session, setSession } = useSessionStore();
   const { user, setUser } = useAuthStore();
-  const [showCloseConfirm, setShowCloseConfirm]   = useState(false);
-  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
-  const [closeError, setCloseError] = useState<string | null>(null);
-
-  const isOpen = session?.status === 'open';
+  const {
+    session,
+    isOpen,
+    showCloseConfirm,
+    setShowCloseConfirm,
+    showReopenConfirm,
+    setShowReopenConfirm,
+    closeError,
+    closeSession,
+    reopenSession,
+    newSession,
+    dismissCloseConfirm,
+  } = useSessionActions({ onSuccess: onClose });
 
   const go = (path: string) => { navigate(path); onClose(); };
-
-  const handleCloseSession = async () => {
-    if (!session) return;
-    try {
-      const updated = await api.put<Session>(EP.session(session.id), { status: 'closed' });
-      setSession(updated);
-      setShowCloseConfirm(false);
-      setCloseError(null);
-      onClose();
-    } catch {
-      setCloseError(t('session.activeGroupsExist'));
-    }
-  };
-
-  const handleReopenSession = async () => {
-    if (!session) return;
-    const updated = await api.put<Session>(EP.session(session.id), { status: 'open' }).catch(() => null);
-    if (updated) setSession(updated);
-    setShowReopenConfirm(false);
-  };
 
   const handleLogout = async () => {
     await api.post(EP.authLogout, {}).catch(() => {});
     setUser(null);
     navigate(ROUTES.login);
-  };
-
-  const handleNewSession = async () => {
-    const created = await api.post<Session>(EP.sessions, {}).catch(() => null);
-    if (created) { setSession(created); onClose(); }
   };
 
   return (
@@ -85,7 +66,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
             <NavItem label={t('nav.home')}    icon={homeIcon}    onClick={() => go(ROUTES.root)} />
             <NavItem label={t('mode.hall')}    icon={hallIcon}    onClick={() => go(ROUTES.hall)}    disabled={!isOpen} />
             <NavItem label={t('mode.kitchen')} icon={kitchenIcon} onClick={() => go(ROUTES.kitchen)} disabled={!isOpen} />
-            <NavItem label={t('mode.admin')} icon={settingIcon} onClick={() => go(ROUTES.admin)} disabled={user?.role !== 'admin'} />
+            <NavItem label={t('mode.admin')} icon={settingIcon} onClick={() => go(ROUTES.admin)} disabled={!isAdmin(user)} />
 
             <div className="mx-5 my-2.5 border-t border-divider" />
 
@@ -96,21 +77,21 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
                 onClick={() => setShowCloseConfirm(true)}
                 variant="danger"
                 dot={isOverTime}
-                sub={isOverTime ? "営業終了予定時刻を過ぎています" : undefined}
+                sub={isOverTime ? t('nav.overtimeWarning') : undefined}
               />
             ) : (
               <>
                 {session && (
                   <NavItem label={t('session.reopenAction')} onClick={() => setShowReopenConfirm(true)} />
                 )}
-                <NavItem label={t('session.newSessionAction')} onClick={handleNewSession} />
+                <NavItem label={t('session.newSessionAction')} onClick={newSession} />
               </>
             )}
 
             <div className="mx-5 my-2.5 border-t border-divider" />
 
             {user && (
-              <div className="px-5 pb-1 text-xs font-semibold text-muted tracking-[0.04em]">ログイン中: {user.username}</div>
+              <div className="px-5 pb-1 text-xs font-semibold text-muted tracking-[0.04em]">{t('nav.loggedInAs', { username: user.username })}</div>
             )}
             <NavItem label={t('nav.logout')} icon={logoutIcon} onClick={handleLogout} />
 
@@ -120,9 +101,9 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
 
       <BottomSheetModal
         show={showCloseConfirm}
-        onClose={() => { setShowCloseConfirm(false); setCloseError(null); }}
-        secondaryAction={{ label: t('common.cancel'), onClick: () => { setShowCloseConfirm(false); setCloseError(null); } }}
-        primaryAction={{ label: t('session.close'), onClick: handleCloseSession }}
+        onClose={dismissCloseConfirm}
+        secondaryAction={{ label: t('common.cancel'), onClick: dismissCloseConfirm }}
+        primaryAction={{ label: t('session.close'), onClick: closeSession }}
       >
         <div className="mb-5">
           <div className="text-sub font-medium text-ink mb-2">{t('session.confirmClose')}</div>
@@ -138,7 +119,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
         description={t('session.confirmReopenDesc')}
         onClose={() => setShowReopenConfirm(false)}
         secondaryAction={{ label: t('common.cancel'), onClick: () => setShowReopenConfirm(false) }}
-        primaryAction={{ label: t('session.reopen'), onClick: handleReopenSession }}
+        primaryAction={{ label: t('session.reopen'), onClick: reopenSession }}
       />
     </>
   );
