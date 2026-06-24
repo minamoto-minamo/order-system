@@ -19,6 +19,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSessionStore } from '@/stores/session'
 import type { Session } from '@order-system/shared'
 import { useEffect } from 'react'
+import { PageLayout } from '@/components/layout/PageLayout'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 function RequireAuth({ children, adminOnly = false, requireSession = false }: { children: React.ReactNode; adminOnly?: boolean; requireSession?: boolean }) {
@@ -27,7 +28,7 @@ function RequireAuth({ children, adminOnly = false, requireSession = false }: { 
   if (!user) return <Navigate to={ROUTES.login} replace />
   if (adminOnly && user.role !== 'admin') return <Navigate to={ROUTES.root} replace />
   if (requireSession && session?.status !== 'open') return <Navigate to={ROUTES.root} replace />
-  return <>{children}</>
+  return <PageLayout>{children}</PageLayout>
 }
 
 export default function App() {

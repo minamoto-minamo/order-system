@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Button } from "@/components";
+import { BaseButton } from "@/components";
 import { api } from "@/lib/api";
-import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import { useAuthStore } from "@/stores/auth";
+import { ROUTES } from "@/lib/routes";
 import type { AuthUser } from "@/stores/auth";
+import { useAuthStore } from "@/stores/auth";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -60,14 +60,14 @@ export default function Login() {
           {error && (
             <div className="text-xs text-danger text-center">{error}</div>
           )}
-          <Button
+          <BaseButton
             type="submit"
             variant="primary"
             disabled={loading}
             className="w-full rounded-[10px] py-3 text-sm font-medium mt-1 disabled:opacity-50"
           >
             {loading ? t('login.submitting') : t('login.submit')}
-          </Button>
+          </BaseButton>
         </form>
       </div>
     </div>

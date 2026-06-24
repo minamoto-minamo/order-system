@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, InputModal } from "@/components";
+import { AppHeader, InputModal, Toast } from "@/components";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { useToast } from "@/hooks/useToast";
 import type { Category, SubCategory, MenuItem } from "@order-system/shared";
-import { ProductModal } from "./ProductModal";
-import { CategorySidebar } from "./CategorySidebar";
-import { ProductList } from "./ProductList";
-import type { Cat, Product, ProductFormData, ModalState } from "./types";
+import { ProductModal } from "./components/ProductModal";
+import { CategorySidebar } from "./components/CategorySidebar";
+import { ProductList } from "./components/ProductList";
+import type { Cat, Product, ProductFormData, ModalState } from "./components/types";
 
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
   const { t } = useTranslation();
-  const { showToast } = useToast();
+  const { toast, showToast } = useToast();
   const [cats, setCats]         = useState<Cat[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
@@ -169,14 +169,13 @@ export default function Products() {
 
   return (
     <>
-      <div className="h-dvh bg-surface flex flex-col">
-        <AppHeader title={t('admin.products')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
+      <AppHeader title={t('admin.products')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
 
-        {/* ボディ：2カラム */}
-        <div className="flex-1 flex overflow-hidden">
+      {/* ボディ：2カラム */}
+      <div className="flex-1 flex overflow-hidden">
 
-          {/* 左：カテゴリツリー */}
-          <CategorySidebar
+        {/* 左：カテゴリツリー */}
+        <CategorySidebar
             cats={cats}
             products={products}
             selectedSubId={selectedSubId}
@@ -199,7 +198,6 @@ export default function Products() {
             setModal={setModal}
           />
         </div>
-      </div>
 
       {/* モーダル群 */}
       {modal?.type === "addCat" && (
@@ -230,6 +228,7 @@ export default function Products() {
           onToggleSoldOut={() => { toggleSoldOut(modal.payload.id); setModal(null); }}
           onDelete={() => { deleteProduct(modal.payload.id); setModal(null); }} />
       )}
+      <Toast message={toast} />
     </>
   );
 }

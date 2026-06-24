@@ -10,28 +10,3 @@
     background: var(--color-surface-deep) !important;
   }
 }
-
-.ticket-card {
-  transition: box-shadow 0.12s ease;
-  cursor: pointer;
-  animation: popIn 0.2s ease both;
-
-  &:hover {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
-  }
-}
-
-.lane-scroll {
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--color-surface);
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-divider);
-    border-radius: 2px;
-  }
-}

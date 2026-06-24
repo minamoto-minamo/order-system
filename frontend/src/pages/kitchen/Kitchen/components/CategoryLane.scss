@@ -1,0 +1,14 @@
+.lane-scroll {
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--color-surface);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-divider);
+    border-radius: 2px;
+  }
+}

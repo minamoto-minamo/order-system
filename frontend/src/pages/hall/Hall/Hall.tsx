@@ -1,17 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { AppHeader, SubHeader, BottomSheetModal, QuantityControl, Button } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, QuantityControl, SubHeader } from "@/components";
+import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { api } from "@/lib/api";
-import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
-import { useSocketListeners } from "@/hooks/useSocketListeners";
+import { ROUTES } from "@/lib/routes";
 import { isGroupActive } from "@/lib/utils";
-import type { Seat, SeatTable, Group, OrderItem } from "@order-system/shared";
-import { SeatCell } from "./SeatCell";
-import type { SeatStatus } from "./SeatCell";
-import "./Hall.scss";
+import type { Group, OrderItem, Seat, SeatTable } from "@order-system/shared";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import type { SeatStatus } from "./components/FloorSeat";
+import { FloorSeat } from "./components/FloorSeat";
+import { FloorTable } from "./components/FloorTable";
 
 // 席セルの基本グリッドサイズ (px)。キャンバスの余白計算に使う
 const G = 48;
@@ -23,36 +23,12 @@ function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
   return 'occupied';
 }
 
-function TableRect({ table, seats, groups, isSelected, onTap }: {
-  table: SeatTable; seats: Seat[]; groups: Group[]; isSelected: boolean; onTap: (table: SeatTable) => void;
-}) {
-  const tableSeats = seats.filter(s => s.tableId === table.id);
-  const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
-  return (
-    <>
-      <div
-        className={`absolute z-1 rounded-lg border-[1.5px] border-dashed ${
-          isSelected ? 'bg-info-bg border-info' : hasOccupied ? 'bg-surface border-line' : 'tappable bg-white border-divider'
-        }`}
-        style={{ left: table.x, top: table.y, width: table.w, height: table.h }}
-        onClick={() => onTap(table)}
-      />
-      <span
-        className={`absolute z-20 text-micro pointer-events-none ${isSelected ? 'text-info' : 'text-dim'}`}
-        style={{ left: table.x + 6, top: table.y + 4 }}
-      >
-        {table.label}
-      </span>
-    </>
-  );
-}
-
 export default function Hall() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [seats, setSeats]           = useState<Seat[]>([]);
+  const [seats, setSeats] = useState<Seat[]>([]);
   const [seatTables, setSeatTables] = useState<SeatTable[]>([]);
-  const [groups, setGroups]         = useState<Group[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [readyOrders, setReadyOrders] = useState<OrderItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -168,10 +144,10 @@ export default function Hall() {
     }
   };
 
-  const emptyCnt    = seats.filter(s => getSeatStatus(s, groups) === 'empty').length;
+  const emptyCnt = seats.filter(s => getSeatStatus(s, groups) === 'empty').length;
   const occupiedCnt = seats.filter(s => getSeatStatus(s, groups) === 'occupied').length;
-  const billCnt     = seats.filter(s => getSeatStatus(s, groups) === 'bill').length;
-  const readyCnt    = seats.filter(s => {
+  const billCnt = seats.filter(s => getSeatStatus(s, groups) === 'bill').length;
+  const readyCnt = seats.filter(s => {
     const g = groups.find(gr => gr.seatIds.includes(s.id) && isGroupActive(gr));
     return g && (readyCountByGroup[g.id] ?? 0) > 0;
   }).length;
@@ -182,94 +158,91 @@ export default function Hall() {
 
   return (
     <>
-      <div className="min-h-dvh bg-surface flex flex-col">
+      <AppHeader title={t('hall.title')} />
 
-        <AppHeader title={t('hall.title')} />
-
-        <SubHeader
-          left={
-            <div className="flex gap-4">
-              {[
-                { label: t('hall.emptySeat'),      count: emptyCnt,    color: "var(--color-faint)" },
-                { label: t('hall.occupied'),       count: occupiedCnt, color: "var(--color-open)" },
-                { label: t('common.readyToServe'), count: readyCnt,    color: "var(--color-amber)" },
-                { label: t('hall.billRequested'),  count: billCnt,     color: "var(--color-bill)" },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-1.25">
-                  <div className="w-1.75 h-1.75 rounded-full" style={{ background: item.color }}/>
-                  <span className="text-label text-muted">{item.label} {item.count}</span>
-                </div>
-              ))}
-            </div>
-          }
-        />
-
-        <div className="flex-1 overflow-auto p-4 animate-[fadeIn_0.3s_ease_both]">
-          <div
-            className="relative bg-white border border-divider rounded-[10px]"
-            style={{ width: canvasW, height: canvasH, minWidth: canvasW }}
-          >
-            {tables.map(table => {
-              const tableSeats = seats.filter(s => s.tableId === table.id);
-              const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
-              const ids = tableSeats.map(s => s.id);
-              const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
-              return (
-                <TableRect key={table.id} table={table} seats={seats} groups={groups} isSelected={isSelected} onTap={handleTableTap} />
-              );
-            })}
-            {seats.map(seat => {
-              const status = getSeatStatus(seat, groups);
-              const group = groups.find(g => g.seatIds.includes(seat.id) && isGroupActive(g)) ?? null;
-              return (
-                <SeatCell
-                  key={seat.id}
-                  seat={seat}
-                  status={status}
-                  group={group}
-                  readyCount={group ? (readyCountByGroup[group.id] ?? 0) : 0}
-                  isSelected={selectedIds.includes(seat.id)}
-                  onTap={handleTap}
-                />
-              );
-            })}
+      <SubHeader
+        left={
+          <div className="flex gap-4">
+            {[
+              { label: t('hall.emptySeat'), count: emptyCnt, color: "var(--color-faint)" },
+              { label: t('hall.occupied'), count: occupiedCnt, color: "var(--color-open)" },
+              { label: t('common.readyToServe'), count: readyCnt, color: "var(--color-amber)" },
+              { label: t('hall.billRequested'), count: billCnt, color: "var(--color-bill)" },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-1.25">
+                <div className="w-1.75 h-1.75 rounded-full" style={{ background: item.color }} />
+                <span className="text-label text-muted">{item.label} {item.count}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        }
+      />
 
-        {canCreate && (
-          <div className="fixed bottom-0 left-0 right-0 px-5 py-3.5 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
-            <div className="text-label text-muted mb-2 text-center">
-              {t('hall.seatsSelected', { seats: groupName })}
-            </div>
-            <Button
-              variant="primary"
-              onClick={() => { setGuestCount(1); setShowCreateModal(true); }}
-              className="w-full rounded-[10px] p-3.5 text-sm font-medium tracking-[0.04em]"
-            >
-              {t('hall.createGroup')}
-            </Button>
-          </div>
-        )}
-
-        <BottomSheetModal
-          show={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          secondaryAction={{ label: t('common.cancel'), onClick: () => setShowCreateModal(false) }}
-          primaryAction={{ label: t('hall.createGroupAction', { count: guestCount }), onClick: () => { handleCreateGroup(); } }}
+      <div className="flex-1 overflow-auto p-4 animate-[fadeIn_0.3s_ease_both]">
+        <div
+          className="relative bg-white border border-divider rounded-[10px]"
+          style={{ width: canvasW, height: canvasH, minWidth: canvasW }}
         >
-          <div className="text-sub font-medium text-ink mb-1">
-            {t('hall.createGroup')}
-          </div>
-          <div className="text-xs text-muted mb-5">
-            {groupName}
-          </div>
-          <div className="mb-6">
-            <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-            <QuantityControl value={guestCount} onChange={setGuestCount} min={1} unit="名" />
-          </div>
-        </BottomSheetModal>
-
+          {tables.map(table => {
+            const tableSeats = seats.filter(s => s.tableId === table.id);
+            const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
+            const ids = tableSeats.map(s => s.id);
+            const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
+            return (
+              <FloorTable key={table.id} table={table} seats={seats} groups={groups} isSelected={isSelected} onTap={handleTableTap} />
+            );
+          })}
+          {seats.map(seat => {
+            const status = getSeatStatus(seat, groups);
+            const group = groups.find(g => g.seatIds.includes(seat.id) && isGroupActive(g)) ?? null;
+            return (
+              <FloorSeat
+                key={seat.id}
+                seat={seat}
+                status={status}
+                group={group}
+                readyCount={group ? (readyCountByGroup[group.id] ?? 0) : 0}
+                isSelected={selectedIds.includes(seat.id)}
+                onTap={handleTap}
+              />
+            );
+          })}
+        </div>
       </div>
+
+      {canCreate && (
+        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 py-3.5 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+          <div className="text-label text-muted mb-2 text-center">
+            {t('hall.seatsSelected', { seats: groupName })}
+          </div>
+          <BaseButton
+            variant="primary"
+            onClick={() => { setGuestCount(1); setShowCreateModal(true); }}
+            className="w-full rounded-[10px] p-3.5 text-sm font-medium tracking-[0.04em]"
+          >
+            {t('hall.createGroup')}
+          </BaseButton>
+        </div>
+      )}
+
+      <BottomSheetModal
+        show={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        secondaryAction={{ label: t('common.cancel'), onClick: () => setShowCreateModal(false) }}
+        primaryAction={{ label: t('hall.createGroupAction', { count: guestCount }), onClick: () => { handleCreateGroup(); } }}
+      >
+        <div className="text-sub font-medium text-ink mb-1">
+          {t('hall.createGroup')}
+        </div>
+        <div className="text-xs text-muted mb-5">
+          {groupName}
+        </div>
+        <div className="mb-6">
+          <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
+          <QuantityControl value={guestCount} onChange={setGuestCount} min={1} unit="名" />
+        </div>
+      </BottomSheetModal>
+
     </>
   );
 }

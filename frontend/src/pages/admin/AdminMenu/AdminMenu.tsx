@@ -2,8 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppHeader, NavButton } from "@/components";
 import { ROUTES } from "@/lib/routes";
-import "./AdminMenu.scss";
-
 
 export default function AdminMenu() {
   const navigate = useNavigate();
@@ -18,7 +16,7 @@ export default function AdminMenu() {
   ];
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <>
       <AppHeader title={t('admin.menuTitle')} />
 
       <div className="flex-1 flex flex-col items-center justify-center px-8">
@@ -34,6 +32,6 @@ export default function AdminMenu() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

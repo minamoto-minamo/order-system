@@ -10,10 +10,10 @@ import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { getSeatLabels, isGroupActive } from "@/lib/utils";
 import type { OrderItem, Group, Seat, MenuItem, Category, SubCategory } from "@order-system/shared";
-import { CategoryLane } from "./CategoryLane";
-import { CardView } from "./CardView";
-import { SidePanel } from "./SidePanel";
-import type { DisplayCat, DisplayOrder } from "./types";
+import { CategoryLane } from "./components/CategoryLane";
+import { CardView } from "./components/CardView";
+import { SidePanel } from "./components/SidePanel";
+import type { DisplayCat, DisplayOrder } from "./components/types";
 import "./Kitchen.scss";
 
 // カテゴリ数が増えても色が足りなくなるのを防ぐため5色でローテーション
@@ -120,9 +120,7 @@ export default function Kitchen() {
 
   return (
     <>
-      <div className="min-h-dvh bg-surface flex flex-col">
-
-        <AppHeader
+      <AppHeader
           title={
             <>
               {t('kitchen.title')}
@@ -187,7 +185,6 @@ export default function Kitchen() {
             onNavigate={id => navigate(ROUTES.kitchenGroup(id))}
           />
         )}
-      </div>
     </>
   );
 }

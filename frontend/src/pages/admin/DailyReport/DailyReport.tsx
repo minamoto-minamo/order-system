@@ -4,12 +4,12 @@ import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CategoryPieSection } from "./CategoryPieSection";
-import "./DailyReport.scss";
-import { HourlyChart } from "./HourlyChart";
-import { RankingSection } from "./RankingSection";
-import type { ReportData, SessionInfo } from "./types";
-import { PALETTE } from "./types";
+import { CategoryPieSection } from "./components/CategoryPieSection";
+import { HourlyChart } from "./components/HourlyChart";
+import { RankingSection } from "./components/RankingSection";
+import { SummaryCard } from "./components/SummaryCard";
+import type { ReportData, SessionInfo } from "./components/types";
+import { PALETTE } from "./components/types";
 
 // ── メイン ───────────────────────────────────────────────────
 export default function DailyReport() {
@@ -64,8 +64,7 @@ export default function DailyReport() {
 
   return (
     <>
-      <div className="min-h-dvh bg-surface flex flex-col">
-        <AppHeader title={t('admin.report')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
+      <AppHeader title={t('admin.report')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
 
         <div className="flex-1 overflow-y-auto p-5 max-w-170 mx-auto w-full">
 
@@ -99,11 +98,7 @@ export default function DailyReport() {
                   { label: t('report.guests'), value: `${data.guests}名`, sub: null },
                   { label: t('report.guestAvg'), value: `¥${guestAvg.toLocaleString()}`, sub: t('report.perGuest') },
                 ].map(card => (
-                  <div key={card.label} className="bg-white border border-divider rounded-[10px] px-4 py-3.5">
-                    <div className="text-label text-muted mb-1.5">{card.label}</div>
-                    <div className="text-lg font-medium text-ink tracking-[0.02em]">{card.value}</div>
-                    {card.sub && <div className="text-caption text-dim mt-0.5">{card.sub}</div>}
-                  </div>
+                  <SummaryCard key={card.label} {...card} />
                 ))}
               </div>
 
@@ -121,7 +116,6 @@ export default function DailyReport() {
             </>
           )}
         </div>
-      </div>
     </>
   );
 }

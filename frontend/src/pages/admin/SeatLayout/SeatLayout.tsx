@@ -4,13 +4,13 @@ import { AppHeader, SubHeader } from "@/components";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import { TableRect } from "./TableRect";
-import { SeatCell } from "./SeatCell";
-import { Palette } from "./Palette";
-import { EditModal } from "./EditModal";
-import { FooterBar } from "./FooterBar";
-import type { TableData, SeatData, SelectedItem, DragState, ApiSeat, ApiTable } from "./types";
-import { G } from "./types";
+import { CanvasTable } from "./components/CanvasTable";
+import { CanvasSeat } from "./components/CanvasSeat";
+import { Palette } from "./components/Palette";
+import { EditSheet } from "./components/EditSheet";
+import { StatsBar } from "./components/StatsBar";
+import type { TableData, SeatData, SelectedItem, DragState, ApiSeat, ApiTable } from "./components/types";
+import { G } from "./components/types";
 import "./SeatLayout.scss";
 
 const snap = (v: number) => Math.round(v / G) * G;
@@ -282,10 +282,7 @@ export default function SeatLayout() {
 
   return (
     <>
-      <div className="h-dvh bg-surface flex flex-col">
-
-
-        <AppHeader
+      <AppHeader
           title={t('admin.seats')}
           breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }}
         />
@@ -327,7 +324,7 @@ export default function SeatLayout() {
               }}
             >
               {tables.map(table => (
-                <TableRect
+                <CanvasTable
                   key={table.id}
                   table={table}
                   isSelected={selected?.kind === "table" && selected.id === table.id}
@@ -337,7 +334,7 @@ export default function SeatLayout() {
                 />
               ))}
               {seats.map(seat => (
-                <SeatCell
+                <CanvasSeat
                   key={seat.id}
                   seat={seat}
                   isSelected={selected?.kind === "seat" && selected.id === seat.id}
@@ -351,7 +348,7 @@ export default function SeatLayout() {
 
       {/* 編集モーダル */}
       {selectedItem && selected && (
-        <EditModal
+        <EditSheet
           item={selectedItem}
           selected={selected}
           onLabelChange={handleLabelChange}
@@ -361,13 +358,12 @@ export default function SeatLayout() {
       )}
 
         {/* フッター */}
-        <FooterBar
+        <StatsBar
           tableCount={tables.length}
           tableSeatCount={tableSeats.length}
           counterSeatCount={counterSeats.length}
           totalSeatCount={seats.length}
         />
-      </div>
     </>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, BottomSheetModal, ConfirmModal, TabNavigation, QuantityControl } from "@/components";
+import { AppHeader, TabNavigation, Toast } from "@/components";
+import { ConfirmModal } from "./components/ConfirmModal";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import { EP } from "@/lib/endpoints";
@@ -10,12 +11,12 @@ import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { getSeatLabels } from "@/lib/utils";
 import type { Group, OrderItem, MenuItem, Category, SubCategory, Course, DrinkPlan, Seat, Setting } from "@order-system/shared";
-import { CancelModal } from "./CancelModal";
-import { OrderHistory } from "./OrderHistory";
-import { MenuAdd } from "./MenuAdd";
-import { BillFooter } from "./BillFooter";
-import { CourseTab } from "./CourseTab";
-import "./GroupDetail.scss";
+import { CancelModal } from "./components/CancelModal";
+import { OrderHistory } from "./components/OrderHistory";
+import { MenuAdd } from "./components/MenuAdd";
+import { BillFooter } from "./components/BillFooter";
+import { CourseTab } from "./components/CourseTab";
+import { CourseConfirmModal } from "./components/CourseConfirmModal";
 
 // ── メイン ───────────────────────────────────────────────────
 
@@ -183,9 +184,7 @@ export default function GroupDetail() {
 
   return (
     <>
-      <div className="h-dvh bg-white flex flex-col max-w-120 mx-auto">
-
-        <AppHeader
+      <AppHeader
           title={group?.name ?? '...'}
           sub={seatLabels || undefined}
           breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
@@ -246,11 +245,7 @@ export default function GroupDetail() {
           />
         )}
 
-        {addedToast && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white rounded-full px-5 py-2.25 text-xs whitespace-nowrap animate-[slideUp_0.2s_ease_both] z-300">
-            {addedToast}
-          </div>
-        )}
+        <Toast message={addedToast} />
 
         <ConfirmModal
           show={showBillConfirm}
@@ -278,55 +273,17 @@ export default function GroupDetail() {
         </ConfirmModal>
 
         {showCourseConfirm && (
-          <BottomSheetModal
-            show={true}
+          <CourseConfirmModal
+            course={showCourseConfirm}
+            courseQty={courseQty}
+            setCourseQty={setCourseQty}
+            drinkPlans={drinkPlans}
+            menus={menus}
+            onConfirm={() => handleCourseOrder(showCourseConfirm, courseQty)}
             onClose={() => setShowCourseConfirm(null)}
-            secondaryAction={{ label: t('common.back'), onClick: () => setShowCourseConfirm(null) }}
-            primaryAction={{ label: t('group.courseApplyAction'), onClick: () => handleCourseOrder(showCourseConfirm, courseQty) }}
-          >
-            <div className="text-sub font-medium text-ink mb-1">{showCourseConfirm.name}</div>
-            <div className="text-xs text-muted mb-4">¥{showCourseConfirm.price.toLocaleString()} {t('common.perPerson')}</div>
-            <div className="mb-4">
-              <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-              <QuantityControl value={courseQty} onChange={setCourseQty} min={1} unit="名" />
-            </div>
-            {showCourseConfirm.drinkPlanId && (() => {
-              const plan = drinkPlans.find(p => p.id === showCourseConfirm.drinkPlanId);
-              if (!plan) return null;
-              return (
-                <div className="mb-3">
-                  <div className="text-label text-info mb-1.5 font-medium">🍺 {plan.name}{t('group.drinkPlanNote')}</div>
-                  <div className="bg-info-bg border border-info-border rounded-lg px-3.5 py-2 flex flex-wrap gap-1">
-                    {plan.menuItemIds.map(mid => {
-                      const name = menus.find(m => m.id === mid)?.name ?? t('common.unknownItem', { id: mid });
-                      return (
-                        <span key={mid} className="text-label text-info bg-white border border-info-border px-2 py-0.5 rounded-full">{name}</span>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-            {showCourseConfirm.foodItems.length > 0 && (
-              <div className="mb-5">
-                <div className="text-label text-course mb-1.5 font-medium">🍽 {t('group.courseFoodLabel')}</div>
-                <div className="bg-surface border border-divider rounded-lg px-3.5 py-2.5">
-                  {showCourseConfirm.foodItems.map((fi, i) => {
-                    const name = menus.find(m => m.id === fi.menuItemId)?.name ?? t('common.unknownItem', { id: fi.menuItemId });
-                    return (
-                      <div key={i} className={`flex justify-between py-1.25 ${i < showCourseConfirm.foodItems.length - 1 ? 'border-b border-surface-deep' : ''}`}>
-                        <span className="text-note text-secondary">{name}</span>
-                        <span className="text-xs text-muted">×{fi.qty * courseQty}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </BottomSheetModal>
+          />
         )}
 
-      </div>
     </>
   );
 }

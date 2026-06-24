@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { AppHeader, SubHeader, Button, BottomSheetModal } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, SubHeader } from "@/components";
+import { useForm } from "@/hooks/useForm";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
-import type { StaffMember } from "@order-system/shared";
 import { useAuthStore } from "@/stores/auth";
-import { useForm } from "@/hooks/useForm";
-import { RoleBadge } from "./RoleBadge";
+import type { StaffMember } from "@order-system/shared";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { RoleBadge } from "./components/RoleBadge";
+import { StaffFormModal } from "./components/StaffFormModal";
 
 type ModalMode = "add" | "edit" | null;
 
@@ -27,16 +28,10 @@ export default function Staff() {
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StaffForm>(EMPTY_FORM);
-  const usernameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get<StaffMember[]>(EP.staff).then(setStaffList).catch(console.error);
   }, []);
-
-  useEffect(() => {
-    // アニメーション（slideUp 0.2s）開始直後はDOMが未レンダリングのため50ms遅延してフォーカス
-    if (modalMode) setTimeout(() => usernameRef.current?.focus(), 50);
-  }, [modalMode]);
 
   const openAdd = () => {
     reset(EMPTY_FORM);
@@ -105,19 +100,19 @@ export default function Staff() {
     (modalMode === "add" && !form.password);
 
   return (
-    <div className="min-h-dvh bg-surface flex flex-col">
+    <>
       <AppHeader
         title={t("admin.staff")}
         breadcrumb={{ label: t("admin.menuTitle"), to: ROUTES.admin }}
       />
       <SubHeader
         right={
-          <Button
+          <BaseButton
             className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-ink text-white"
             onClick={openAdd}
           >
             {t("staff.addStaff")}
-          </Button>
+          </BaseButton>
         }
       />
 
@@ -144,21 +139,21 @@ export default function Staff() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button
+                  <BaseButton
                     variant="secondary"
                     className="rounded-md px-3 py-1 text-label"
                     onClick={() => openEdit(s)}
                   >
                     {t("common.edit")}
-                  </Button>
-                  <Button
+                  </BaseButton>
+                  <BaseButton
                     variant="secondary"
                     className="rounded-md px-3 py-1 text-label text-danger border-danger-border"
                     onClick={() => setDeleteTarget(s)}
                     disabled={s.id === me?.id}
                   >
                     {t("common.delete")}
-                  </Button>
+                  </BaseButton>
                 </div>
               </div>
             ))}
@@ -166,79 +161,16 @@ export default function Staff() {
         )}
       </div>
 
-      {/* 追加・編集モーダル */}
       {modalMode && (
-        <div className="fixed inset-0 z-200 flex items-end justify-center bg-black/40" onClick={closeModal}>
-          <div
-            className="bg-white rounded-t-2xl w-full max-w-120 px-6 pt-6 pb-10 animate-[slideUp_0.2s_ease_both]"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="text-base font-medium text-ink mb-5">
-              {modalMode === "add" ? t("staff.addTitle") : t("staff.editTitle")}
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-label text-muted block mb-1.5">{t("staff.username")}</label>
-                <input
-                  ref={usernameRef}
-                  className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full"
-                  value={form.username}
-                  onChange={e => setValue("username", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-label text-muted block mb-1.5">
-                  {t("staff.password")}
-                  {modalMode === "edit" && (
-                    <span className="text-muted ml-1.5">— {t("staff.passwordHint")}</span>
-                  )}
-                </label>
-                <input
-                  type="password"
-                  className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full"
-                  value={form.password}
-                  onChange={e => setValue("password", e.target.value)}
-                  placeholder={modalMode === "edit" ? t("staff.passwordHint") : ""}
-                />
-              </div>
-              <div>
-                <label className="text-label text-muted block mb-1.5">{t("staff.role")}</label>
-                <select
-                  className="input-field border border-line rounded-lg px-3 py-2.5 text-sm text-ink w-full bg-white appearance-none"
-                  value={form.role}
-                  onChange={e => setValue("role", e.target.value as "admin" | "staff")}
-                >
-                  <option value="staff">{t("staff.roleStaff")}</option>
-                  <option value="admin">{t("staff.roleAdmin")}</option>
-                </select>
-              </div>
-
-              {formError && (
-                <div className="text-label text-danger bg-danger-bg border border-danger-border rounded-lg px-3 py-2">
-                  {formError}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <Button
-                variant="secondary"
-                className="flex-1 rounded-lg py-2.5 text-sm"
-                onClick={closeModal}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                className="flex-1 border-none rounded-lg py-2.5 text-sm font-medium bg-ink text-white disabled:opacity-40"
-                onClick={handleSave}
-                disabled={isSaveDisabled}
-              >
-                {t("common.save")}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <StaffFormModal
+          modalMode={modalMode}
+          form={form}
+          formError={formError}
+          isSaveDisabled={isSaveDisabled}
+          onClose={closeModal}
+          onSave={handleSave}
+          setValue={setValue}
+        />
       )}
 
       {/* 削除確認 */}
@@ -249,6 +181,6 @@ export default function Staff() {
         secondaryAction={{ label: t("common.cancel"), onClick: () => setDeleteTarget(null) }}
         primaryAction={{ label: t("common.delete"), onClick: handleDelete }}
       />
-    </div>
+    </>
   );
 }
