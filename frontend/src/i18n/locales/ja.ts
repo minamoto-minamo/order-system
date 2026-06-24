@@ -153,6 +153,8 @@ const ja = {
     close: "締める",
     reopen: "再開する",
     newSession: "新規セッション開始",
+    confirmNew: "営業を開始しますか？",
+    confirmNewDesc: "新しい営業セッションが始まります。",
     confirmClose: "営業を締めますか？",
     confirmCloseDesc: "本日の営業セッションが確定し、日次レポートに反映されます。",
     confirmReopen: "営業を再開しますか？",

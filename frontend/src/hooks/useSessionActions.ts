@@ -13,6 +13,7 @@ export function useSessionActions(options: UseSessionActionsOptions = {}) {
   const { onSuccess } = options
   const { t } = useTranslation()
   const { session, setSession } = useSessionStore()
+  const [showNewConfirm, setShowNewConfirm] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
   const [showReopenConfirm, setShowReopenConfirm] = useState(false)
   const [closeError, setCloseError] = useState<string | null>(null)
@@ -56,6 +57,8 @@ export function useSessionActions(options: UseSessionActionsOptions = {}) {
   return {
     session,
     isOpen,
+    showNewConfirm,
+    setShowNewConfirm,
     showCloseConfirm,
     setShowCloseConfirm,
     showReopenConfirm,

@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
-import { requireAdmin } from '../plugins/auth.js'
 
 const updateBodySchema = {
   type: 'object',
@@ -40,7 +39,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.post('/', { preHandler: requireAdmin }, async (request, reply) => {
+  fastify.post('/', async (request, reply) => {
     const existing = await prisma.session.findFirst({ where: { status: 'open' } })
     if (existing) {
       return reply.status(409).send({ error: '既に営業中のセッションがあります' })
@@ -133,7 +132,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
+  fastify.put('/:id', { schema: { body: updateBodySchema } }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const { status } = request.body as { status: 'open' | 'closed' }
 
