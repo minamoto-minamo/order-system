@@ -64,6 +64,12 @@
   --color-success-bg: #e8f5e9;
   --color-success-fg: #388e3c;
 
+  /* ── Z-index layers ── */
+  --z-index-modal: 200;  /* ページ固定要素・標準モーダル */
+  --z-index-sheet: 300;  /* オーバーレイ付きシート・サイドパネル */
+  --z-index-nav:   400;  /* ナビゲーションドロワー（最高位） */
+  --z-index-toast: 500;  /* トースト通知（常に最前面） */
+
   /* ── Custom font sizes ── */
   --text-nano:    0.5rem;     /* 8px */
   --text-micro:   0.5625rem;  /* 9px */
