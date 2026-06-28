@@ -108,15 +108,21 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    try {
-      await prisma.menuItem.delete({ where: { id: Number(id) } })
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'メニューが見つかりません' })
-        if (e.code === 'P2003') return reply.status(409).send({ error: '注文済みのメニューは削除できません' })
-      }
-      throw e
-    }
+    const menuItemId = Number(id)
+
+    const item = await prisma.menuItem.findUnique({ where: { id: menuItemId } })
+    if (!item) return reply.status(404).send({ error: 'メニューが見つかりません' })
+
+    const [orderCount, courseCount, drinkPlanCount] = await Promise.all([
+      prisma.orderItem.count({ where: { menuItemId } }),
+      prisma.courseFoodItem.count({ where: { menuItemId } }),
+      prisma.drinkPlanItem.count({ where: { menuItemId } }),
+    ])
+    if (orderCount > 0) return reply.status(409).send({ error: '注文済みのメニューは削除できません' })
+    if (courseCount > 0) return reply.status(409).send({ error: 'コースに含まれているメニューは削除できません' })
+    if (drinkPlanCount > 0) return reply.status(409).send({ error: 'ドリンクプランに含まれているメニューは削除できません' })
+
+    await prisma.menuItem.delete({ where: { id: menuItemId } })
     return reply.status(204).send()
   })
 }
