@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppHeader, NavButton } from "@/components";
 import { ROUTES } from "@/lib/routes";
-import { ICONS } from "@/assets/icons";
+import { ICONS } from "@/lib/icons";
 
 export default function AdminMenu() {
   const navigate = useNavigate();
