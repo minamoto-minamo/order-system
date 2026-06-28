@@ -6,7 +6,7 @@ import type { OrderItem } from "@order-system/shared";
 
 export function CancelModal({ item, onConfirm, onClose }: {
   item: OrderItem;
-  onConfirm: (id: number, cancelQty: number) => void;
+  onConfirm: (id: string, cancelQty: number) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();

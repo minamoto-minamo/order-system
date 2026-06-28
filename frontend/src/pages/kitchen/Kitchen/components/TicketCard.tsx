@@ -6,8 +6,8 @@ import type { DisplayOrder } from "./types";
 export function TicketCard({ order, accentColor, onComplete, onClick }: {
   order: DisplayOrder;
   accentColor: string;
-  onComplete: (id: number) => void;
-  onClick: (groupId: number) => void;
+  onComplete: (id: string) => void;
+  onClick: (groupId: string) => void;
 }) {
   const { t } = useTranslation();
   return (

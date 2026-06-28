@@ -51,7 +51,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const group = await prisma.group.findUnique({
-      where: { id: Number(id) },
+      where: { id },
       include: { seats: true },
     })
     if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
@@ -126,7 +126,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const group = await prisma.group.update({
-        where: { id: Number(id) },
+        where: { id },
         data: updateData,
         include: { seats: true },
       })

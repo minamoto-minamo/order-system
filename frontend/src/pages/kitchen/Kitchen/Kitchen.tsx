@@ -19,7 +19,7 @@ import "./Kitchen.scss";
 // カテゴリ数が増えても色が足りなくなるのを防ぐため5色でローテーション
 const CAT_COLORS = ['#4a9eff', '#3ec97a', '#f59e0b', '#e53935', '#9c27b0'];
 
-function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: number) => string): DisplayOrder {
+function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: string) => string): DisplayOrder {
   const g = groups.find(x => x.id === o.groupId);
   const m = menus.find(x => x.id === o.menuItemId);
   const seatLabels = g ? getSeatLabels(seats, g.seatIds) : '';
@@ -46,7 +46,7 @@ export default function Kitchen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [view, setView]             = useState("ticket");
-  const [panelGroupId, setPanelGroupId] = useState<number | null>(null);
+  const [panelGroupId, setPanelGroupId] = useState<string | null>(null);
   // 1分ごとに再レンダリングして経過時間表示を最新化するためのダミー state
   const [, setTick] = useState(0);
 
@@ -81,7 +81,7 @@ export default function Kitchen() {
         return (o.status === 'pending' || o.status === 'ready') ? [...filtered, o] : filtered;
       });
     },
-    [SE.orderCancelled]: (id: number) => setOrders(prev => prev.filter(o => o.id !== id)),
+    [SE.orderCancelled]: (id: string) => setOrders(prev => prev.filter(o => o.id !== id)),
     [SE.groupCreated]: (g: Group) => setGroups(prev => [...prev, g]),
     // active でなくなったグループ（会計済み等）はリストから除去
     [SE.groupUpdated]: (g: Group) => setGroups(prev =>
@@ -111,8 +111,8 @@ export default function Kitchen() {
     orders.map(o => buildDisplay(o, menus, groups, seats, (id) => t('common.unknownGroup', { id })))
   , [orders, menus, groups, seats, t]);
 
-  const handleReady  = (id: number) => socket.emit(SE.orderComplete, id);
-  const handleServed = (id: number) => socket.emit(SE.orderServe, id);
+  const handleReady  = (id: string) => socket.emit(SE.orderComplete, id);
+  const handleServed = (id: string) => socket.emit(SE.orderServe, id);
 
   const pendingOrders = displayOrders.filter(o => o.status === 'pending');
   const pendingCount  = orders.filter(o => o.status === 'pending').length;

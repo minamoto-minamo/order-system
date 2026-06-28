@@ -9,11 +9,11 @@ import { CanvasSeat } from "./components/CanvasSeat";
 import { Palette } from "./components/Palette";
 import { EditSheet } from "./components/EditSheet";
 import { StatsBar } from "./components/StatsBar";
-import type { TableData, SeatData, SelectedItem, DragState, ApiSeat, ApiTable } from "./components/types";
-import { G } from "./components/types";
+import type { SeatLayoutResponse, SeatLayoutSaveRequest } from "@order-system/shared";
+import type { TableData, SeatData, SelectedItem, DragState } from "./components/types";
 import "./SeatLayout.scss";
 
-const snap = (v: number) => Math.round(v / G) * G;
+const snap = (v: number, g: number) => Math.round(v / g) * g;
 
 function hitTest(seat: { x: number; y: number }, table: TableData) {
   return (
@@ -27,96 +27,79 @@ export default function SeatLayout() {
   const { t } = useTranslation();
   const [tables, setTables] = useState<TableData[]>([]);
   const [seats,  setSeats]  = useState<SeatData[]>([]);
+  const [cols, setCols] = useState(16);
+  const [rows, setRows] = useState(12);
+  const [colsMin, setColsMin] = useState(8);
+  const [colsMax, setColsMax] = useState(32);
+  const [rowsMin, setRowsMin] = useState(6);
+  const [rowsMax, setRowsMax] = useState(24);
+  const [gridSize, setGridSize] = useState(48);
+  const [gridSizeMin, setGridSizeMin] = useState(32);
+  const [gridSizeMax, setGridSizeMax] = useState(80);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
   const [saved, setSaved] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<DragState | null>(null);
 
-  const originalSeatsRef   = useRef<ApiSeat[]>([]);
-  const originalTablesRef  = useRef<ApiTable[]>([]);
+  const originalSeatsRef   = useRef<SeatLayoutResponse['seats']>([]);
+  const originalTablesRef  = useRef<SeatLayoutResponse['tables']>([]);
   // 仮ID: 負数にすることでDBが発行する正数IDと衝突しない
   const nextSeatIdRef      = useRef(-1);
   const nextTableIdRef     = useRef(-1);
 
   // ── 初期ロード ─────────────────────────────────────────────
   useEffect(() => {
-    Promise.all([
-      api.get<ApiSeat[]>(EP.seats),
-      api.get<ApiTable[]>(EP.seatTables),
-    ]).then(([apiSeats, apiTables]) => {
-      originalSeatsRef.current = apiSeats
-      originalTablesRef.current = apiTables
-      setSeats(apiSeats.map(s => ({ id: s.id, label: s.label, x: s.x, y: s.y, tableId: s.tableId })))
-      setTables(apiTables.map(t => ({ id: t.id, label: t.label, x: t.x, y: t.y, w: t.w, h: t.h })))
+    api.get<SeatLayoutResponse>(EP.seatLayout).then(data => {
+      originalSeatsRef.current = data.seats
+      originalTablesRef.current = data.tables
+      setCols(data.canvasCols)
+      setRows(data.canvasRows)
+      setColsMin(data.canvasColsMin)
+      setColsMax(data.canvasColsMax)
+      setRowsMin(data.canvasRowsMin)
+      setRowsMax(data.canvasRowsMax)
+      setGridSize(data.gridSize)
+      setGridSizeMin(data.gridSizeMin)
+      setGridSizeMax(data.gridSizeMax)
+      const g = data.gridSize
+      setSeats(data.seats.map(s => ({ id: s.id, label: s.label, x: s.x * g, y: s.y * g, tableId: s.tableId })))
+      setTables(data.tables.map(t => ({ id: t.id, label: t.label, x: t.x * g, y: t.y * g, w: t.w * g, h: t.h * g })))
     }).catch(() => {})
   }, [])
 
-  // ── 保存（差分同期） ───────────────────────────────────────
+  // ── 保存 ──────────────────────────────────────────────────
   const handleSave = async () => {
-    // 保存前に座標ベースで tableId を再計算
     const resolvedSeats = seats.map(s => ({
       ...s,
       tableId: tables.find(t => hitTest(s, t))?.id ?? null,
     }));
-    setSeats(resolvedSeats);
 
-    // テーブル差分
-    const origTableIds = new Set(originalTablesRef.current.map(t => t.id))
-    const currTableIds = new Set(tables.filter(t => t.id > 0).map(t => t.id))
-    const tableDeletes = [...origTableIds].filter(id => !currTableIds.has(id))
-    const tableCreates = tables.filter(t => t.id < 0)
-    const tableUpdates = tables.filter(t => {
-      if (t.id < 0) return false
-      const orig = originalTablesRef.current.find(o => o.id === t.id)
-      if (!orig) return false
-      return orig.label !== t.label || orig.x !== t.x || orig.y !== t.y || orig.w !== t.w || orig.h !== t.h
-    })
-
-    // 席差分（resolvedSeats を使う）
-    const origSeatIds = new Set(originalSeatsRef.current.map(s => s.id))
-    const currSeatIds = new Set(resolvedSeats.filter(s => s.id > 0).map(s => s.id))
-    const seatDeletes = [...origSeatIds].filter(id => !currSeatIds.has(id))
-    const seatCreates = resolvedSeats.filter(s => s.id < 0)
-    const seatUpdates = resolvedSeats.filter(s => {
-      if (s.id < 0) return false
-      const orig = originalSeatsRef.current.find(o => o.id === s.id)
-      if (!orig) return false
-      return orig.label !== s.label || orig.x !== s.x || orig.y !== s.y || orig.tableId !== s.tableId
-    })
+    const payload: SeatLayoutSaveRequest = {
+      canvasCols: cols,
+      canvasRows: rows,
+      gridSize,
+      tables: tables.map(t => ({ ...t, x: t.x / gridSize, y: t.y / gridSize, w: t.w / gridSize, h: t.h / gridSize })),
+      seats: resolvedSeats.map(s => ({ ...s, x: s.x / gridSize, y: s.y / gridSize })),
+    }
 
     try {
-      await Promise.all(tableDeletes.map(id => api.delete(EP.seatTable(id))))
-      // 新規テーブルを作成して仮ID→実IDのマップを作る
-      const tableIdMap = new Map<number, number>()
-      await Promise.all(tableCreates.map(async t => {
-        const created = await api.post<ApiTable>(EP.seatTables, { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h })
-        tableIdMap.set(t.id, created.id)
-      }))
-      await Promise.all(tableUpdates.map(t =>
-        api.put(EP.seatTable(t.id), { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h })
-      ))
-
-      await Promise.all(seatDeletes.map(id => api.delete(EP.seat(id))))
-      await Promise.all(seatCreates.map(s => {
-        const tid = s.tableId !== null ? (tableIdMap.get(s.tableId) ?? s.tableId) : null
-        return api.post(EP.seats, { label: s.label, type: tid !== null ? 'table' : 'counter', x: s.x, y: s.y, tableId: tid })
-      }))
-      await Promise.all(seatUpdates.map(s => {
-        const tid = s.tableId !== null ? (tableIdMap.get(s.tableId) ?? s.tableId) : null
-        return api.put(EP.seat(s.id), { label: s.label, type: tid !== null ? 'table' : 'counter', x: s.x, y: s.y, tableId: tid })
-      }))
-
-      // リロードして ref を更新
-      const [freshSeats, freshTables] = await Promise.all([
-        api.get<ApiSeat[]>(EP.seats),
-        api.get<ApiTable[]>(EP.seatTables),
-      ])
-      originalSeatsRef.current = freshSeats
-      originalTablesRef.current = freshTables
-      setSeats(freshSeats.map(s => ({ id: s.id, label: s.label, x: s.x, y: s.y, tableId: s.tableId })))
-      setTables(freshTables.map(t => ({ id: t.id, label: t.label, x: t.x, y: t.y, w: t.w, h: t.h })))
-      nextSeatIdRef.current = -1
+      const fresh = await api.put<SeatLayoutResponse>(EP.seatLayout, payload)
+      originalSeatsRef.current  = fresh.seats
+      originalTablesRef.current = fresh.tables
+      const g = fresh.gridSize
+      setSeats(fresh.seats.map(s => ({ id: s.id, label: s.label, x: s.x * g, y: s.y * g, tableId: s.tableId })))
+      setTables(fresh.tables.map(t => ({ id: t.id, label: t.label, x: t.x * g, y: t.y * g, w: t.w * g, h: t.h * g })))
+      setCols(fresh.canvasCols)
+      setRows(fresh.canvasRows)
+      setColsMin(fresh.canvasColsMin)
+      setColsMax(fresh.canvasColsMax)
+      setRowsMin(fresh.canvasRowsMin)
+      setRowsMax(fresh.canvasRowsMax)
+      setGridSize(fresh.gridSize)
+      setGridSizeMin(fresh.gridSizeMin)
+      setGridSizeMax(fresh.gridSizeMax)
+      nextSeatIdRef.current  = -1
       nextTableIdRef.current = -1
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -151,8 +134,8 @@ export default function SeatLayout() {
       const canvas = canvasRef.current;
       if (!d || !canvas) return;
       const r = canvas.getBoundingClientRect();
-      const nx = snap(Math.max(0, e2.clientX - r.left - d.ox));
-      const ny = snap(Math.max(0, e2.clientY - r.top  - d.oy));
+      const nx = snap(Math.max(0, e2.clientX - r.left - d.ox), gridSize);
+      const ny = snap(Math.max(0, e2.clientY - r.top  - d.oy), gridSize);
 
       if (d.kind === "seat") {
         setSeats(prev => prev.map(s => s.id === d.id ? { ...s, x: nx, y: ny } : s));
@@ -169,7 +152,7 @@ export default function SeatLayout() {
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [seats, tables]);
+  }, [seats, tables, gridSize]);
 
   // ── リサイズ ─────────────────────────────────────────────
   const handleResizeStart = useCallback((e: React.PointerEvent, id: number) => {
@@ -182,8 +165,8 @@ export default function SeatLayout() {
     const onMove = (e2: PointerEvent) => {
       const d = drag.current;
       if (!d || d.kind !== "resize") return;
-      const newW = Math.max(G, snap(d.initW! + e2.clientX - d.ox));
-      const newH = Math.max(G, snap(d.initH! + e2.clientY - d.oy));
+      const newW = Math.max(gridSize, snap(d.initW! + e2.clientX - d.ox, gridSize));
+      const newH = Math.max(gridSize, snap(d.initH! + e2.clientY - d.oy, gridSize));
       setTables(prev => prev.map(t => t.id === d.id ? { ...t, w: newW, h: newH } : t));
     };
     const onUp = () => {
@@ -193,7 +176,7 @@ export default function SeatLayout() {
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [tables]);
+  }, [tables, gridSize]);
 
   // ── パレットからドロップ ─────────────────────────────────
   const addItemAt = useCallback((type: string, clientX: number, clientY: number) => {
@@ -201,11 +184,11 @@ export default function SeatLayout() {
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
-    const x = snap(Math.max(0, clientX - rect.left - G / 2));
-    const y = snap(Math.max(0, clientY - rect.top  - G / 2));
+    const x = snap(Math.max(0, clientX - rect.left - gridSize / 2), gridSize);
+    const y = snap(Math.max(0, clientY - rect.top  - gridSize / 2), gridSize);
     if (type === "table") {
       const tableId = nextTableIdRef.current--;
-      const newTable: TableData = { id: tableId, label: t('seatEditor.defaultTableLabel', { n: tables.length + 1 }), x, y, w: G*3, h: G*2 };
+      const newTable: TableData = { id: tableId, label: t('seatEditor.defaultTableLabel', { n: tables.length + 1 }), x, y, w: gridSize*3, h: gridSize*2 };
       setTables(prev => [...prev, newTable]);
       setSelected({ kind: "table", id: tableId });
     } else {
@@ -214,7 +197,7 @@ export default function SeatLayout() {
       setSeats(prev => [...prev, newSeat]);
       setSelected({ kind: "seat", id: newSeat.id });
     }
-  }, [seats, tables]);
+  }, [seats, tables, gridSize]);
 
   const handlePalettePointerDown = (e: React.PointerEvent, type: string, icon: string) => {
     e.preventDefault();
@@ -243,6 +226,18 @@ export default function SeatLayout() {
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   };
+
+  // ── グリッドサイズ変更 ───────────────────────────────────
+  const handleGridSizeChange = useCallback((newG: number) => {
+    const ratio = newG / gridSize;
+    setSeats(prev => prev.map(s => ({ ...s, x: snap(s.x * ratio, newG), y: snap(s.y * ratio, newG) })));
+    setTables(prev => prev.map(t => ({
+      ...t,
+      x: snap(t.x * ratio, newG), y: snap(t.y * ratio, newG),
+      w: snap(t.w * ratio, newG), h: snap(t.h * ratio, newG),
+    })));
+    setGridSize(newG);
+  }, [gridSize]);
 
   // ── 削除 ─────────────────────────────────────────────────
   const handleDelete = () => {
@@ -275,6 +270,10 @@ export default function SeatLayout() {
   const counterSeats = seats.filter(s => s.tableId === null);
   const tableSeats   = seats.filter(s => s.tableId !== null);
 
+  const hasOutOfBounds =
+    seats.some(s => s.x >= cols * gridSize || s.y >= rows * gridSize) ||
+    tables.some(t => t.x + t.w > cols * gridSize || t.y + t.h > rows * gridSize);
+
   const paletteItems = [
     { type: "table", icon: "▭", label: t('seatEditor.table'), sub: t('seatEditor.tableSub') },
     { type: "seat",  icon: "○", label: t('seatEditor.seat'),  sub: t('seatEditor.seatSub') },
@@ -290,7 +289,8 @@ export default function SeatLayout() {
           right={
             <button
               onClick={handleSave}
-              className={`border-none rounded-lg px-4 py-1.5 text-note font-medium cursor-pointer transition-all ${saved ? 'bg-success-bg text-success-fg' : 'bg-ink text-white'}`}
+              disabled={hasOutOfBounds}
+              className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${hasOutOfBounds ? 'bg-surface text-faint cursor-not-allowed' : saved ? 'bg-success-bg text-success-fg cursor-pointer' : 'bg-ink text-white cursor-pointer'}`}
             >
               {saved ? t('common.saved') : t('common.save')}
             </button>
@@ -306,6 +306,19 @@ export default function SeatLayout() {
             onToggle={() => setSidebarOpen(v => !v)}
             items={paletteItems}
             onPalettePointerDown={handlePalettePointerDown}
+            cols={cols}
+            rows={rows}
+            colsMin={colsMin}
+            colsMax={colsMax}
+            rowsMin={rowsMin}
+            rowsMax={rowsMax}
+            gridSize={gridSize}
+            gridSizeMin={gridSizeMin}
+            gridSizeMax={gridSizeMax}
+            hasOutOfBounds={hasOutOfBounds}
+            onColsChange={setCols}
+            onRowsChange={setRows}
+            onGridSizeChange={handleGridSizeChange}
           />
 
           {/* キャンバスエリア */}
@@ -315,12 +328,12 @@ export default function SeatLayout() {
               onClick={() => setSelected(null)}
               className="relative m-5 rounded-lg border border-line bg-white"
               style={{
-                width: G * 16, height: G * 12,
+                width: gridSize * cols, height: gridSize * rows,
                 backgroundImage: `
                   linear-gradient(to right, var(--color-surface-deep) 1px, transparent 1px),
                   linear-gradient(to bottom, var(--color-surface-deep) 1px, transparent 1px)
                 `,
-                backgroundSize: `${G}px ${G}px`,
+                backgroundSize: `${gridSize}px ${gridSize}px`,
               }}
             >
               {tables.map(table => (
@@ -340,6 +353,7 @@ export default function SeatLayout() {
                   isSelected={selected?.kind === "seat" && selected.id === seat.id}
                   onPointerDown={handlePointerDown}
                   onClick={(kind, id) => setSelected({ kind, id })}
+                  G={gridSize}
                 />
               ))}
             </div>
@@ -354,6 +368,7 @@ export default function SeatLayout() {
           onLabelChange={handleLabelChange}
           onDelete={handleDelete}
           onClose={() => setSelected(null)}
+          G={gridSize}
         />
       )}
 

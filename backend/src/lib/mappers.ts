@@ -1,7 +1,7 @@
 import type { GroupStatus, OrderItemStatus } from '@order-system/shared'
 
 export function toGroup(g: {
-  id: number; name: string; guestCount: number; status: string; sessionId: number;
+  id: string; name: string; guestCount: number; status: string; sessionId: number;
   courseId: number | null; drinkPlanId: number | null; createdAt: Date;
   seats: { seatId: number }[];
 }) {
@@ -37,7 +37,7 @@ export function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: 
 }
 
 export function toOrderItem(o: {
-  id: number; groupId: number; menuItemId: number; menuItemName: string; price: number;
+  id: string; groupId: string; menuItemId: number; menuItemName: string; price: number;
   qty: number; status: string; isTakeout: boolean; courseId: number | null; orderedAt: Date;
 }) {
   return {

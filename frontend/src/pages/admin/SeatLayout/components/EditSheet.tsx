@@ -2,7 +2,6 @@ import { BaseButton } from "@/components";
 import { BottomSheet } from "@/components/modal/BottomSheet";
 import { useTranslation } from "react-i18next";
 import type { SeatData, SelectedItem, TableData } from "./types";
-import { G } from "./types";
 
 interface Props {
   item: TableData | SeatData;
@@ -10,9 +9,10 @@ interface Props {
   onLabelChange: (val: string) => void;
   onDelete: () => void;
   onClose: () => void;
+  G: number;
 }
 
-export function EditSheet({ item, selected, onLabelChange, onDelete, onClose }: Props) {
+export function EditSheet({ item, selected, onLabelChange, onDelete, onClose, G }: Props) {
   const { t } = useTranslation();
   return (
     <div className="fixed bottom-0 left-0 right-0 z-modal flex justify-center pointer-events-none">

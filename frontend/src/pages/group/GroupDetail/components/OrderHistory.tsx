@@ -15,7 +15,7 @@ function OrderSection({ title, children }: { title?: string; children: ReactNode
 
 export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
   items: OrderItem[];
-  onChangeStatus: (id: number) => void;
+  onChangeStatus: (id: string) => void;
   onCancelTap: (item: OrderItem) => void;
 }) {
   const { t } = useTranslation();

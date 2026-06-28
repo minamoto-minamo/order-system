@@ -4,14 +4,14 @@ import type { Group, Seat } from "@order-system/shared";
 import type { DisplayCat, DisplayOrder } from "./types";
 
 export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onServed, onNavigate }: {
-  groupId: number;
+  groupId: string;
   groups: Group[];
   orders: DisplayOrder[];
   seats: Seat[];
   cats: DisplayCat[];
   onClose: () => void;
-  onServed: (id: number) => void;
-  onNavigate: (groupId: number) => void;
+  onServed: (id: string) => void;
+  onNavigate: (groupId: string) => void;
 }) {
   const { t } = useTranslation();
   const group = groups.find(g => g.id === groupId);

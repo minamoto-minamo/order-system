@@ -1,4 +1,3 @@
-import { G } from "./types";
 import type { SeatData } from "./types";
 
 interface Props {
@@ -6,9 +5,10 @@ interface Props {
   isSelected: boolean;
   onPointerDown: (e: React.PointerEvent, kind: "table" | "seat", id: number) => void;
   onClick: (kind: "table" | "seat", id: number) => void;
+  G: number;
 }
 
-export function CanvasSeat({ seat, isSelected, onPointerDown, onClick }: Props) {
+export function CanvasSeat({ seat, isSelected, onPointerDown, onClick, G }: Props) {
   return (
     <div
       className={`draggable absolute rounded-full flex items-center justify-center z-10 border ${isSelected ? 'bg-info-bg border-info shadow-[0_0_0_2px_var(--color-info-glow)]' : 'bg-white border-line shadow-[0_1px_4px_rgba(0,0,0,0.06)]'}`}

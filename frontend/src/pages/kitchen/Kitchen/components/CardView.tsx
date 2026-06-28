@@ -8,8 +8,8 @@ export function CardView({ groups, orders, seats, onComplete, onCardClick }: {
   groups: Group[];
   orders: DisplayOrder[];
   seats: Seat[];
-  onComplete: (id: number) => void;
-  onCardClick: (groupId: number) => void;
+  onComplete: (id: string) => void;
+  onCardClick: (groupId: string) => void;
 }) {
   const { t } = useTranslation();
   return (

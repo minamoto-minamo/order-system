@@ -7,8 +7,8 @@ function SubLane({ sub, orders, accentColor, onComplete, onTicketClick }: {
   sub: { id: number; label: string };
   orders: DisplayOrder[];
   accentColor: string;
-  onComplete: (id: number) => void;
-  onTicketClick: (groupId: number) => void;
+  onComplete: (id: string) => void;
+  onTicketClick: (groupId: string) => void;
 }) {
   if (orders.length === 0) return null;
   return (
@@ -29,8 +29,8 @@ function SubLane({ sub, orders, accentColor, onComplete, onTicketClick }: {
 export function CategoryLane({ cat, orders, onComplete, onTicketClick }: {
   cat: DisplayCat;
   orders: DisplayOrder[];
-  onComplete: (id: number) => void;
-  onTicketClick: (groupId: number) => void;
+  onComplete: (id: string) => void;
+  onTicketClick: (groupId: string) => void;
 }) {
   const { t } = useTranslation();
   const catOrders = orders.filter(o => o.catId === cat.id);

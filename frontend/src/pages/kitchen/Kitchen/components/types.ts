@@ -6,8 +6,8 @@ export interface DisplayCat {
 }
 
 export interface DisplayOrder {
-  id: number;
-  groupId: number;
+  id: string;
+  groupId: string;
   groupName: string;
   seats: string;
   item: string;

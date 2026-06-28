@@ -4,8 +4,6 @@ import "./FloorSeat.scss";
 
 export type SeatStatus = 'empty' | 'occupied' | 'bill';
 
-const G = 48;
-
 const S = {
   empty:         { bg: "white",                    border: "var(--color-line)",         text: "var(--color-secondary)" },
   occupied:      { bg: "var(--color-success-bg)",  border: "var(--color-open-border)",  text: "var(--color-ink)" },
@@ -21,9 +19,10 @@ interface Props {
   readyCount: number;
   isSelected: boolean;
   onTap: (seat: Seat) => void;
+  G: number;
 }
 
-export function FloorSeat({ seat, status, group, readyCount, isSelected, onTap }: Props) {
+export function FloorSeat({ seat, status, group, readyCount, isSelected, onTap, G }: Props) {
   const { t } = useTranslation();
   const st = isSelected ? S.selected : (status === 'occupied' && readyCount > 0) ? S.occupiedReady : S[status];
   return (

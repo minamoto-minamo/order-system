@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, TabNavigation, Toast } from "@/components";
+import { AppHeader, IconButton, TabNavigation, Toast } from "@/components";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
@@ -17,14 +17,14 @@ import { MenuAdd } from "./components/MenuAdd";
 import { BillFooter } from "./components/BillFooter";
 import { CourseTab } from "./components/CourseTab";
 import { CourseConfirmModal } from "./components/CourseConfirmModal";
+import { ChangeSeatModal } from "./components/ChangeSeatModal";
 
 // ── メイン ───────────────────────────────────────────────────
 
 export default function GroupDetail() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const groupId = Number(id);
+  const { id: groupId = '' } = useParams<{ id: string }>();
 
   const [group, setGroup]           = useState<Group | null>(null);
   const [items, setItems]           = useState<OrderItem[]>([]);
@@ -39,6 +39,7 @@ export default function GroupDetail() {
   const [taxRates, setTaxRates] = useState({ inHouse: 10, takeout: 8 });
 
   const [tab, setTab]                       = useState("menu");
+  const [showSeatModal, setShowSeatModal]   = useState(false);
   const [showCourseConfirm, setShowCourseConfirm] = useState<Course | null>(null);
   const [courseQty, setCourseQty] = useState(1);
   const [cancelTarget, setCancelTarget]     = useState<OrderItem | null>(null);
@@ -79,7 +80,7 @@ export default function GroupDetail() {
       if (o.groupId === groupId) setItems(prev => prev.map(i => i.id === o.id ? o : i));
     },
     // orderCancelled は id だけ届くため、アイテム全体はローカルで status だけ更新
-    [SE.orderCancelled]: (id: number) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i)),
+    [SE.orderCancelled]: (id: string) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i)),
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup(g);
     },
@@ -122,14 +123,14 @@ export default function GroupDetail() {
     } catch (e) { console.error(e); }
   };
 
-  const handleChangeStatus = (id: number) => {
+  const handleChangeStatus = (id: string) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
     if (item.status === 'pending') socket.emit(SE.orderComplete, id);
     else if (item.status === 'ready') socket.emit(SE.orderServe, id);
   };
 
-  const handleCancelConfirm = async (id: number, cancelQty: number) => {
+  const handleCancelConfirm = async (id: string, cancelQty: number) => {
     try {
       const updated = await api.put<OrderItem>(EP.orderCancel(id), { qty: cancelQty });
       setItems(prev => prev.map(i => i.id === id ? updated : i));
@@ -152,6 +153,18 @@ export default function GroupDetail() {
     } catch {
       showToast(t('group.addOrderFailed'));
     }
+  };
+
+  const handleSeatChange = async (seatIds: number[], name: string) => {
+    if (!group) return;
+    try {
+      const updated = await api.put<Group>(EP.group(group.id), { seatIds, name });
+      setGroup(updated);
+      showToast(t('group.changeSeatToast'));
+    } catch {
+      showToast(t('group.changeSeatFailed'));
+    }
+    setShowSeatModal(false);
   };
 
   const handleBillConfirm = async () => {
@@ -188,6 +201,15 @@ export default function GroupDetail() {
           title={group?.name ?? '...'}
           sub={seatLabels || undefined}
           breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
+          right={group?.status === 'active' ? (
+            <IconButton
+              className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+              onClick={() => setShowSeatModal(true)}
+              aria-label={t('group.changeSeat')}
+            >
+              ✎
+            </IconButton>
+          ) : undefined}
         />
 
         {/* bill_requested / closed 状態ではメニュー追加・コース操作を禁止するためタブを history のみに制限 */}
@@ -283,6 +305,14 @@ export default function GroupDetail() {
             onClose={() => setShowCourseConfirm(null)}
           />
         )}
+
+        <ChangeSeatModal
+          show={showSeatModal}
+          currentGroupId={groupId}
+          currentSeatIds={group?.seatIds ?? []}
+          onConfirm={handleSeatChange}
+          onClose={() => setShowSeatModal(false)}
+        />
 
     </>
   );

@@ -25,7 +25,7 @@ export interface Seat {
 export type GroupStatus = 'active' | 'bill_requested' | 'closed'
 
 export interface Group {
-  id: number
+  id: string
   name: string
   guestCount: number
   seatIds: number[]
@@ -39,8 +39,8 @@ export interface Group {
 export type OrderItemStatus = 'pending' | 'ready' | 'served' | 'cancelled'
 
 export interface OrderItem {
-  id: number
-  groupId: number
+  id: string
+  groupId: string
   menuItemId: number
   menuItemName: string
   price: number
@@ -109,7 +109,7 @@ export interface Setting {
 export interface ServerToClientEvents {
   'order:created':    (item: OrderItem) => void
   'order:updated':    (item: OrderItem) => void
-  'order:cancelled':  (itemId: number)  => void
+  'order:cancelled':  (itemId: string)  => void
   'group:created':    (group: Group)    => void
   'group:updated':    (group: Group)    => void
   'seat:updated':     (seat: Seat)      => void
@@ -119,8 +119,8 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  'order:complete': (itemId: number) => void
-  'order:serve':    (itemId: number) => void
+  'order:complete': (itemId: string) => void
+  'order:serve':    (itemId: string) => void
 }
 
 // ============================================================
@@ -164,7 +164,7 @@ export interface OrderItemInput {
 }
 
 export interface CreateOrderBatchRequest {
-  groupId: number
+  groupId: string
   items: OrderItemInput[]
   courseId?: number | null
 }
@@ -206,14 +206,14 @@ export interface UpdateSettingRequest {
 export type StaffRole = 'admin' | 'staff'
 
 export interface StaffMember {
-  id: number
+  id: string
   username: string
   role: StaffRole
   createdAt: string
 }
 
 export interface AuthUser {
-  id: number
+  id: string
   username: string
   role: StaffRole
 }
@@ -237,4 +237,27 @@ export interface UpsertSeatTableRequest {
   y: number
   w: number
   h: number
+}
+
+// --- SeatLayout ---
+export interface SeatLayoutResponse {
+  canvasCols: number
+  canvasRows: number
+  canvasColsMin: number
+  canvasColsMax: number
+  canvasRowsMin: number
+  canvasRowsMax: number
+  gridSize: number
+  gridSizeMin: number
+  gridSizeMax: number
+  tables: SeatTable[]
+  seats: Seat[]
+}
+
+export interface SeatLayoutSaveRequest {
+  canvasCols: number
+  canvasRows: number
+  gridSize: number
+  tables: Array<{ id: number; label: string; x: number; y: number; w: number; h: number }>
+  seats: Array<{ id: number; label: string; x: number; y: number; tableId: number | null }>
 }

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import bcrypt from 'bcryptjs'
+import { StaffRole } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -33,7 +34,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
-    const { username, password, role } = request.body as { username: string; password: string; role: string }
+    const { username, password, role } = request.body as { username: string; password: string; role: StaffRole }
     const existing = await prisma.staff.findUnique({ where: { username } })
     if (existing) return reply.status(409).send({ error: 'そのユーザー名は既に使用されています' })
     const passwordHash = await bcrypt.hash(password, 12)
@@ -42,8 +43,8 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
-    const id = Number((request.params as { id: string }).id)
-    const body = request.body as { username?: string; password?: string; role?: string }
+    const { id } = request.params as { id: string }
+    const body = request.body as { username?: string; password?: string; role?: StaffRole }
     const existing = await prisma.staff.findUnique({ where: { id } })
     if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
     const data: Record<string, unknown> = {}
@@ -58,7 +59,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
-    const id = Number((request.params as { id: string }).id)
+    const { id } = request.params as { id: string }
     if (id === request.user.userId) {
       return reply.status(422).send({ error: '自分自身は削除できません' })
     }

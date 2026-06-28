@@ -7,7 +7,7 @@ const createBodySchema = {
   type: 'object',
   required: ['groupId', 'items'],
   properties: {
-    groupId: { type: 'integer', minimum: 1 },
+    groupId: { type: 'string', minLength: 1 },
     items: {
       type: 'array',
       minItems: 1,
@@ -40,7 +40,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
     const { groupId, status, sessionId } = request.query as { groupId?: string; status?: string | string[]; sessionId?: string }
     const where: Record<string, unknown> = {}
-    if (groupId) where.groupId = Number(groupId)
+    if (groupId) where.groupId = groupId
     if (status) {
       if (Array.isArray(status)) {
         where.status = { in: status }
@@ -57,7 +57,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/', { schema: { body: createBodySchema } }, async (request, reply) => {
     const body = request.body as {
-      groupId: number;
+      groupId: string;
       items: { menuItemId: number; qty: number; isTakeout?: boolean }[];
       courseId?: number | null;
     }
@@ -78,6 +78,11 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const soldOut = body.items.filter(i => menuItemMap.get(i.menuItemId)?.soldOut)
     if (soldOut.length > 0) {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
+    }
+
+    if (body.courseId != null) {
+      const course = await prisma.course.findUnique({ where: { id: body.courseId } })
+      if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
     }
 
     const created = await prisma.$transaction(
@@ -112,7 +117,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
       const result = await prisma.$transaction(async (tx) => {
-        const order = await tx.orderItem.findUnique({ where: { id: Number(id) } })
+        const order = await tx.orderItem.findUnique({ where: { id } })
         if (!order) return null
         if (order.status === 'cancelled') {
           return { conflict: true }
@@ -120,12 +125,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (qty >= order.qty) {
           return tx.orderItem.update({
-            where: { id: Number(id) },
+            where: { id },
             data: { status: 'cancelled' },
           })
         } else {
           return tx.orderItem.update({
-            where: { id: Number(id) },
+            where: { id },
             data: { qty: order.qty - qty },
           })
         }

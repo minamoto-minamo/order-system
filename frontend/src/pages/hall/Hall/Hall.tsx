@@ -5,16 +5,13 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { ROUTES } from "@/lib/routes";
 import { isGroupActive } from "@/lib/utils";
-import type { Group, OrderItem, Seat, SeatTable } from "@order-system/shared";
+import type { Group, OrderItem, Seat, SeatLayoutResponse, SeatTable } from "@order-system/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import type { SeatStatus } from "./components/FloorSeat";
 import { FloorSeat } from "./components/FloorSeat";
 import { FloorTable } from "./components/FloorTable";
-
-// 席セルの基本グリッドサイズ (px)。キャンバスの余白計算に使う
-const G = 48;
 
 function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
   const g = groups.find(gr => gr.seatIds.includes(seat.id) && isGroupActive(gr));
@@ -28,6 +25,9 @@ export default function Hall() {
   const { t } = useTranslation();
   const [seats, setSeats] = useState<Seat[]>([]);
   const [seatTables, setSeatTables] = useState<SeatTable[]>([]);
+  const [canvasCols, setCanvasCols] = useState(16);
+  const [canvasRows, setCanvasRows] = useState(12);
+  const [gridSize, setGridSize] = useState(48);
   const [groups, setGroups] = useState<Group[]>([]);
   const [readyOrders, setReadyOrders] = useState<OrderItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -36,13 +36,16 @@ export default function Hall() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Seat[]>(EP.seats),
-      api.get<SeatTable[]>(EP.seatTables),
+      api.get<SeatLayoutResponse>(EP.seatLayout),
       api.get<Group[]>(`${EP.groups}?status=active,bill_requested`),
       api.get<OrderItem[]>(`${EP.orders}?status=ready`),
-    ]).then(([s, st, g, o]) => {
-      setSeats(s);
-      setSeatTables(st);
+    ]).then(([layout, g, o]) => {
+      const gs = layout.gridSize;
+      setGridSize(gs);
+      setCanvasCols(layout.canvasCols);
+      setCanvasRows(layout.canvasRows);
+      setSeats(layout.seats.map(s => ({ ...s, x: s.x * gs, y: s.y * gs })));
+      setSeatTables(layout.tables.map(t => ({ ...t, x: t.x * gs, y: t.y * gs, w: t.w * gs, h: t.h * gs })));
       setGroups(g);
       setReadyOrders(o);
     }).catch(console.error);
@@ -65,13 +68,13 @@ export default function Hall() {
         return o.status === 'ready' ? [...filtered, o] : filtered;
       });
     },
-    [SE.orderCancelled]: (id: number) => setReadyOrders(prev => prev.filter(o => o.id !== id)),
+    [SE.orderCancelled]: (id: string) => setReadyOrders(prev => prev.filter(o => o.id !== id)),
   });
 
   const tables = seatTables;
 
   const readyCountByGroup = useMemo(() => {
-    const counts: Record<number, number> = {};
+    const counts: Record<string, number> = {};
     readyOrders.forEach(o => { counts[o.groupId] = (counts[o.groupId] ?? 0) + 1; });
     return counts;
   }, [readyOrders]);
@@ -152,9 +155,8 @@ export default function Hall() {
     return g && (readyCountByGroup[g.id] ?? 0) > 0;
   }).length;
 
-  // 最大座標 + 1グリッド分の余白でキャンバスサイズを確定。席がない場合のデフォルト値も確保
-  const canvasW = seats.length > 0 ? Math.max(...seats.map(s => s.x)) + G * 2 : G * 10;
-  const canvasH = seats.length > 0 ? Math.max(...seats.map(s => s.y)) + G * 2 : G * 10;
+  const canvasW = canvasCols * gridSize;
+  const canvasH = canvasRows * gridSize;
 
   return (
     <>
@@ -204,6 +206,7 @@ export default function Hall() {
                 readyCount={group ? (readyCountByGroup[group.id] ?? 0) : 0}
                 isSelected={selectedIds.includes(seat.id)}
                 onTap={handleTap}
+                G={gridSize}
               />
             );
           })}

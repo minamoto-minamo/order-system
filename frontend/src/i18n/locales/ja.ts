@@ -113,6 +113,10 @@ const ja = {
     courseApplyAction: "コースを適用する",
     drinkPlanNote: "（適用中は何度でも注文可）",
     courseFoodLabel: "料理（選択時に一括注文）",
+    changeSeat: "席を変更",
+    changeSeatConfirm: "変更する",
+    changeSeatFailed: "席の変更に失敗しました",
+    changeSeatToast: "席を変更しました",
   },
   admin: {
     menuTitle: "管理者メニュー",
@@ -262,6 +266,12 @@ dragHintLine1: "ドラッグして",
     resizeHint: "（右下ドラッグでリサイズ）",
     cellUnit: "セル",
     defaultTableLabel: "テーブル{{n}}",
+    canvasSize: 'キャンバスサイズ',
+    canvasCols: '横',
+    canvasRows: '縦',
+    canvasUnit: 'マス',
+    canvasOutOfBounds: '範囲外の席・テーブルがあります',
+    gridSize: 'グリッド',
   },
 } as const;
 

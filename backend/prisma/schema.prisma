@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -36,6 +37,11 @@ enum TakeoutType {
   takeout
 }
 
+enum StaffRole {
+  admin
+  staff
+}
+
 model Session {
   id       Int           @id @default(autoincrement())
   status   SessionStatus @default(open)
@@ -48,10 +54,10 @@ model Session {
 model SeatTable {
   id    Int    @id @default(autoincrement())
   label String
-  x     Float
-  y     Float
-  w     Float
-  h     Float
+  x     Int
+  y     Int
+  w     Int
+  h     Int
 
   seats Seat[]
 }
@@ -60,12 +66,14 @@ model Seat {
   id      Int        @id @default(autoincrement())
   label   String
   type    SeatType
-  x       Float
-  y       Float
+  x       Int
+  y       Int
   tableId Int?
   table   SeatTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
   groupSeats GroupSeat[]
+
+  @@index([tableId])
 }
 
 model Category {
@@ -85,6 +93,8 @@ model SubCategory {
 
   category  Category   @relation(fields: [categoryId], references: [id])
   menuItems MenuItem[]
+
+  @@index([categoryId])
 }
 
 model MenuItem {
@@ -120,7 +130,7 @@ model DrinkPlanItem {
   drinkPlanId Int
   menuItemId  Int
 
-  drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id])
+  drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id], onDelete: Cascade)
   menuItem  MenuItem  @relation(fields: [menuItemId], references: [id])
 
   @@id([drinkPlanId, menuItemId])
@@ -134,8 +144,11 @@ model Course {
 
   drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
 
-  foodItems CourseFoodItem[]
-  groups    Group[]
+  foodItems  CourseFoodItem[]
+  groups     Group[]
+  orderItems OrderItem[]
+
+  @@index([drinkPlanId])
 }
 
 model CourseFoodItem {
@@ -143,14 +156,14 @@ model CourseFoodItem {
   menuItemId Int
   qty        Int @default(1)
 
-  course   Course   @relation(fields: [courseId], references: [id])
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   @@id([courseId, menuItemId])
 }
 
 model Group {
-  id          Int         @id @default(autoincrement())
+  id          String      @id @default(uuid())
   name        String
   guestCount  Int
   status      GroupStatus @default(active)
@@ -171,19 +184,19 @@ model Group {
 }
 
 model GroupSeat {
-  groupId Int
+  groupId String
   seatId  Int
 
-  group Group @relation(fields: [groupId], references: [id])
-  seat  Seat  @relation(fields: [seatId], references: [id])
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  seat  Seat  @relation(fields: [seatId], references: [id], onDelete: Cascade)
 
   @@id([groupId, seatId])
   @@index([seatId])
 }
 
 model OrderItem {
-  id           Int             @id @default(autoincrement())
-  groupId      Int
+  id           String          @id @default(uuid())
+  groupId      String
   menuItemId   Int
   menuItemName String
   price        Int
@@ -195,25 +208,36 @@ model OrderItem {
 
   group    Group    @relation(fields: [groupId], references: [id])
   menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  course   Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@index([status])
+  @@index([orderedAt])
 }
 
 model Setting {
   id             Int    @id @default(1)
   storeName      String
   closingTime    String
-  taxRateInHouse Float
-  taxRateTakeout Float
+  taxRateInHouse Decimal @db.Decimal(5, 2)
+  taxRateTakeout Decimal @db.Decimal(5, 2)
+  canvasCols     Int    @default(16)
+  canvasRows     Int    @default(12)
+  canvasColsMin  Int    @default(8)
+  canvasColsMax  Int    @default(32)
+  canvasRowsMin  Int    @default(6)
+  canvasRowsMax  Int    @default(24)
+  gridSize       Int    @default(48)
+  gridSizeMin    Int    @default(32)
+  gridSizeMax    Int    @default(80)
 }
 
 model Staff {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
+  id           String    @id @default(uuid())
+  username     String    @unique
   passwordHash String
-  role         String   @default("staff")
-  createdAt    DateTime @default(now())
+  role         StaffRole @default(staff)
+  createdAt    DateTime  @default(now())
 
   @@map("staff")
 }

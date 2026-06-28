@@ -15,10 +15,19 @@ async function main() {
     update: {},
     create: {
       id: 1,
-      storeName: '居酒屋',
+      storeName: 'おいしい居酒屋',
       closingTime: '23:00',
       taxRateInHouse: 10,
       taxRateTakeout: 8,
+      canvasCols: 16,
+      canvasRows: 12,
+      canvasColsMin: 8,
+      canvasColsMax: 32,
+      canvasRowsMin: 6,
+      canvasRowsMax: 24,
+      gridSize: 48,
+      gridSizeMin: 32,
+      gridSizeMax: 80,
     },
   })
 
@@ -73,7 +82,7 @@ async function main() {
   const subTakeout = await prisma.subCategory.upsert({
     where: { id: 7 },
     update: {},
-    create: { id: 7, categoryId: catOther.id, name: 'テイクアウト', sort: 2 },
+    create: { id: 7, categoryId: catFood.id, name: 'テイクアウト', sort: 4 },
   })
 
   // MenuItems
@@ -177,8 +186,36 @@ async function main() {
     })
   }
 
+  // SeatTables
+  // G=1: DBにはグリッド単位の整数を保存する。フロントが gridSize を乗算してピクセル座標に変換する。
+  const G = 1
+  const st1 = await prisma.seatTable.upsert({
+    where: { id: 1 },
+    update: { label: 'テーブル1', x: G * 1, y: G * 1, w: G * 4, h: G * 2 },
+    create: { id: 1, label: 'テーブル1', x: G * 1, y: G * 1, w: G * 4, h: G * 2 },
+  })
+  const st2 = await prisma.seatTable.upsert({
+    where: { id: 2 },
+    update: { label: 'テーブル2', x: G * 1, y: G * 4, w: G * 4, h: G * 2 },
+    create: { id: 2, label: 'テーブル2', x: G * 1, y: G * 4, w: G * 4, h: G * 2 },
+  })
+  const st3 = await prisma.seatTable.upsert({
+    where: { id: 3 },
+    update: { label: 'テーブル3', x: G * 6, y: G * 1, w: G * 4, h: G * 3 },
+    create: { id: 3, label: 'テーブル3', x: G * 6, y: G * 1, w: G * 4, h: G * 3 },
+  })
+  const st4 = await prisma.seatTable.upsert({
+    where: { id: 4 },
+    update: { label: 'テーブル4', x: G * 6, y: G * 5, w: G * 4, h: G * 3 },
+    create: { id: 4, label: 'テーブル4', x: G * 6, y: G * 5, w: G * 4, h: G * 3 },
+  })
+  const st5 = await prisma.seatTable.upsert({
+    where: { id: 5 },
+    update: { label: 'テーブル5', x: G * 11, y: G * 2, w: G * 4, h: G * 5 },
+    create: { id: 5, label: 'テーブル5', x: G * 11, y: G * 2, w: G * 4, h: G * 5 },
+  })
+
   // Seats
-  const G = 48
   const seats: Array<{
     id: number
     label: string
@@ -187,27 +224,42 @@ async function main() {
     y: number
     tableId: number | null
   }> = [
-      { id: 10, label: 'A1', type: 'table', x: G * 2, y: G * 1, tableId: null },
-      { id: 11, label: 'A2', type: 'table', x: G * 3, y: G * 1, tableId: null },
-      { id: 12, label: 'A3', type: 'table', x: G * 4, y: G * 1, tableId: null },
-      { id: 13, label: 'A4', type: 'table', x: G * 2, y: G * 2, tableId: null },
-      { id: 14, label: 'B1', type: 'table', x: G * 6, y: G * 1, tableId: null },
-      { id: 15, label: 'B2', type: 'table', x: G * 7, y: G * 1, tableId: null },
-      { id: 16, label: 'C1', type: 'table', x: G * 2, y: G * 4, tableId: null },
-      { id: 17, label: 'C2', type: 'table', x: G * 3, y: G * 4, tableId: null },
-      { id: 18, label: 'C3', type: 'table', x: G * 4, y: G * 4, tableId: null },
-      { id: 19, label: 'C4', type: 'table', x: G * 5, y: G * 4, tableId: null },
-      { id: 20, label: 'CT1', type: 'counter', x: G * 1, y: G * 7, tableId: null },
-      { id: 21, label: 'CT2', type: 'counter', x: G * 2, y: G * 7, tableId: null },
-      { id: 22, label: 'CT3', type: 'counter', x: G * 3, y: G * 7, tableId: null },
-      { id: 23, label: 'CT4', type: 'counter', x: G * 4, y: G * 7, tableId: null },
-      { id: 24, label: 'CT5', type: 'counter', x: G * 5, y: G * 7, tableId: null },
+      // テーブル1（2人）
+      { id: 10, label: 'A-1', type: 'table', x: G * 1, y: G * 1, tableId: st1.id },
+      { id: 11, label: 'A-2', type: 'table', x: G * 3, y: G * 1, tableId: st1.id },
+      // テーブル2（2人）
+      { id: 12, label: 'B-1', type: 'table', x: G * 1, y: G * 4, tableId: st2.id },
+      { id: 13, label: 'B-2', type: 'table', x: G * 3, y: G * 4, tableId: st2.id },
+      // テーブル3（4人）
+      { id: 14, label: 'C-1', type: 'table', x: G * 6, y: G * 1, tableId: st3.id },
+      { id: 15, label: 'C-2', type: 'table', x: G * 9, y: G * 1, tableId: st3.id },
+      { id: 16, label: 'C-3', type: 'table', x: G * 6, y: G * 3, tableId: st3.id },
+      { id: 17, label: 'C-4', type: 'table', x: G * 9, y: G * 3, tableId: st3.id },
+      // テーブル4（4人）
+      { id: 18, label: 'D-1', type: 'table', x: G * 6, y: G * 5, tableId: st4.id },
+      { id: 19, label: 'D-2', type: 'table', x: G * 9, y: G * 5, tableId: st4.id },
+      { id: 20, label: 'D-3', type: 'table', x: G * 6, y: G * 7, tableId: st4.id },
+      { id: 21, label: 'D-4', type: 'table', x: G * 9, y: G * 7, tableId: st4.id },
+      // テーブル5（6人）
+      { id: 22, label: 'E-1', type: 'table', x: G * 11, y: G * 2, tableId: st5.id },
+      { id: 23, label: 'E-2', type: 'table', x: G * 13, y: G * 2, tableId: st5.id },
+      { id: 24, label: 'E-3', type: 'table', x: G * 11, y: G * 4, tableId: st5.id },
+      { id: 25, label: 'E-4', type: 'table', x: G * 13, y: G * 4, tableId: st5.id },
+      { id: 26, label: 'E-5', type: 'table', x: G * 11, y: G * 6, tableId: st5.id },
+      { id: 27, label: 'E-6', type: 'table', x: G * 13, y: G * 6, tableId: st5.id },
+      // カウンター（6席）
+      { id: 28, label: 'CT-1', type: 'counter', x: G * 1, y: G * 10, tableId: null },
+      { id: 29, label: 'CT-2', type: 'counter', x: G * 2, y: G * 10, tableId: null },
+      { id: 30, label: 'CT-3', type: 'counter', x: G * 3, y: G * 10, tableId: null },
+      { id: 31, label: 'CT-4', type: 'counter', x: G * 4, y: G * 10, tableId: null },
+      { id: 32, label: 'CT-5', type: 'counter', x: G * 5, y: G * 10, tableId: null },
+      { id: 33, label: 'CT-6', type: 'counter', x: G * 6, y: G * 10, tableId: null },
     ]
 
   for (const seat of seats) {
     await prisma.seat.upsert({
       where: { id: seat.id },
-      update: {},
+      update: { label: seat.label, type: seat.type, x: seat.x, y: seat.y, tableId: seat.tableId },
       create: seat,
     })
   }
@@ -225,6 +277,15 @@ async function main() {
     update: {},
     create: { username: 'staff', passwordHash: staffHash, role: 'staff' },
   })
+
+  // 明示的 ID 挿入後に autoincrement シーケンスを同期（PostgreSQL 固有の問題）
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Category"',    'id'), (SELECT MAX(id) FROM "Category"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"SubCategory"', 'id'), (SELECT MAX(id) FROM "SubCategory"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"MenuItem"',    'id'), (SELECT MAX(id) FROM "MenuItem"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"DrinkPlan"',   'id'), (SELECT MAX(id) FROM "DrinkPlan"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Course"',      'id'), (SELECT MAX(id) FROM "Course"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"SeatTable"',   'id'), (SELECT MAX(id) FROM "SeatTable"))`
+  await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Seat"',        'id'), (SELECT MAX(id) FROM "Seat"))`
 
   console.log('Seed 完了')
 }

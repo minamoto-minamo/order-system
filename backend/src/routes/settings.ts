@@ -16,20 +16,20 @@ const updateBodySchema = {
   properties: {
     storeName: { type: 'string', minLength: 1 },
     closingTime: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
-    taxRateInHouse: { type: 'integer', minimum: 0, maximum: 100 },
-    taxRateTakeout: { type: 'integer', minimum: 0, maximum: 100 },
+    taxRateInHouse: { type: 'number', minimum: 0, maximum: 100 },
+    taxRateTakeout: { type: 'number', minimum: 0, maximum: 100 },
   },
   additionalProperties: false,
 } as const
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async () => {
-    const setting = await prisma.setting.findUnique({ where: { id: 1 } }) ?? DEFAULT_SETTING
+    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
     return {
-      storeName: setting.storeName,
-      closingTime: setting.closingTime,
-      taxRateInHouse: setting.taxRateInHouse,
-      taxRateTakeout: setting.taxRateTakeout,
+      storeName: setting?.storeName ?? DEFAULT_SETTING.storeName,
+      closingTime: setting?.closingTime ?? DEFAULT_SETTING.closingTime,
+      taxRateInHouse: setting ? setting.taxRateInHouse.toNumber() : DEFAULT_SETTING.taxRateInHouse,
+      taxRateTakeout: setting ? setting.taxRateTakeout.toNumber() : DEFAULT_SETTING.taxRateTakeout,
     }
   })
 
@@ -46,8 +46,8 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const result = {
       storeName: setting.storeName,
       closingTime: setting.closingTime,
-      taxRateInHouse: setting.taxRateInHouse,
-      taxRateTakeout: setting.taxRateTakeout,
+      taxRateInHouse: setting.taxRateInHouse.toNumber(),
+      taxRateTakeout: setting.taxRateTakeout.toNumber(),
     }
     fastify.io.emit('settings:updated', result)
     return result
