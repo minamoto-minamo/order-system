@@ -2,6 +2,19 @@
 
 React 18 + Vite + React Router v6 + Tailwind CSS v4。
 
+## コマンド
+
+```bash
+# 開発サーバー
+pnpm --filter frontend dev      # Vite dev server を起動（HMR あり）
+pnpm --filter frontend build    # TypeScript 型チェック → Vite で本番ビルド（dist/ に出力）
+pnpm --filter frontend preview  # dist/ をローカルで配信（本番ビルドの動作確認用）
+
+# 検証
+pnpm --filter frontend typecheck  # 型チェックのみ（コンパイル出力なし）
+pnpm --filter frontend test       # Jest でユニットテストを実行
+```
+
 ## ディレクトリ構成
 
 ```txt

@@ -5,24 +5,29 @@
 パッケージマネージャは **pnpm**。ワークスペース定義は `pnpm-workspace.yaml`。
 
 ```bash
-pnpm dev          # 開発サーバー起動（frontend: Vite / backend: tsx watch）
-pnpm build        # ビルド（frontend → backend の順）
-pnpm typecheck    # 全ワークスペースの型チェック
-pnpm test:e2e           # Playwright E2E テスト実行
-pnpm test:e2e:ui        # Playwright UI モード（要 X / WSLg）
-pnpm test:e2e:ui:wsl    # Playwright UI モード（WSL2 ブラウザアクセス用）
+# 開発
+pnpm dev          # frontend（Vite dev server）と backend（tsx watch）を同時起動
+pnpm build        # 本番ビルド。frontend → backend の順でビルドする
+pnpm typecheck    # 全ワークスペースの TypeScript 型チェック（エラーのみ、出力なし）
+
+# テスト
+pnpm test              # frontend + backend のユニットテスト（Jest）を並列実行
+pnpm test:e2e          # Playwright E2E テスト実行（ヘッドレス）
+pnpm test:e2e:ui       # Playwright UI モード（ブラウザ操作の可視化・デバッグ用。要 X / WSLg）
+pnpm test:e2e:ui:wsl   # Playwright UI モード（WSL2 から Windows ブラウザでアクセスする場合）
 ```
 
 ```bash
-pnpm setup                        # env ファイル生成・JWT_SECRET 自動生成
-pnpm db:up                        # PostgreSQL コンテナ起動（Docker）
-pnpm --filter backend db:migrate  # マイグレーション実行
-pnpm --filter backend db:seed     # 初期データ投入
+# セットアップ
+pnpm setup                        # env/*.env を example からコピーし JWT_SECRET を自動生成
+pnpm --filter backend db:migrate  # schema.prisma の差分から SQL を生成して DB に適用（開発用）
+pnpm --filter backend db:seed     # 初期データ投入（スタッフ・メニュー・席など）
 ```
 
 - frontend: `http://localhost:5173`（Vite dev server）
 - backend: `http://localhost:3000`
 - Vite は `/api` と `/socket.io` を `localhost:3000` にプロキシ。開発中は両サーバーを同時起動する。
+- PostgreSQL はローカルにインストールされたものを使用（`DATABASE_URL` を `env/backend.env` に設定）
 
 ## 構成
 

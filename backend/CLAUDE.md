@@ -5,11 +5,21 @@ Fastify + Socket.io + Prisma (PostgreSQL)。
 ## コマンド
 
 ```bash
-pnpm --filter backend db:generate  # Prisma クライアント生成
-pnpm --filter backend db:migrate   # マイグレーション実行（開発用）
-pnpm --filter backend db:push      # スキーマを DB に直接反映（プロトタイプ用）
-pnpm --filter backend db:studio    # GUI で DB を確認
-pnpm --filter backend start        # ビルド済みサーバー起動
+# 開発サーバー
+pnpm --filter backend dev    # tsx watch で起動（ファイル変更時に自動再起動）
+pnpm --filter backend start  # ビルド済み dist/index.js を起動（本番相当の動作確認用）
+pnpm --filter backend build  # TypeScript をコンパイルして dist/ に出力
+
+# DB 操作
+pnpm --filter backend db:generate  # schema.prisma から Prisma クライアントを再生成（スキーマ変更後に実行）
+pnpm --filter backend db:migrate   # schema.prisma の差分から SQL ファイルを生成して DB に適用（開発用）
+pnpm --filter backend db:deploy    # migrations/ 内の未適用 SQL を順番に適用（本番・ECS 用）
+pnpm --filter backend db:studio    # Prisma Studio（GUI）を起動して DB の中身をブラウザで確認
+pnpm --filter backend db:seed      # prisma/seed.ts を実行して初期データを投入
+
+# 検証
+pnpm --filter backend typecheck  # 型チェックのみ（コンパイル出力なし）
+pnpm --filter backend test       # Jest でユニットテストを実行
 ```
 
 ## ディレクトリ構成

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm --filter frontend typecheck *)",
+      "Bash(pnpm --filter backend typecheck *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE '\\.(ts|tsx)$' && { if echo \"$f\" | grep -q '/backend/'; then pnpm --filter backend typecheck; elif echo \"$f\" | grep -q '/frontend/'; then pnpm --filter frontend typecheck; else pnpm typecheck; fi; } 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "型チェック中..."
+          },
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); echo \"$f\" | grep -qE '\\.test\\.(ts|tsx)$' && { if echo \"$f\" | grep -q '/backend/'; then NODE_OPTIONS='--experimental-vm-modules' pnpm --filter backend test; elif echo \"$f\" | grep -q '/frontend/'; then NODE_OPTIONS='--experimental-vm-modules' pnpm --filter frontend test; fi; } 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "テスト実行中..."
+          }
+        ]
+      }
+    ]
+  }
+}
