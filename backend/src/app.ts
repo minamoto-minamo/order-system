@@ -19,6 +19,7 @@ import settingsRoutes from './routes/settings.js'
 import staffRoutes from './routes/staff.js'
 import seatTablesRoutes from './routes/seatTables.js'
 import seatLayoutRoutes from './routes/seatLayout.js'
+import customerRoutes from './routes/customer.js'
 
 // ESM では __dirname が存在しないため import.meta.url から生成
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -46,6 +47,7 @@ export async function buildApp() {
   await app.register(staffRoutes,        { prefix: '/api/staff' })
   await app.register(seatTablesRoutes,   { prefix: '/api/seat-tables' })
   await app.register(seatLayoutRoutes,   { prefix: '/api/seat-layout' })
+  await app.register(customerRoutes,     { prefix: '/api/customer' })
 
   app.get('/api/health', async () => ({ status: 'ok' }))
 

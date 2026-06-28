@@ -1,5 +1,6 @@
 import { AppHeader, BaseButton, BottomSheetModal, QuantityControl, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
+import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
@@ -23,6 +24,7 @@ function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
 export default function Hall() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { toast, showToast } = useToast();
   const [seats, setSeats] = useState<Seat[]>([]);
   const [seatTables, setSeatTables] = useState<SeatTable[]>([]);
   const [canvasCols, setCanvasCols] = useState(16);
@@ -69,6 +71,9 @@ export default function Hall() {
       });
     },
     [SE.orderCancelled]: (id: string) => setReadyOrders(prev => prev.filter(o => o.id !== id)),
+    [SE.staffCalled]: (_groupId: string, groupName: string) => {
+      showToast(`${groupName} ${t('hall.staffCalled')}`);
+    },
   });
 
   const tables = seatTables;
@@ -160,6 +165,11 @@ export default function Hall() {
 
   return (
     <>
+      {toast && (
+        <div className="fixed top-4 left-4 right-4 bg-white border border-line rounded-xl px-4 py-3 text-sm text-ink text-center shadow-sm z-sheet animate-[fadeIn_0.2s_ease_both]">
+          {toast}
+        </div>
+      )}
       <AppHeader title={t('hall.title')} />
 
       <SubHeader

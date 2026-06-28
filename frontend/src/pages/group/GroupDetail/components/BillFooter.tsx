@@ -23,11 +23,15 @@ export function BillFooter({ items, taxRates, groupStatus, onBillRequest, onBill
       <div className="mb-3.5">
         <div className="flex justify-between items-baseline mb-0.5">
           <span className="text-note text-dim">{t('group.total')}</span>
-          <span className="text-lg font-medium text-ink">¥{subtotal.toLocaleString()}</span>
+          <span className="text-note text-dim">¥{subtotal.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between items-baseline">
+        <div className="flex justify-between items-baseline mb-0.5">
           <span className="text-xs text-muted">{t('group.tax')}</span>
           <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between items-baseline">
+          <span className="text-note text-dim">{t('group.totalWithTax')}</span>
+          <span className="text-lg font-medium text-ink">¥{(subtotal + tax).toLocaleString()}</span>
         </div>
       </div>
       {groupStatus === 'bill_requested' ? (

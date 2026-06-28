@@ -14,6 +14,7 @@ import Staff from '@/pages/admin/Staff/Staff'
 import GroupDetail from '@/pages/group/GroupDetail/GroupDetail'
 import Hall from '@/pages/hall/Hall/Hall'
 import Kitchen from '@/pages/kitchen/Kitchen/Kitchen'
+import CustomerOrder from '@/pages/customer/CustomerOrder/CustomerOrder'
 import NotFound from '@/pages/error/NotFound'
 import type { AuthUser } from '@/stores/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -67,6 +68,7 @@ export default function App() {
       <Route path={ROUTES.adminReport} element={<RequireAuth adminOnly><DailyReport /></RequireAuth>} />
       <Route path={ROUTES.adminSettings} element={<RequireAuth adminOnly><Settings /></RequireAuth>} />
       <Route path={ROUTES.adminStaff} element={<RequireAuth adminOnly><Staff /></RequireAuth>} />
+      <Route path={ROUTES.customerOrderPattern} element={<CustomerOrder />} />
       <Route path="*" element={user ? <Navigate to={ROUTES.root} replace /> : <NotFound />} />
     </Routes>
   )

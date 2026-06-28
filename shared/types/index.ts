@@ -116,6 +116,7 @@ export interface ServerToClientEvents {
   'menu:soldout':     (menuItemId: number, soldOut: boolean) => void
   'session:updated':  (session: Session) => void
   'settings:updated': (setting: Setting) => void
+  'staff:called':     (groupId: string, groupName: string) => void
 }
 
 export interface ClientToServerEvents {

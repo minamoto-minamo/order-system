@@ -35,7 +35,7 @@ export default fp(async (fastify) => {
 
   fastify.addHook('preHandler', async (request, reply) => {
     // login/logout はトークン取得・破棄エンドポイントなので認証前にアクセス可能にする
-    if (!request.url.startsWith('/api/') || request.url === '/api/auth/login' || request.url === '/api/auth/logout' || request.url === '/api/health') return
+    if (!request.url.startsWith('/api/') || request.url === '/api/auth/login' || request.url === '/api/auth/logout' || request.url === '/api/health' || request.url.startsWith('/api/customer/')) return
     try {
       await request.jwtVerify()
     } catch {

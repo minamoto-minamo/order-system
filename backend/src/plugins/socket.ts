@@ -19,6 +19,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('io', io)
 
   // Socket.io は Fastify の preHandler フックとは独立して動くため個別に JWT 検証が必要
+  // 顧客向け画面はゲスト接続を許可し、socket.data.authenticated で権限を区別する
   io.use((socket, next) => {
     try {
       const cookieHeader = socket.handshake.headers.cookie ?? ''
@@ -27,12 +28,17 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         .split(';')
         .map(c => c.trim())
         .find(c => c.startsWith('token='))
-      if (!tokenCookie) return next(new Error('Unauthorized'))
+      if (!tokenCookie) {
+        socket.data.authenticated = false
+        return next()
+      }
       const token = tokenCookie.slice('token='.length)
       fastify.jwt.verify(token)
+      socket.data.authenticated = true
       next()
     } catch {
-      next(new Error('Unauthorized'))
+      socket.data.authenticated = false
+      next()
     }
   })
 
@@ -40,6 +46,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     fastify.log.info(`client connected: ${socket.id}`)
 
     socket.on('order:complete', async (itemId) => {
+      if (!socket.data.authenticated) return
       try {
         const order = await prisma.orderItem.findUnique({ where: { id: itemId } })
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
@@ -55,6 +62,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     })
 
     socket.on('order:serve', async (itemId) => {
+      if (!socket.data.authenticated) return
       try {
         const order = await prisma.orderItem.findUnique({ where: { id: itemId } })
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける

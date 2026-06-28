@@ -26,4 +26,11 @@ export const EP = {
   seatTables:        '/seat-tables',
   seatTable:         (id: number) => `/seat-tables/${id}`,
   seatLayout:        '/seat-layout',
+  customerGroup:       (id: string) => `/customer/groups/${id}`,
+  customerMenus:       (id: string) => `/customer/groups/${id}/menus`,
+  customerGroupOrders: (id: string) => `/customer/groups/${id}/orders`,
+  customerOrders:      '/customer/orders',
+  customerBill:        (id: string) => `/customer/groups/${id}/bill`,
+  customerCallStaff:   (id: string) => `/customer/groups/${id}/call-staff`,
+  customerSettings:    '/customer/settings',
 } as const

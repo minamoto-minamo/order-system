@@ -18,6 +18,7 @@ import { BillFooter } from "./components/BillFooter";
 import { CourseTab } from "./components/CourseTab";
 import { CourseConfirmModal } from "./components/CourseConfirmModal";
 import { ChangeSeatModal } from "./components/ChangeSeatModal";
+import { QrModal } from "./components/QrModal";
 
 // ── メイン ───────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export default function GroupDetail() {
 
   const [tab, setTab]                       = useState("menu");
   const [showSeatModal, setShowSeatModal]   = useState(false);
+  const [showQr, setShowQr]                 = useState(false);
   const [showCourseConfirm, setShowCourseConfirm] = useState<Course | null>(null);
   const [courseQty, setCourseQty] = useState(1);
   const [cancelTarget, setCancelTarget]     = useState<OrderItem | null>(null);
@@ -202,13 +204,22 @@ export default function GroupDetail() {
           sub={seatLabels || undefined}
           breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
           right={group?.status === 'active' ? (
-            <IconButton
-              className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
-              onClick={() => setShowSeatModal(true)}
-              aria-label={t('group.changeSeat')}
-            >
-              ✎
-            </IconButton>
+            <div className="flex items-center gap-2">
+              <IconButton
+                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                onClick={() => setShowQr(true)}
+                aria-label={t('group.showQr')}
+              >
+                ▣
+              </IconButton>
+              <IconButton
+                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                onClick={() => setShowSeatModal(true)}
+                aria-label={t('group.changeSeat')}
+              >
+                ✎
+              </IconButton>
+            </div>
           ) : undefined}
         />
 
@@ -313,6 +324,8 @@ export default function GroupDetail() {
           onConfirm={handleSeatChange}
           onClose={() => setShowSeatModal(false)}
         />
+
+        <QrModal show={showQr} groupId={groupId} onClose={() => setShowQr(false)} />
 
     </>
   );
