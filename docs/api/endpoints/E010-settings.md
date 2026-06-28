@@ -29,13 +29,13 @@
 {
   "storeName": "居酒屋",
   "closingTime": "23:00",
-  "taxRateInHouse": 10,
+  "taxRateInHouse": 10.5,
   "taxRateTakeout": 8
 }
 ```
 
 - `closingTime`: `"HH:MM"` 形式
-- `taxRateInHouse` / `taxRateTakeout`: 整数（%）
+- `taxRateInHouse` / `taxRateTakeout`: 数値（%、小数点以下2桁まで対応）
 
 ### PUT /api/settings
 

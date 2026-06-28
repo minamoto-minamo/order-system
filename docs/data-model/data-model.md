@@ -35,6 +35,7 @@ erDiagram
     GROUP ||--o{ GROUP_SEAT : assigns
     GROUP }o--o| COURSE : applies
     GROUP }o--o| DRINK_PLAN : applies
+    ORDER_ITEM }o--o| COURSE : appliedCourse
     SEAT_TABLE ||--o{ SEAT : contains
     SEAT ||--o{ GROUP_SEAT : assigned_to
     CATEGORY ||--o{ SUB_CATEGORY : has
@@ -54,18 +55,19 @@ erDiagram
       datetime closedAt
     }
     GROUP {
-      Int id PK
+      String id PK "UUID"
       string name
       int guestCount
       string status
       datetime createdAt
     }
     GROUP_SEAT {
-      Int groupId FK
+      String groupId FK
       Int seatId FK
     }
     ORDER_ITEM {
-      Int id PK
+      String id PK "UUID"
+      String groupId FK
       int qty
       int price
       string status
@@ -75,11 +77,17 @@ erDiagram
     SEAT_TABLE {
       Int id PK
       string label
+      int x
+      int y
+      int w
+      int h
     }
     SEAT {
       Int id PK
       string label
       string type
+      int x
+      int y
     }
     CATEGORY {
       Int id PK
@@ -117,17 +125,20 @@ erDiagram
       Int menuItemId FK
     }
     STAFF {
-      Int id PK
+      String id PK "UUID"
       string username
-      string role
+      StaffRole role
       datetime createdAt
     }
     SETTING {
       Int id PK
       string storeName
       string closingTime
-      float taxRateInHouse
-      float taxRateTakeout
+      Decimal taxRateInHouse
+      Decimal taxRateTakeout
+      int canvasCols
+      int canvasRows
+      int gridSize
     }
 ```
 

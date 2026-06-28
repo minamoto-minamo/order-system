@@ -22,25 +22,56 @@
 
 ## Request / Response (例)
 
+GET /api/orders
+
+クエリパラメータ:
+- `groupId`: string（UUID）
+- `status`: string または string[]
+- `sessionId`: string
+
 POST /api/orders
 
 ```json
 {
-  "groupId": 1,
+  "groupId": "018f1234-5678-7abc-def0-123456789abc",
   "items": [{ "menuItemId": 3, "qty": 2, "isTakeout": false }],
   "courseId": null
 }
 ```
 
-Response 201: order object with status
+- `groupId` は UUID string
+- `courseId` を指定した場合、存在しないと 422 を返す
+
+Response 201: order object
+
+```json
+[
+  {
+    "id": "018f5678-abcd-7abc-def0-000000000001",
+    "groupId": "018f1234-5678-7abc-def0-123456789abc",
+    "menuItemId": 3,
+    "menuItemName": "生ビール",
+    "price": 500,
+    "qty": 2,
+    "status": "pending",
+    "isTakeout": false,
+    "courseId": null,
+    "orderedAt": "2024-06-01T10:00:00.000Z"
+  }
+]
+```
+
+- `id` は UUID string
 
 PUT /api/orders/:id/cancel
+
+- `:id` は UUID string
 
 ```json
 { "qty": 1 }
 ```
 
-Response 200: updated order object
+Response 200: updated order object（上記と同形式）
 
 ## Acceptance Criteria
 

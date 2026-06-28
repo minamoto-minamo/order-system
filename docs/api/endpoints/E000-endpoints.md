@@ -25,6 +25,7 @@ API エンドポイントの短い一覧と参照リンク。
 - E009 — Staff: E009-staff.md
 - E010 — Settings: E010-settings.md
 - E011 — Reports: E011-reports.md
+- E012 — Seat Layout: E012-seat-layout.md
 
 ## Notes
 

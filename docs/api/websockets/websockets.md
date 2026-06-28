@@ -30,7 +30,7 @@ Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場
 
 - `order:cancelled`
   - Description: 注文キャンセル時にブロードキャスト
-  - Payload: `itemId: number`
+  - Payload: `itemId: string`（UUID）
 
 - `group:created`
   - Description: グループ作成時にブロードキャスト
@@ -60,11 +60,11 @@ Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場
 
 - `order:complete`
   - Description: キッチンが調理完了を報告（`pending` → `ready` に遷移）
-  - Payload: `itemId: number`
+  - Payload: `itemId: string`（UUID）
 
 - `order:serve`
   - Description: ホールが提供完了を報告（`ready` → `served` に遷移）
-  - Payload: `itemId: number`
+  - Payload: `itemId: string`（UUID）
 
 > 注文作成は REST `POST /api/orders` 経由で行う。Socket では行わない。
 

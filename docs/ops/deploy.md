@@ -2,21 +2,16 @@
 
 ## Purpose
 
-本番リリース手順とロールバック手順の概要。
+デプロイ手順とロールバック手順。
 
 ## Audience
 
-SRE, Release engineers
+開発者、運用担当
 
-## Steps
+---
 
-1. Build artifacts in CI
-2. Deploy artifacts to servers/containers
-3. Apply DB migrations
-4. Restart services
-5. Verify health checks
+## デプロイ
 
-## Rollback
+デプロイは GHA → AWS ECS を前提とする。詳細は CI/CD 整備後に記載予定。
 
-- Ensure DB backup before migration
-- Rollback to previous artifact and restart
+`Dockerfile` はプロジェクトルートに配置済み。frontend 静的ファイルを内包した単一イメージとしてビルドされる。

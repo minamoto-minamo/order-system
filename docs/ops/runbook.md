@@ -8,22 +8,35 @@
 
 開発者、運用担当
 
-## Quick Start (dev)
+---
 
-1. pnpm install
-2. pnpm setup
-3. pnpm db:up
-4. pnpm --filter backend db:migrate
-5. pnpm --filter backend db:seed
-6. pnpm dev
+## ローカル開発
 
-## Production
+### 前提
 
-- Build: pnpm build
-- Migrate: pnpm --filter backend db:migrate
-- Start service via systemd/container runtime
+- PostgreSQL がローカルにインストール済み
+- `env/backend.env` の `DATABASE_URL` に接続先を設定済み
 
-## Health & Logs
+### 初回セットアップ
 
-- Health: curl -f <http://localhost:3000/health>
-- Logs: journalctl -u order-backend
+```bash
+pnpm install
+pnpm setup                        # env ファイル生成・JWT_SECRET 自動生成
+pnpm --filter backend db:migrate  # マイグレーション実行
+pnpm --filter backend db:seed     # 初期データ投入
+```
+
+### 起動
+
+```bash
+pnpm dev   # frontend: http://localhost:5173 / backend: http://localhost:3000
+```
+
+---
+
+## 日常運用コマンド
+
+```bash
+# ヘルスチェック
+curl -f http://localhost:3000/api/health
+```

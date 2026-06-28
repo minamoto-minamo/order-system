@@ -62,6 +62,7 @@
     - E009-staff.md
     - E010-settings.md
     - E011-reports.md
+    - E012-seat-layout.md
 
 - data-model/
   - data-model.md

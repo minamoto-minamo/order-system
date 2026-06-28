@@ -38,7 +38,25 @@ POST /api/groups
 
 Response 201: group object
 
+```json
+{
+  "id": "018f1234-5678-7abc-def0-123456789abc",
+  "name": "A1テーブル",
+  "guestCount": 2,
+  "seatIds": [1, 2],
+  "status": "active",
+  "sessionId": 1,
+  "courseId": null,
+  "drinkPlanId": null,
+  "createdAt": "2024-06-01T10:00:00.000Z"
+}
+```
+
+- `id` は UUID string
+
 PUT /api/groups/:id
+
+- `:id` は UUID string
 
 ```json
 {
@@ -50,7 +68,7 @@ PUT /api/groups/:id
 }
 ```
 
-Response 200: group object
+Response 200: group object（上記と同形式）
 
 ## Acceptance Criteria
 

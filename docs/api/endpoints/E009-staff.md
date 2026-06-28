@@ -30,13 +30,15 @@
 ```json
 [
   {
-    "id": 1,
+    "id": "018f1234-5678-7abc-def0-123456789abc",
     "username": "admin",
     "role": "admin",
     "createdAt": "2024-01-01T00:00:00.000Z"
   }
 ]
 ```
+
+- `id` は UUID string
 
 ### POST /api/staff
 
@@ -58,7 +60,7 @@
 
 ```json
 {
-  "id": 2,
+  "id": "018f5678-abcd-7abc-def0-000000000001",
   "username": "hanako",
   "role": "staff",
   "createdAt": "2024-06-01T10:00:00.000Z"
@@ -66,6 +68,8 @@
 ```
 
 ### PUT /api/staff/:id
+
+- `:id` は UUID string
 
 リクエストボディ（全フィールド省略可）:
 
@@ -82,6 +86,7 @@
 
 ### DELETE /api/staff/:id
 
+- `:id` は UUID string
 - 204 No Content
 - 自分自身を削除しようとした場合は 422
 
