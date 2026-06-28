@@ -39,7 +39,7 @@ test('複数席選択してグループ作成 → 詳細ページに遷移', asy
   await seats.nth(0).click({ force: true })
   await page.getByRole('button', { name: ja.hall.createGroup }).click()
   await page.getByRole('button', { name: /作成する/ }).click()
-  await expect(page).toHaveURL(/\/hall\/group\/\d+/)
+  await expect(page).toHaveURL(/\/hall\/group\/[\w-]+/)
 })
 
 test('キッチンボタンでキッチンへ遷移', async ({ page }) => {

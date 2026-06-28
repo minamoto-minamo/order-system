@@ -12,8 +12,8 @@ export const SEED = {
     karaage: '唐揚げ',
   },
   seats: {
-    a1: 'A1',
-    ct1: 'CT1',
+    a1: 'A-1',
+    ct1: 'CT-1',
   },
   settings: {
     storeName: '居酒屋',
