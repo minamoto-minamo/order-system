@@ -4,11 +4,10 @@
   "type": "module",
   "scripts": {
     "setup": "node scripts/setup-env.js",
-    "db:up": "docker compose up -d db",
-    "db:down": "docker compose down",
     "dev": "concurrently \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\"",
     "build": "pnpm --filter frontend build && pnpm --filter backend build",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:ui:wsl": "playwright test --ui --ui-host=0.0.0.0 --ui-port=9323"

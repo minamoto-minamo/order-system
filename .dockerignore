@@ -1,0 +1,14 @@
+**/node_modules/
+**/dist/
+**/.vite/
+**/.env
+**/.env.local
+env/
+k8s/
+test-results/
+e2e/
+docs/
+*.log
+.git/
+.claude/
+.vscode/

@@ -15,11 +15,12 @@ for (const { src, dest } of files) {
   console.log(`created: ${dest}`)
 }
 
+const secret = randomBytes(32).toString('hex')
+
 const backendEnv = 'env/backend.env'
 let content = readFileSync(backendEnv, 'utf8')
 if (content.includes('your-random-secret-here')) {
-  const secret = randomBytes(32).toString('hex')
   content = content.replace('your-random-secret-here', secret)
   writeFileSync(backendEnv, content)
-  console.log('generated: JWT_SECRET')
+  console.log('generated: JWT_SECRET in env/backend.env')
 }
