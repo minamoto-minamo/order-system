@@ -3,7 +3,7 @@ import type { OrderItem } from "@order-system/shared";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-function OrderSection({ title, children }: { title?: string; children: ReactNode }) {
+export function OrderSection({ title, children }: { title?: string; children: ReactNode }) {
   if (title === undefined) return <>{children}</>;
   return (
     <div className="mt-1">
@@ -76,13 +76,14 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
       {servedGroups.length > 0 && (
         <OrderSection title={t('group.served')}>
           {servedGroups.map(g => (
-            <div key={g.key} className="px-5 py-2.5 border-b border-surface flex items-center gap-2 opacity-60">
+            <div key={g.key} className="px-5 py-2.5 border-b border-surface flex items-center gap-2">
               <div className="flex-1">
-                <div className="text-note text-dim">
+                <div className="text-note text-secondary">
                   {g.menuItemName}
                   <span className="text-label text-muted ml-1.5">×{g.totalQty}</span>
                   {g.isTakeout && <span className="text-micro text-amber ml-1.5">🥡</span>}
                 </div>
+                <div className="text-label text-muted mt-0.5">¥{g.price.toLocaleString()} · ¥{(g.price * g.totalQty).toLocaleString()}</div>
               </div>
               <BaseButton
                 variant="ghost"
