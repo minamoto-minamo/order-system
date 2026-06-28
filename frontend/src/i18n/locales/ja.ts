@@ -273,6 +273,10 @@ dragHintLine1: "ドラッグして",
     canvasOutOfBounds: '範囲外の席・テーブルがあります',
     gridSize: 'グリッド',
   },
+  notFound: {
+    title: 'ページが見つかりません',
+    description: 'URLをご確認ください',
+  },
 } as const;
 
 export default ja;
