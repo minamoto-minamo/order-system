@@ -51,6 +51,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
         tableId: body.tableId ?? null,
       },
     })
+    fastify.io.emit('seat:created', seat)
     return reply.status(201).send(seat)
   })
 

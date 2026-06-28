@@ -86,6 +86,8 @@ export default function GroupDetail() {
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup(g);
     },
+    [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) =>
+      setMenus(prev => prev.map(m => m.id === menuItemId ? { ...m, soldOut } : m)),
     [SE.settingsUpdated]: (s: Setting) => setTaxRates({ inHouse: s.taxRateInHouse, takeout: s.taxRateTakeout }),
   });
 

@@ -13,6 +13,7 @@ export const SOCKET_EVENTS = {
   orderCancelled:  s('order:cancelled'),
   groupCreated:    s('group:created'),
   groupUpdated:    s('group:updated'),
+  seatCreated:     s('seat:created'),
   seatUpdated:     s('seat:updated'),
   menuSoldout:     s('menu:soldout'),
   sessionUpdated:  s('session:updated'),

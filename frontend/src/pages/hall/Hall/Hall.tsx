@@ -60,6 +60,7 @@ export default function Hall() {
         ? prev.map(x => x.id === g.id ? g : x)
         : prev.filter(x => x.id !== g.id)
     ),
+    [SE.seatCreated]: (s: Seat) => setSeats(prev => [...prev, { ...s, x: s.x * gridSize, y: s.y * gridSize }]),
     [SE.seatUpdated]: (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x)),
     [SE.orderCreated]: (o: OrderItem) => {
       if (o.status === 'ready') setReadyOrders(prev => [...prev, o]);

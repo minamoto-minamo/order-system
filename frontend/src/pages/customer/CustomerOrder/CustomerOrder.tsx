@@ -71,6 +71,7 @@ export default function CustomerOrder() {
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup({ id: g.id, name: g.name, status: g.status });
     },
+    [SE.settingsUpdated]: (s: { taxRateInHouse: number }) => setTaxRate(s.taxRateInHouse),
   });
 
   const dineInMenus = menus.filter(m => m.takeout === 'dine_in' || m.takeout === 'both');

@@ -112,6 +112,7 @@ export interface ServerToClientEvents {
   'order:cancelled':  (itemId: string)  => void
   'group:created':    (group: Group)    => void
   'group:updated':    (group: Group)    => void
+  'seat:created':     (seat: Seat)      => void
   'seat:updated':     (seat: Seat)      => void
   'menu:soldout':     (menuItemId: number, soldOut: boolean) => void
   'session:updated':  (session: Session) => void
