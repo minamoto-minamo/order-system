@@ -10,7 +10,7 @@ import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { getSeatLabels } from "@/lib/utils";
-import type { Group, OrderItem, MenuItem, Category, SubCategory, Course, DrinkPlan, Seat, Setting } from "@order-system/shared";
+import type { Group, OrderItem, MenuItem, Category, SubCategory, Course, DrinkPlan, Seat } from "@order-system/shared";
 import { CancelModal } from "./components/CancelModal";
 import { OrderHistory } from "./components/OrderHistory";
 import { MenuAdd } from "./components/MenuAdd";
@@ -36,8 +36,6 @@ export default function GroupDetail() {
   const [drinkPlans, setDrinkPlans] = useState<DrinkPlan[]>([]);
   const [seats, setSeats]           = useState<Seat[]>([]);
 
-  // Settings ロード完了後に上書きされる。ロード前に BillFooter を表示しても概算が出るようデフォルト値を設定
-  const [taxRates, setTaxRates] = useState({ inHouse: 10, takeout: 8 });
 
   const [tab, setTab]                       = useState("menu");
   const [showSeatModal, setShowSeatModal]   = useState(false);
@@ -59,8 +57,7 @@ export default function GroupDetail() {
       api.get<Course[]>(EP.courses),
       api.get<DrinkPlan[]>(EP.drinkPlans),
       api.get<Seat[]>(EP.seats),
-      api.get<Setting>(EP.settings),
-    ]).then(([g, o, m, c, sc, cr, dp, s, st]) => {
+    ]).then(([g, o, m, c, sc, cr, dp, s]) => {
       setGroup(g);
       setItems(o);
       setMenus(m);
@@ -69,7 +66,6 @@ export default function GroupDetail() {
       setCourses(cr);
       setDrinkPlans(dp);
       setSeats(s);
-      setTaxRates({ inHouse: st.taxRateInHouse, takeout: st.taxRateTakeout });
     }).catch(console.error);
   }, [groupId]);
 
@@ -88,7 +84,6 @@ export default function GroupDetail() {
     },
     [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) =>
       setMenus(prev => prev.map(m => m.id === menuItemId ? { ...m, soldOut } : m)),
-    [SE.settingsUpdated]: (s: Setting) => setTaxRates({ inHouse: s.taxRateInHouse, takeout: s.taxRateTakeout }),
   });
 
   const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;
@@ -249,7 +244,6 @@ export default function GroupDetail() {
               />
               <BillFooter
                 items={items}
-                taxRates={taxRates}
                 groupStatus={group?.status}
                 onBillRequest={() => setShowBillConfirm(true)}
                 onBillCancel={handleBillCancel}

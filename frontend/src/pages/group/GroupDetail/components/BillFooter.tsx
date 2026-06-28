@@ -4,19 +4,18 @@ import { useTranslation } from "react-i18next";
 
 interface BillFooterProps {
   items: OrderItem[]
-  taxRates: { inHouse: number; takeout: number }
   groupStatus: GroupStatus | undefined
   onBillRequest: () => void
   onBillCancel: () => void
   onCheckOut: () => void
 }
 
-export function BillFooter({ items, taxRates, groupStatus, onBillRequest, onBillCancel, onCheckOut }: BillFooterProps) {
+export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, onCheckOut }: BillFooterProps) {
   const { t } = useTranslation();
   const activeItems = items.filter(i => i.status !== 'cancelled');
   const subtotal = activeItems.reduce((s, i) => s + i.price * i.qty, 0);
   // Math.floor で端数切り捨て（円未満の税額が生じないようにする）
-  const tax = activeItems.reduce((s, i) => s + Math.floor(i.price * i.qty * (i.isTakeout ? taxRates.takeout : taxRates.inHouse) / 100), 0);
+  const tax = activeItems.reduce((s, i) => s + Math.floor(i.price * i.qty * i.taxRate / 100), 0);
 
   return (
     <div className="px-4 pt-4 pb-5 border-t border-divider bg-surface shrink-0">

@@ -32,7 +32,6 @@ export default function CustomerOrder() {
   const [activeSubId, setActiveSubId]       = useState<number | null>(null);
   const [qtys, setQtys]                     = useState<Record<number, number>>({});
   const [submitting, setSubmitting]         = useState(false);
-  const [taxRate, setTaxRate]               = useState(10);
   const [calling, setCalling]               = useState(false);
   const [billing, setBilling]               = useState(false);
   const [confirmCall, setConfirmCall]       = useState(false);
@@ -45,14 +44,12 @@ export default function CustomerOrder() {
       api.get<CustomerGroup>(EP.customerGroup(groupId)),
       api.get<CustomerMenusResponse>(EP.customerMenus(groupId)),
       api.get<OrderItem[]>(EP.customerGroupOrders(groupId)),
-      api.get<{ taxRateInHouse: number }>(EP.customerSettings),
-    ]).then(([g, m, o, s]) => {
+    ]).then(([g, m, o]) => {
       setGroup(g);
       setMenus(m.menus);
       setCategories(m.categories);
       setSubCategories(m.subCategories);
       setItems(o);
-      setTaxRate(s.taxRateInHouse);
     }).catch(() => {
       setNotFound(true);
     }).finally(() => setLoading(false));
@@ -71,7 +68,6 @@ export default function CustomerOrder() {
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup({ id: g.id, name: g.name, status: g.status });
     },
-    [SE.settingsUpdated]: (s: { taxRateInHouse: number }) => setTaxRate(s.taxRateInHouse),
   });
 
   const dineInMenus = menus.filter(m => m.takeout === 'dine_in' || m.takeout === 'both');
@@ -274,7 +270,7 @@ export default function CustomerOrder() {
         </>
       ) : (
         <div className="flex-1 overflow-y-auto pb-5">
-          <CustomerOrderHistory items={items} taxRate={taxRate} />
+          <CustomerOrderHistory items={items} />
         </div>
       )}
 

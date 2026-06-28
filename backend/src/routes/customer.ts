@@ -116,6 +116,9 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
     }
 
+    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
+
     const created = await prisma.$transaction(
       body.items.map(item =>
         prisma.orderItem.create({
@@ -126,6 +129,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
             price: menuItemMap.get(item.menuItemId)!.price,
             qty: item.qty,
             isTakeout: false,
+            taxRate: taxRateInHouse,
             courseId: null,
           },
         })

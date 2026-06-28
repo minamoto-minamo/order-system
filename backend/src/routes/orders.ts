@@ -85,21 +85,27 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
     }
 
+    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
+    const taxRateTakeout = setting?.taxRateTakeout.toNumber() ?? 8
+
     const created = await prisma.$transaction(
-      body.items.map(item =>
-        prisma.orderItem.create({
+      body.items.map(item => {
+        const isTakeout = item.isTakeout ?? false
+        return prisma.orderItem.create({
           data: {
             groupId: body.groupId,
             menuItemId: item.menuItemId,
-            // 注文時点の名称・価格をスナップショット保存（後からメニューを変更・削除しても履歴が壊れない）
+            // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
             menuItemName: menuItemMap.get(item.menuItemId)!.name,
             price: menuItemMap.get(item.menuItemId)!.price,
             qty: item.qty,
-            isTakeout: item.isTakeout ?? false,
+            isTakeout,
+            taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
             courseId: body.courseId ?? null,
           },
         })
-      )
+      })
     )
 
     const results = created.map(toOrderItem)

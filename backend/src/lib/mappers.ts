@@ -38,7 +38,7 @@ export function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: 
 
 export function toOrderItem(o: {
   id: string; groupId: string; menuItemId: number; menuItemName: string; price: number;
-  qty: number; status: string; isTakeout: boolean; courseId: number | null; orderedAt: Date;
+  qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null; orderedAt: Date;
 }) {
   return {
     id: o.id,
@@ -50,6 +50,7 @@ export function toOrderItem(o: {
     // toGroup と同様 — Prisma は string を返すが shared 型は union literal なのでキャストする
     status: o.status as OrderItemStatus,
     isTakeout: o.isTakeout,
+    taxRate: o.taxRate.toNumber(),
     courseId: o.courseId,
     orderedAt: o.orderedAt.toISOString(),
   }

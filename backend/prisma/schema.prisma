@@ -203,6 +203,7 @@ model OrderItem {
   qty          Int
   status       OrderItemStatus @default(pending)
   isTakeout    Boolean         @default(false)
+  taxRate      Decimal         @db.Decimal(5, 2)
   courseId     Int?
   orderedAt    DateTime        @default(now())
 

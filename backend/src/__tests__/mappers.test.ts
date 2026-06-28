@@ -69,6 +69,7 @@ describe('toOrderItem', () => {
       qty: 2,
       status: 'pending',
       isTakeout: false,
+      taxRate: { toNumber: () => 10 },
       courseId: null,
       orderedAt: new Date('2024-06-01T12:00:00.000Z'),
     }
@@ -81,6 +82,7 @@ describe('toOrderItem', () => {
       qty: 2,
       status: 'pending',
       isTakeout: false,
+      taxRate: 10,
       courseId: null,
       orderedAt: '2024-06-01T12:00:00.000Z',
     })

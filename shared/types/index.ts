@@ -47,6 +47,7 @@ export interface OrderItem {
   qty: number
   status: OrderItemStatus
   isTakeout: boolean
+  taxRate: number
   courseId: number | null
   orderedAt: string
 }

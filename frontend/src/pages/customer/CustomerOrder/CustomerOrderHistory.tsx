@@ -14,14 +14,14 @@ function groupItems(list: OrderItem[]): ItemGroup[] {
   }, []);
 }
 
-export function CustomerOrderHistory({ items, taxRate }: { items: OrderItem[]; taxRate: number }) {
+export function CustomerOrderHistory({ items }: { items: OrderItem[] }) {
   const { t } = useTranslation();
 
   const activeGroups    = groupItems(items.filter(i => i.status !== 'cancelled' && i.status !== 'served'));
   const servedGroups    = groupItems(items.filter(i => i.status === 'served'));
   const cancelledGroups = groupItems(items.filter(i => i.status === 'cancelled'));
   const subtotal = items.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + i.price * i.qty, 0);
-  const tax      = items.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + Math.floor(i.price * i.qty * taxRate / 100), 0);
+  const tax      = items.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + Math.floor(i.price * i.qty * i.taxRate / 100), 0);
 
   if (items.length === 0) {
     return (
