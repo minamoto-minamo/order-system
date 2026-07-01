@@ -72,7 +72,9 @@ Request body（`name`, `price`, `categoryId`, `subCategoryId` は必須）:
 }
 ```
 
-Response 201: 作成した MenuItem オブジェクト
+Response 201: 作成した MenuItem オブジェクト  
+Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合  
+Socket emit: `menu:created`（作成した MenuItem オブジェクト）
 
 ### PUT /api/menus/:id — メニュー更新
 
@@ -87,13 +89,16 @@ Request body（全フィールド省略可）:
 ```
 
 Response 200: 更新後の MenuItem オブジェクト  
-Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）
+Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合  
+Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）  
+Socket emit: `menu:updated`（常に、更新後の MenuItem オブジェクト）
 
 ### DELETE /api/menus/:id — メニュー削除
 
 Response 204: No Content  
 Response 404: `{ "error": "メニューが見つかりません" }`  
-Response 409: `{ "error": "注文済みのメニューは削除できません" }`
+Response 409: `{ "error": "処理中の注文があるため削除できません" }` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。  
+Socket emit: `menu:deleted`（削除した `menuItemId: number`）
 
 ---
 

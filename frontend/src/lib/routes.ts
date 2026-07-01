@@ -15,6 +15,7 @@ export const ROUTES = {
   adminReport:       '/admin/report',
   adminSettings:     '/admin/settings',
   adminStaff:        '/admin/staff',
+  adminCourses:      '/admin/courses',
   customerOrder:        (id: string) => `/order/${id}`,
   customerOrderPattern: '/order/:id',
 } as const

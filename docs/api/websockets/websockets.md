@@ -40,6 +40,10 @@ Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場
   - Description: グループ更新時（ステータス変更・コース適用等）にブロードキャスト
   - Payload: `Group`
 
+- `seat:created`
+  - Description: 席追加時にブロードキャスト
+  - Payload: `Seat`
+
 - `seat:updated`
   - Description: 席の占有状態変化時にブロードキャスト
   - Payload: `Seat`
@@ -48,6 +52,22 @@ Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場
   - Description: メニュー品目の品切れ状態変化時にブロードキャスト
   - Payload: `(menuItemId: number, soldOut: boolean)`（2引数）
 
+- `menu:created`
+  - Description: メニュー品目作成時にブロードキャスト
+  - Payload: `MenuItem`
+
+- `menu:updated`
+  - Description: メニュー品目更新時にブロードキャスト（`soldOut` 変更時は `menu:soldout` と同時に発火）
+  - Payload: `MenuItem`
+
+- `menu:deleted`
+  - Description: メニュー品目削除時にブロードキャスト
+  - Payload: `menuItemId: number`
+
+- `seatLayout:updated`
+  - Description: 席レイアウト保存時にブロードキャスト
+  - Payload: `SeatLayoutResponse`
+
 - `session:updated`
   - Description: 営業セッションの開始/終了時にブロードキャスト
   - Payload: `Session`
@@ -55,6 +75,10 @@ Socket.io 接続時に httpOnly cookie の JWT を検証する。未認証の場
 - `settings:updated`
   - Description: 店舗設定変更時にブロードキャスト
   - Payload: `Setting`
+
+- `staff:called`
+  - Description: 顧客がスタッフ呼び出しをした際にブロードキャスト
+  - Payload: `(groupId: string, groupName: string)`
 
 ## Client → Server
 

@@ -41,7 +41,7 @@ export type OrderItemStatus = 'pending' | 'ready' | 'served' | 'cancelled'
 export interface OrderItem {
   id: string
   groupId: string
-  menuItemId: number
+  menuItemId: number | null
   menuItemName: string
   price: number
   qty: number
@@ -75,6 +75,7 @@ export interface MenuItem {
   subCategoryId: number
   soldOut: boolean
   takeout: TakeoutType
+  sort: number
 }
 
 export interface DrinkPlan {
@@ -108,17 +109,22 @@ export interface Setting {
 }
 
 export interface ServerToClientEvents {
-  'order:created':    (item: OrderItem) => void
-  'order:updated':    (item: OrderItem) => void
-  'order:cancelled':  (itemId: string)  => void
-  'group:created':    (group: Group)    => void
-  'group:updated':    (group: Group)    => void
-  'seat:created':     (seat: Seat)      => void
-  'seat:updated':     (seat: Seat)      => void
-  'menu:soldout':     (menuItemId: number, soldOut: boolean) => void
-  'session:updated':  (session: Session) => void
-  'settings:updated': (setting: Setting) => void
-  'staff:called':     (groupId: string, groupName: string) => void
+  'order:created':       (item: OrderItem) => void
+  'order:updated':       (item: OrderItem) => void
+  'order:cancelled':     (itemId: string)  => void
+  'group:created':       (group: Group)    => void
+  'group:updated':       (group: Group)    => void
+  'seat:created':        (seat: Seat)      => void
+  'seat:updated':        (seat: Seat)      => void
+  'menu:soldout':        (menuItemId: number, soldOut: boolean) => void
+  'menu:created':        (item: MenuItem)  => void
+  'menu:updated':        (item: MenuItem)  => void
+  'menu:deleted':        (menuItemId: number) => void
+  'seatLayout:updated':  (layout: SeatLayoutResponse) => void
+  'session:updated':     (session: Session) => void
+  'settings:updated':    (setting: Setting) => void
+  'staff:called':        (groupId: string, groupName: string) => void
+  'error':               (payload: { message: string }) => void
 }
 
 export interface ClientToServerEvents {
@@ -231,6 +237,24 @@ export interface UpdateStaffRequest {
   username?: string
   password?: string
   role?: StaffRole
+}
+
+// --- Courses / DrinkPlans ---
+export interface UpsertDrinkPlanRequest {
+  name: string
+  menuItemIds: number[]
+}
+
+export interface UpsertCourseRequest {
+  name: string
+  price: number
+  drinkPlanId?: number | null
+  foodItems: { menuItemId: number; qty: number }[]
+}
+
+export interface ApplyCourseRequest {
+  courseId: number
+  qty: number
 }
 
 // --- SeatTables ---

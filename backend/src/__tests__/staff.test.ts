@@ -3,8 +3,8 @@ import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
-const mockFindUnique = jest.fn()
-const mockDelete = jest.fn()
+const mockFindUnique = jest.fn<(...args: unknown[]) => Promise<{ id: string; username: string; role: string } | null>>()
+const mockDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {

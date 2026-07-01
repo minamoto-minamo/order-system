@@ -79,6 +79,9 @@ Response 409 — 既に open なセッションがある場合:
 { "error": "既に営業中のセッションがあります" }
 ```
 
+Socket emit: `session:updated`（作成した Session オブジェクト）  
+Note: 既存 open セッションチェックはトランザクション内で行うため、同時リクエストによる二重作成を防止する。
+
 ---
 
 PUT /api/sessions/:id（admin）
@@ -91,7 +94,7 @@ Request:
 
 Response 200: updated session object
 
-Response 409 — アクティブなグループが残っている場合:
+Response 409 — `closed` への遷移でアクティブなグループが残っている場合:
 
 ```json
 { "error": "active_groups_exist", "count": 3 }
@@ -103,11 +106,15 @@ Response 404:
 { "error": "セッションが見つかりません" }
 ```
 
+Socket emit: `session:updated`（更新後の Session オブジェクト）  
+Note: グループ数チェックとセッション更新はトランザクション内で行う。
+
 ## Acceptance Criteria
 
 - GET /current が常に現在の open セッション（存在する場合）を返す
 - POST でセッション開始可能、PUT で閉じられる
 - 既に open なセッションがある場合は 409
+- 同時リクエストで二重開始しない
 
 ## Notes
 

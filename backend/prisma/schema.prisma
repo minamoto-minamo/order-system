@@ -105,6 +105,7 @@ model MenuItem {
   subCategoryId Int
   soldOut       Boolean     @default(false)
   takeout       TakeoutType @default(dine_in)
+  sort          Int         @default(0)
 
   category    Category    @relation(fields: [categoryId], references: [id])
   subCategory SubCategory @relation(fields: [subCategoryId], references: [id])
@@ -131,7 +132,7 @@ model DrinkPlanItem {
   menuItemId  Int
 
   drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id], onDelete: Cascade)
-  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id])
+  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@id([drinkPlanId, menuItemId])
 }
@@ -157,7 +158,7 @@ model CourseFoodItem {
   qty        Int @default(1)
 
   course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@id([courseId, menuItemId])
 }
@@ -197,7 +198,7 @@ model GroupSeat {
 model OrderItem {
   id           String          @id @default(uuid())
   groupId      String
-  menuItemId   Int
+  menuItemId   Int?
   menuItemName String
   price        Int
   qty          Int
@@ -207,9 +208,9 @@ model OrderItem {
   courseId     Int?
   orderedAt    DateTime        @default(now())
 
-  group    Group    @relation(fields: [groupId], references: [id])
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
-  course   Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  group    Group     @relation(fields: [groupId], references: [id])
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@index([status])

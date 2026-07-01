@@ -40,6 +40,7 @@ POST /api/orders
 ```
 
 - `groupId` は UUID string
+- `qty`: 1〜99（maximum: 99）
 - `courseId` を指定した場合、存在しないと 422 を返す
 
 Response 201: order object
@@ -55,6 +56,7 @@ Response 201: order object
     "qty": 2,
     "status": "pending",
     "isTakeout": false,
+    "taxRate": 10,
     "courseId": null,
     "orderedAt": "2024-06-01T10:00:00.000Z"
   }

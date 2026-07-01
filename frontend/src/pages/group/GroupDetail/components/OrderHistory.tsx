@@ -22,16 +22,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
   const active = items.filter(i => i.status !== "cancelled" && i.status !== "served");
   const cancelled = items.filter(i => i.status === "cancelled");
 
-  // 同一商品・同一価格・同一テイクアウト区分でまとめて表示行数を削減する
-  const servedGroups = items
-    .filter(i => i.status === "served")
-    .reduce<{ key: string; menuItemName: string; price: number; isTakeout: boolean; totalQty: number; rep: OrderItem }[]>((acc, item) => {
-      const key = `${item.menuItemId}-${item.price}-${item.isTakeout}`;
-      const existing = acc.find(g => g.key === key);
-      if (existing) { existing.totalQty += item.qty; }
-      else { acc.push({ key, menuItemName: item.menuItemName, price: item.price, isTakeout: item.isTakeout, totalQty: item.qty, rep: item }); }
-      return acc;
-    }, []);
+  const served = items.filter(i => i.status === "served");
 
   return (
     <div className="flex-1 overflow-y-auto pb-5">
@@ -73,22 +64,22 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
         ))}
       </OrderSection>
 
-      {servedGroups.length > 0 && (
+      {served.length > 0 && (
         <OrderSection title={t('group.served')}>
-          {servedGroups.map(g => (
-            <div key={g.key} className="px-5 py-2.5 border-b border-surface flex items-center gap-2">
+          {served.map(item => (
+            <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2">
               <div className="flex-1">
                 <div className="text-note text-secondary">
-                  {g.menuItemName}
-                  <span className="text-label text-muted ml-1.5">×{g.totalQty}</span>
-                  {g.isTakeout && <span className="text-micro text-amber ml-1.5">🥡</span>}
+                  {item.menuItemName}
+                  <span className="text-label text-muted ml-1.5">×{item.qty}</span>
+                  {item.isTakeout && <span className="text-micro text-amber ml-1.5">🥡</span>}
                 </div>
-                <div className="text-label text-muted mt-0.5">¥{g.price.toLocaleString()} · ¥{(g.price * g.totalQty).toLocaleString()}</div>
+                <div className="text-label text-muted mt-0.5">¥{item.price.toLocaleString()} · ¥{(item.price * item.qty).toLocaleString()}</div>
               </div>
               <BaseButton
                 variant="ghost"
                 className="text-lg text-dim px-1 py-0.5 leading-none"
-                onClick={() => onCancelTap(g.rep)}
+                onClick={() => onCancelTap(item)}
               >
                 ×
               </BaseButton>

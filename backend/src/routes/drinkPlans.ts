@@ -70,12 +70,18 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const drinkPlanId = Number(id)
+    const referencedCourse = await prisma.course.findFirst({ where: { drinkPlanId } })
+    if (referencedCourse) return reply.status(409).send({ error: 'コースから参照されているため削除できません' })
+    const activeGroup = await prisma.group.findFirst({
+      where: { drinkPlanId, status: { in: ['active', 'bill_requested'] } },
+    })
+    if (activeGroup) return reply.status(409).send({ error: '使用中の飲み放題プランは削除できません' })
     try {
-      await prisma.drinkPlan.delete({ where: { id: Number(id) } })
+      await prisma.drinkPlan.delete({ where: { id: drinkPlanId } })
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
-        if (e.code === 'P2003') return reply.status(409).send({ error: '使用中の飲み放題プランは削除できません' })
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+        return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
       }
       throw e
     }

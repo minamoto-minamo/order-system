@@ -11,8 +11,9 @@
 ## Key Points
 
 - 金額は整数（最小通貨単位）で保存する（例: JPY は 円、USD は セント）
-- 税率は `Setting` テーブル（`taxRateInHouse`, `taxRateTakeout`）に保持し、税額計算はフロントエンドで実施する
-- `OrderItem` は `isTakeout` フラグを持ち、内税/外税の区別に使用する
+- 注文作成時の税率（`taxRateInHouse` / `taxRateTakeout`）を `OrderItem.taxRate` にスナップショット保存する。営業中に税率を変更しても既存注文の請求額は変わらない
+- 税額計算はフロントエンドで `Math.floor(price * qty * taxRate / 100)` で実施する
+- `OrderItem` は `isTakeout` フラグを持ち、注文時の税率選択（内食/テイクアウト）に使用する
 - 日次クロージング（営業締め）処理の仕様を明示する（計算タイミング、集計窓）
 
 ## Reporting

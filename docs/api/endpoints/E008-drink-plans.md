@@ -69,8 +69,10 @@
 
 ### DELETE /api/drink-plans/:id
 
-- 204 No Content
-- コースや注文で使用中の場合は 409
+Response 204: No Content  
+Response 404: `{ "error": "飲み放題プランが見つかりません" }`  
+Response 409: `{ "error": "コースから参照されているため削除できません" }` — いずれかのコースがこのプランを参照している場合  
+Response 409: `{ "error": "使用中の飲み放題プランは削除できません" }` — `active` または `bill_requested` のグループが使用中の場合
 
 ## Acceptance Criteria
 

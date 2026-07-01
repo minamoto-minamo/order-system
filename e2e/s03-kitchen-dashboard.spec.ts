@@ -27,6 +27,7 @@ async function setupOrderedSession() {
         price: menu.price,
         qty: 1,
         status: 'pending',
+        taxRate: 10,
       },
     })
   }

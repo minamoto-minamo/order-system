@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components";
-import "./CancelModal.scss";
+import { BottomSheetModal, QuantityControl } from "@/components";
 import type { OrderItem } from "@order-system/shared";
 
 export function CancelModal({ item, onConfirm, onClose }: {
@@ -10,7 +9,7 @@ export function CancelModal({ item, onConfirm, onClose }: {
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [selectedQty, setSelectedQty] = useState(1);
+  const [qty, setQty] = useState(1);
   const isMulti = item.qty >= 2;
 
   return (
@@ -19,9 +18,9 @@ export function CancelModal({ item, onConfirm, onClose }: {
       onClose={onClose}
       secondaryAction={{ label: t('common.back'), onClick: onClose }}
       primaryAction={{
-        label: isMulti ? t('group.cancelQty', { qty: selectedQty }) : t('group.cancelConfirm'),
+        label: isMulti ? t('group.cancelQty', { qty }) : t('group.cancelConfirm'),
         variant: "danger",
-        onClick: () => onConfirm(item.id, isMulti ? selectedQty : 1),
+        onClick: () => onConfirm(item.id, isMulti ? qty : 1),
       }}
     >
       <div className="text-sub font-medium text-ink mb-1">{item.menuItemName}</div>
@@ -30,20 +29,10 @@ export function CancelModal({ item, onConfirm, onClose }: {
       </div>
       {isMulti && (
         <div className="mb-6">
-          <div className="text-label text-muted mb-2.5">{t('group.currentQty', { qty: item.qty })}</div>
-          <div className="flex gap-2 flex-wrap">
-            {Array.from({ length: item.qty }, (_, i) => i + 1).map(n => (
-              <button
-                key={n}
-                className={`qty-select-btn w-12 h-12 rounded-[10px] border text-base ${selectedQty === n ? 'border-ink bg-ink text-white font-medium' : 'border-line bg-white text-secondary'}`}
-                onClick={() => setSelectedQty(n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          {selectedQty === item.qty && (
-            <div className="text-label text-bill mt-2">{t('group.cancelAll')}</div>
+          <div className="text-label text-muted mb-4">{t('group.currentQty', { qty: item.qty })}</div>
+          <QuantityControl value={qty} onChange={setQty} min={1} max={item.qty} />
+          {qty === item.qty && (
+            <div className="text-label text-bill mt-3">{t('group.cancelAll')}</div>
           )}
         </div>
       )}

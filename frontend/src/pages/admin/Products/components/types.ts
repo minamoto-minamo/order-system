@@ -8,7 +8,7 @@ export const toMeta = (v: string) => TO_OPTIONS.find(o => o.value === v) ?? TO_O
 
 export interface Sub { id: number; label: string; }
 export interface Cat { id: number; label: string; subs: Sub[]; }
-export interface Product { id: number; name: string; price: number; catId: number | undefined; subId: number; soldOut: boolean; takeout: string; }
+export interface Product { id: number; name: string; price: number; catId: number | undefined; subId: number; soldOut: boolean; takeout: string; sort: number; }
 export interface ProductFormData { name: string; price: number; subId: number; takeout: string; }
 
 export type ModalState = null

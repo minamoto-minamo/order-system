@@ -49,7 +49,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       taxRateInHouse: setting.taxRateInHouse.toNumber(),
       taxRateTakeout: setting.taxRateTakeout.toNumber(),
     }
-    fastify.io.emit('settings:updated', result)
+    fastify.io.to('staff').emit('settings:updated', result)
     return result
   })
 }

@@ -75,12 +75,14 @@
 - `canvasCols` / `canvasRows` / `gridSize` は DB の Min/Max 制約内でないと 400
 - Setting.canvasCols / canvasRows / gridSize を同時に更新する
 
-レスポンス: 保存後のレイアウト（GET と同形式）
+レスポンス: 保存後のレイアウト（GET と同形式）  
+Socket emit: `seatLayout:updated`（保存後の SeatLayoutResponse オブジェクト）
 
 ## Acceptance Criteria
 
 - テーブル・席の追加・更新・削除を1リクエストで完結できる
 - 使用中席の誤削除を防止できる
+- 保存後に接続中の全スタッフクライアントへリアルタイム通知する
 
 ## Notes
 

@@ -68,10 +68,13 @@ erDiagram
     ORDER_ITEM {
       String id PK "UUID"
       String groupId FK
-      int qty
+      int menuItemId FK "nullable"
+      string menuItemName
       int price
+      int qty
       string status
       boolean isTakeout
+      Decimal taxRate
       datetime orderedAt
     }
     SEAT_TABLE {

@@ -96,12 +96,16 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const courseId = Number(id)
+    const activeGroup = await prisma.group.findFirst({
+      where: { courseId, status: { in: ['active', 'bill_requested'] } },
+    })
+    if (activeGroup) return reply.status(409).send({ error: '使用中のコースは削除できません' })
     try {
-      await prisma.course.delete({ where: { id: Number(id) } })
+      await prisma.course.delete({ where: { id: courseId } })
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'コースが見つかりません' })
-        if (e.code === 'P2003') return reply.status(409).send({ error: '使用中のコースは削除できません' })
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+        return reply.status(404).send({ error: 'コースが見つかりません' })
       }
       throw e
     }

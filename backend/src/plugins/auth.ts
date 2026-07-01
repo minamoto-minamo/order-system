@@ -17,7 +17,8 @@ declare module '@fastify/jwt' {
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
-  if (request.user?.role !== 'admin') {
+  if (!request.user) return reply.status(401).send({ error: '認証が必要です' })
+  if (request.user.role !== 'admin') {
     return reply.status(403).send({ error: '権限がありません' })
   }
 }

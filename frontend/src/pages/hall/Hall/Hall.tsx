@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { ROUTES } from "@/lib/routes";
+import { socket } from "@/lib/socket";
 import { isGroupActive } from "@/lib/utils";
 import type { Group, OrderItem, Seat, SeatLayoutResponse, SeatTable } from "@order-system/shared";
 import { useEffect, useMemo, useState } from "react";
@@ -35,13 +36,15 @@ export default function Hall() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [guestCount, setGuestCount] = useState(1);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    Promise.all([
+    const fetchAll = () => Promise.all([
       api.get<SeatLayoutResponse>(EP.seatLayout),
       api.get<Group[]>(`${EP.groups}?status=active,bill_requested`),
       api.get<OrderItem[]>(`${EP.orders}?status=ready`),
     ]).then(([layout, g, o]) => {
+      setLoadError(false);
       const gs = layout.gridSize;
       setGridSize(gs);
       setCanvasCols(layout.canvasCols);
@@ -50,7 +53,10 @@ export default function Hall() {
       setSeatTables(layout.tables.map(t => ({ ...t, x: t.x * gs, y: t.y * gs, w: t.w * gs, h: t.h * gs })));
       setGroups(g);
       setReadyOrders(o);
-    }).catch(console.error);
+    }).catch(() => setLoadError(true));
+    fetchAll();
+    socket.on('connect', fetchAll);
+    return () => { socket.off('connect', fetchAll); };
   }, []);
 
   useSocketListeners({
@@ -60,8 +66,16 @@ export default function Hall() {
         ? prev.map(x => x.id === g.id ? g : x)
         : prev.filter(x => x.id !== g.id)
     ),
+    [SE.seatLayoutUpdated]: (layout: SeatLayoutResponse) => {
+      const gs = layout.gridSize;
+      setGridSize(gs);
+      setCanvasCols(layout.canvasCols);
+      setCanvasRows(layout.canvasRows);
+      setSeats(layout.seats.map(s => ({ ...s, x: s.x * gs, y: s.y * gs })));
+      setSeatTables(layout.tables.map(t => ({ ...t, x: t.x * gs, y: t.y * gs, w: t.w * gs, h: t.h * gs })));
+    },
     [SE.seatCreated]: (s: Seat) => setSeats(prev => [...prev, { ...s, x: s.x * gridSize, y: s.y * gridSize }]),
-    [SE.seatUpdated]: (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? s : x)),
+    [SE.seatUpdated]: (s: Seat) => setSeats(prev => prev.map(x => x.id === s.id ? { ...s, x: s.x * gridSize, y: s.y * gridSize } : x)),
     [SE.orderCreated]: (o: OrderItem) => {
       if (o.status === 'ready') setReadyOrders(prev => [...prev, o]);
     },
@@ -163,6 +177,13 @@ export default function Hall() {
 
   const canvasW = canvasCols * gridSize;
   const canvasH = canvasRows * gridSize;
+
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
+      <p>{t('common.loadError')}</p>
+      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
+    </div>
+  );
 
   return (
     <>

@@ -44,6 +44,7 @@ export default function Products() {
         subId: m.subCategoryId,
         soldOut: m.soldOut,
         takeout: m.takeout,
+        sort: m.sort,
       })))
     }).catch(() => {})
   }, [])
@@ -120,6 +121,7 @@ export default function Products() {
         id: item.id, name: item.name, price: item.price,
         catId: item.categoryId, subId: item.subCategoryId,
         soldOut: item.soldOut, takeout: item.takeout,
+        sort: item.sort,
       }])
       setModal(null)
     } catch { showToast(t('common.saveFailed')) }
@@ -142,6 +144,16 @@ export default function Products() {
     } catch { showToast(t('common.deleteFailed')) }
   };
 
+  const reorderProducts = async (ids: number[]) => {
+    setProducts(prev => prev.map(p => {
+      const idx = ids.indexOf(p.id)
+      return idx !== -1 ? { ...p, sort: idx } : p
+    }))
+    try {
+      await api.patch(EP.menuSort, { ids })
+    } catch { showToast(t('common.saveFailed')) }
+  }
+
   const toggleSoldOut = async (id: number) => {
     const product = products.find(p => p.id === id)
     if (!product) return
@@ -154,7 +166,7 @@ export default function Products() {
 
   // ── 表示フィルタ ───────────────────────────────────────────
   const visibleProducts = selectedSubId
-    ? products.filter(p => p.subId === selectedSubId)
+    ? [...products.filter(p => p.subId === selectedSubId)].sort((a, b) => a.sort - b.sort || a.id - b.id)
     : products;
 
   const selectedLabel = selectedSubId
@@ -192,9 +204,11 @@ export default function Products() {
             cats={cats}
             visibleProducts={visibleProducts}
             selectedLabel={selectedLabel}
+            selectedSubId={selectedSubId}
             sidebarOpen={sidebarOpen}
             onToggleSidebar={() => setSidebarOpen(prev => !prev)}
             onCollapseSidebar={() => { if (sidebarOpen) setSidebarOpen(false); }}
+            onReorder={reorderProducts}
             setModal={setModal}
           />
         </div>

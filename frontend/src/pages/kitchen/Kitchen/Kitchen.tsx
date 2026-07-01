@@ -49,9 +49,10 @@ export default function Kitchen() {
   const [panelGroupId, setPanelGroupId] = useState<string | null>(null);
   // 1分ごとに再レンダリングして経過時間表示を最新化するためのダミー state
   const [, setTick] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    Promise.all([
+    const fetchAll = () => Promise.all([
       api.get<OrderItem[]>(`${EP.orders}?status=pending&status=ready`),
       api.get<Group[]>(`${EP.groups}?status=active&status=bill_requested`),
       api.get<Seat[]>(EP.seats),
@@ -59,16 +60,22 @@ export default function Kitchen() {
       api.get<Category[]>(EP.categories),
       api.get<SubCategory[]>(EP.subcategories),
     ]).then(([o, g, s, m, c, sc]) => {
+      setLoadError(false);
       setOrders(o);
       setGroups(g);
       setSeats(s);
       setMenus(m);
       setCategories(c);
       setSubCategories(sc);
-    }).catch(console.error);
+    }).catch(() => setLoadError(true));
+    fetchAll();
+    socket.on('connect', fetchAll);
 
     const tickTimer = setInterval(() => setTick(n => n + 1), 60000);
-    return () => clearInterval(tickTimer);
+    return () => {
+      socket.off('connect', fetchAll);
+      clearInterval(tickTimer);
+    };
   }, []);
 
   useSocketListeners({
@@ -91,6 +98,9 @@ export default function Kitchen() {
     [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) => {
       setMenus(prev => prev.map(m => m.id === menuItemId ? { ...m, soldOut } : m));
     },
+    [SE.menuCreated]: (item: MenuItem) => setMenus(prev => [...prev, item]),
+    [SE.menuUpdated]: (item: MenuItem) => setMenus(prev => prev.map(m => m.id === item.id ? item : m)),
+    [SE.menuDeleted]: (menuItemId: number) => setMenus(prev => prev.filter(m => m.id !== menuItemId)),
   });
 
   const displayCats = useMemo<DisplayCat[]>(() =>
@@ -117,6 +127,13 @@ export default function Kitchen() {
   const pendingOrders = displayOrders.filter(o => o.status === 'pending');
   const pendingCount  = orders.filter(o => o.status === 'pending').length;
   const readyCount    = orders.filter(o => o.status === 'ready').length;
+
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
+      <p>{t('common.loadError')}</p>
+      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
+    </div>
+  );
 
   return (
     <>

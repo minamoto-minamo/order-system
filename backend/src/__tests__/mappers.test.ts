@@ -59,21 +59,22 @@ describe('toDrinkPlan', () => {
 })
 
 describe('toOrderItem', () => {
+  const base = {
+    id: 'uuid-order-1',
+    groupId: 'uuid-group-1',
+    menuItemId: 20,
+    menuItemName: 'ビール',
+    price: 500,
+    qty: 2,
+    status: 'pending',
+    isTakeout: false,
+    taxRate: { toNumber: () => 10 },
+    courseId: null,
+    orderedAt: new Date('2024-06-01T12:00:00.000Z'),
+  }
+
   it('Prismaレコードを共有型に変換する', () => {
-    const input = {
-      id: 'uuid-order-1',
-      groupId: 'uuid-group-1',
-      menuItemId: 20,
-      menuItemName: 'ビール',
-      price: 500,
-      qty: 2,
-      status: 'pending',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: null,
-      orderedAt: new Date('2024-06-01T12:00:00.000Z'),
-    }
-    expect(toOrderItem(input)).toEqual({
+    expect(toOrderItem(base)).toEqual({
       id: 'uuid-order-1',
       groupId: 'uuid-group-1',
       menuItemId: 20,
@@ -86,5 +87,9 @@ describe('toOrderItem', () => {
       courseId: null,
       orderedAt: '2024-06-01T12:00:00.000Z',
     })
+  })
+
+  it('menuItemId が null のとき null のまま変換する', () => {
+    expect(toOrderItem({ ...base, menuItemId: null })).toMatchObject({ menuItemId: null })
   })
 })

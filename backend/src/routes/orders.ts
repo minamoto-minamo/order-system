@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
 
+class GroupStatusError extends Error {}
+
 const createBodySchema = {
   type: 'object',
   required: ['groupId', 'items'],
@@ -16,7 +18,7 @@ const createBodySchema = {
         required: ['menuItemId', 'qty'],
         properties: {
           menuItemId: { type: 'integer', minimum: 1 },
-          qty: { type: 'integer', minimum: 1 },
+          qty: { type: 'integer', minimum: 1, maximum: 99 },
           isTakeout: { type: 'boolean' },
         },
         additionalProperties: false,
@@ -36,17 +38,19 @@ const cancelBodySchema = {
   additionalProperties: false,
 } as const
 
+const VALID_ORDER_STATUSES = new Set(['pending', 'ready', 'served', 'cancelled'])
+
 const ordersRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async (request) => {
+  fastify.get('/', async (request, reply) => {
     const { groupId, status, sessionId } = request.query as { groupId?: string; status?: string | string[]; sessionId?: string }
     const where: Record<string, unknown> = {}
     if (groupId) where.groupId = groupId
     if (status) {
-      if (Array.isArray(status)) {
-        where.status = { in: status }
-      } else {
-        where.status = status.includes(',') ? { in: status.split(',') } : status
+      const statuses = Array.isArray(status) ? status : status.split(',')
+      if (!statuses.every(s => VALID_ORDER_STATUSES.has(s))) {
+        return reply.status(400).send({ error: '無効なステータス値です' })
       }
+      where.status = statuses.length === 1 ? statuses[0] : { in: statuses }
     }
     if (sessionId) {
       where.group = { sessionId: Number(sessionId) }
@@ -80,19 +84,27 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
     }
 
+    const invalidTakeout = body.items.filter(i => i.isTakeout === true && menuItemMap.get(i.menuItemId)?.takeout === 'dine_in')
+    if (invalidTakeout.length > 0) {
+      return reply.status(422).send({ error: 'テイクアウト不可の商品が含まれています' })
+    }
+
     if (body.courseId != null) {
       const course = await prisma.course.findUnique({ where: { id: body.courseId } })
       if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
     }
 
     const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
     const taxRateTakeout = setting?.taxRateTakeout.toNumber() ?? 8
 
-    const created = await prisma.$transaction(
-      body.items.map(item => {
+    const created = await prisma.$transaction(async (tx) => {
+      const currentGroup = await tx.group.findUnique({ where: { id: body.groupId } })
+      if (currentGroup?.status !== 'active') throw new GroupStatusError()
+      return Promise.all(body.items.map(item => {
         const isTakeout = item.isTakeout ?? false
-        return prisma.orderItem.create({
+        return tx.orderItem.create({
           data: {
             groupId: body.groupId,
             menuItemId: item.menuItemId,
@@ -105,12 +117,16 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
             courseId: body.courseId ?? null,
           },
         })
-      })
-    )
+      }))
+    }).catch(e => {
+      if (e instanceof GroupStatusError) return null
+      throw e
+    })
+    if (!created) return reply.status(409).send({ error: 'このグループには注文を追加できません' })
 
     const results = created.map(toOrderItem)
     for (const result of results) {
-      fastify.io.emit('order:created', result)
+      fastify.io.to('staff').emit('order:created', result)
     }
 
     return reply.status(201).send(results)
@@ -148,9 +164,9 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       const mapped = toOrderItem(result)
       // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
       if (result.status === 'cancelled') {
-        fastify.io.emit('order:cancelled', mapped.id)
+        fastify.io.to('staff').emit('order:cancelled', mapped.id)
       } else {
-        fastify.io.emit('order:updated', mapped)
+        fastify.io.to('staff').emit('order:updated', mapped)
       }
       return mapped
     } catch (e) {

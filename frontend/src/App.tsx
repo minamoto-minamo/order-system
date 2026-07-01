@@ -11,6 +11,7 @@ import Products from '@/pages/admin/Products/Products'
 import SeatLayout from '@/pages/admin/SeatLayout/SeatLayout'
 import Settings from '@/pages/admin/Settings/Settings'
 import Staff from '@/pages/admin/Staff/Staff'
+import Courses from '@/pages/admin/Courses/Courses'
 import GroupDetail from '@/pages/group/GroupDetail/GroupDetail'
 import Hall from '@/pages/hall/Hall/Hall'
 import Kitchen from '@/pages/kitchen/Kitchen/Kitchen'
@@ -68,6 +69,7 @@ export default function App() {
       <Route path={ROUTES.adminReport} element={<RequireAuth adminOnly><DailyReport /></RequireAuth>} />
       <Route path={ROUTES.adminSettings} element={<RequireAuth adminOnly><Settings /></RequireAuth>} />
       <Route path={ROUTES.adminStaff} element={<RequireAuth adminOnly><Staff /></RequireAuth>} />
+      <Route path={ROUTES.adminCourses} element={<RequireAuth adminOnly><Courses /></RequireAuth>} />
       <Route path={ROUTES.customerOrderPattern} element={<CustomerOrder />} />
       <Route path="*" element={user ? <Navigate to={ROUTES.root} replace /> : <NotFound />} />
     </Routes>

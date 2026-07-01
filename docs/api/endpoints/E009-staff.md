@@ -54,6 +54,7 @@
 
 - `username`, `password`, `role` は全て必須
 - `role` は `"admin"` または `"staff"` のみ
+- `password`: 8文字以上、100文字以下
 - `username` が重複する場合は 409
 
 レスポンス: 201 Created

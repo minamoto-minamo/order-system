@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
+import { requireAdmin } from '../plugins/auth.js'
 
 const updateBodySchema = {
   type: 'object',
@@ -12,7 +13,15 @@ const updateBodySchema = {
 } as const
 
 const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async (request) => {
+  fastify.get('/', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: { status: { type: 'string', enum: ['open', 'closed'] } },
+        additionalProperties: false,
+      },
+    },
+  }, async (request) => {
     const { status } = request.query as { status?: string }
     const where = status ? { status: status as 'open' | 'closed' } : {}
     const sessions = await prisma.session.findMany({
@@ -39,21 +48,24 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.post('/', async (request, reply) => {
-    const existing = await prisma.session.findFirst({ where: { status: 'open' } })
-    if (existing) {
-      return reply.status(409).send({ error: '既に営業中のセッションがあります' })
-    }
-    const session = await prisma.session.create({ data: { status: 'open' } })
-    return reply.status(201).send({
+  fastify.post('/', { preHandler: requireAdmin }, async (request, reply) => {
+    const session = await prisma.$transaction(async (tx) => {
+      const existing = await tx.session.findFirst({ where: { status: 'open' } })
+      if (existing) return null
+      return tx.session.create({ data: { status: 'open' } })
+    })
+    if (!session) return reply.status(409).send({ error: '既に営業中のセッションがあります' })
+    const result = {
       id: session.id,
       status: session.status,
       openedAt: session.openedAt.toISOString(),
       closedAt: null,
-    })
+    }
+    fastify.io.to('staff').emit('session:updated', result)
+    return reply.status(201).send(result)
   })
 
-  fastify.get('/:id/report', async (request, reply) => {
+  fastify.get('/:id/report', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const sessionId = Number(id)
 
@@ -83,12 +95,20 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const categoryBreakdown: Record<string, number> = {}
     const subBreakdown: Record<string, number> = {}
     const hourlyMap = new Map<number, Record<string, number>>()
-    const rankMap = new Map<number, { name: string; qty: number; amount: number; categoryName: string; subCategoryName: string }>()
+    const rankMap = new Map<number | string, { name: string; qty: number; amount: number; categoryName: string; subCategoryName: string }>()
+    const taxBreakdown: Record<string, { subtotal: number; tax: number }> = {}
 
     for (const item of orderItems) {
-      const catName = item.menuItem.category.name
-      const subName = item.menuItem.subCategory.name
+      const { menuItem } = item
       const amount = item.price * item.qty
+
+      const rate = item.taxRate.toNumber().toString()
+      if (!taxBreakdown[rate]) taxBreakdown[rate] = { subtotal: 0, tax: 0 }
+      taxBreakdown[rate].subtotal += amount
+      taxBreakdown[rate].tax += Math.floor(amount * item.taxRate.toNumber() / 100)
+
+      const catName = menuItem?.category.name ?? '削除済みメニュー'
+      const subName = menuItem?.subCategory.name ?? '削除済みメニュー'
 
       categoryBreakdown[catName] = (categoryBreakdown[catName] ?? 0) + amount
       subBreakdown[subName] = (subBreakdown[subName] ?? 0) + amount
@@ -98,7 +118,8 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       const hourEntry = hourlyMap.get(hour)!
       hourEntry[catName] = (hourEntry[catName] ?? 0) + amount
 
-      const existing = rankMap.get(item.menuItemId) ?? {
+      const rankKey: number | string = item.menuItemId ?? `name:${item.menuItemName}`
+      const existing = rankMap.get(rankKey) ?? {
         name: item.menuItemName,
         qty: 0,
         amount: 0,
@@ -107,7 +128,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       }
       existing.qty += item.qty
       existing.amount += amount
-      rankMap.set(item.menuItemId, existing)
+      rankMap.set(rankKey, existing)
     }
 
     const hourly = [...hourlyMap.entries()]
@@ -127,35 +148,38 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       seatUsageRate,
       categoryBreakdown,
       subBreakdown,
+      taxBreakdown,
       hourly,
       ranking,
     }
   })
 
-  fastify.put('/:id', { schema: { body: updateBodySchema } }, async (request, reply) => {
+  fastify.put('/:id', { preHandler: requireAdmin, schema: { body: updateBodySchema } }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const { status } = request.body as { status: 'open' | 'closed' }
-
-    if (status === 'closed') {
-      const activeCount = await prisma.group.count({
-        where: {
-          sessionId: Number(id),
-          status: { in: ['active', 'bill_requested'] },
-        },
-      })
-      if (activeCount > 0) {
-        return reply.status(409).send({ error: 'active_groups_exist', count: activeCount })
-      }
-    }
+    const sessionId = Number(id)
 
     try {
-      const session = await prisma.session.update({
-        where: { id: Number(id) },
-        data: {
-          status,
-          // 再開（closed → open）時は closedAt をクリアする
-          closedAt: status === 'closed' ? new Date() : null,
-        },
+      const session = await prisma.$transaction(async (tx) => {
+        if (status === 'closed') {
+          const activeCount = await tx.group.count({
+            where: {
+              sessionId,
+              status: { in: ['active', 'bill_requested'] },
+            },
+          })
+          if (activeCount > 0) {
+            const err = Object.assign(new Error('active_groups_exist'), { count: activeCount })
+            throw err
+          }
+        }
+        return tx.session.update({
+          where: { id: sessionId },
+          data: {
+            status,
+            closedAt: status === 'closed' ? new Date() : null,
+          },
+        })
       })
       const result = {
         id: session.id,
@@ -163,9 +187,12 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
         openedAt: session.openedAt.toISOString(),
         closedAt: session.closedAt?.toISOString() ?? null,
       }
-      fastify.io.emit('session:updated', result)
+      fastify.io.to('staff').emit('session:updated', result)
       return result
     } catch (e) {
+      if (e instanceof Error && e.message === 'active_groups_exist') {
+        return reply.status(409).send({ error: 'active_groups_exist', count: (e as any).count })
+      }
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
         return reply.status(404).send({ error: 'セッションが見つかりません' })
       }

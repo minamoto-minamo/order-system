@@ -44,6 +44,9 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
 
   io.on('connection', (socket) => {
     fastify.log.info(`client connected: ${socket.id}`)
+    if (socket.data.authenticated) {
+      socket.join('staff')
+    }
 
     socket.on('order:complete', async (itemId) => {
       if (!socket.data.authenticated) return
@@ -55,9 +58,10 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId },
           data: { status: 'ready' },
         })
-        io.emit('order:updated', toOrderItem(updated))
+        io.to('staff').emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:complete error')
+        socket.emit('error', { message: '注文完了の処理に失敗しました' })
       }
     })
 
@@ -71,9 +75,10 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId },
           data: { status: 'served' },
         })
-        io.emit('order:updated', toOrderItem(updated))
+        io.to('staff').emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:serve error')
+        socket.emit('error', { message: '提供完了の処理に失敗しました' })
       }
     })
 

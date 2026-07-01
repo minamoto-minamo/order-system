@@ -162,7 +162,9 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
       }
     })
 
-    return fetchLayout()
+    const layout = await fetchLayout()
+    fastify.io.to('staff').emit('seatLayout:updated', layout)
+    return layout
   })
 }
 

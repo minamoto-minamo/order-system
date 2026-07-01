@@ -70,10 +70,33 @@ PUT /api/groups/:id
 
 Response 200: group object（上記と同形式）
 
+Response 409 — 営業セッションが closed の場合:
+
+```json
+{ "error": "営業中のセッションがありません" }
+```
+
+Response 409 — 無効な状態遷移の場合:
+
+```json
+{ "error": "active から closed への遷移は許可されていません" }
+```
+
+有効な状態遷移:
+
+| from | to |
+|------|-----|
+| `active` | `bill_requested` |
+| `bill_requested` | `active` |
+| `bill_requested` | `closed` |
+| `closed` | （遷移不可） |
+
 ## Acceptance Criteria
 
 - グループ作成時に seatIds の競合が検出される
 - 更新で状態遷移が正しく反映される
+- closed セッション中はグループ更新を拒否する
+- 無効な状態遷移（`active` → `closed` 等）は 409 を返す
 
 ## Notes
 

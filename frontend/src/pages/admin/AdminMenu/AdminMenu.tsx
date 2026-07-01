@@ -10,6 +10,7 @@ export default function AdminMenu() {
 
   const menuItems = [
     { path: ROUTES.adminProducts, label: t('admin.products'), sub: t('admin.productsSub'), icon: ICONS.product },
+    { path: ROUTES.adminCourses,  label: t('admin.courses'),  sub: t('admin.coursesSub'),  icon: ICONS.product },
     { path: ROUTES.adminSeats,    label: t('admin.seats'),    sub: t('admin.seatsSub'),    icon: ICONS.layout  },
     { path: ROUTES.adminStaff,    label: t('admin.staff'),    sub: t('admin.staffSub'),    icon: ICONS.staff   },
     { path: ROUTES.adminReport,   label: t('admin.report'),   sub: t('admin.reportSub'),   icon: ICONS.report  },

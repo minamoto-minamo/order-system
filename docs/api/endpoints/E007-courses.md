@@ -80,8 +80,9 @@
 
 ### DELETE /api/courses/:id
 
-- 204 No Content
-- グループで使用中の場合は 409
+Response 204: No Content  
+Response 404: `{ "error": "コースが見つかりません" }`  
+Response 409: `{ "error": "使用中のコースは削除できません" }` — `active` または `bill_requested` のグループが使用中の場合
 
 ## Acceptance Criteria
 

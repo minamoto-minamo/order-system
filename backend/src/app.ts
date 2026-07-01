@@ -20,6 +20,7 @@ import staffRoutes from './routes/staff.js'
 import seatTablesRoutes from './routes/seatTables.js'
 import seatLayoutRoutes from './routes/seatLayout.js'
 import customerRoutes from './routes/customer.js'
+import { prisma } from './lib/prisma.js'
 
 // ESM では __dirname が存在しないため import.meta.url から生成
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -49,7 +50,14 @@ export async function buildApp() {
   await app.register(seatLayoutRoutes,   { prefix: '/api/seat-layout' })
   await app.register(customerRoutes,     { prefix: '/api/customer' })
 
-  app.get('/api/health', async () => ({ status: 'ok' }))
+  app.get('/api/health', async (_request, reply) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      return { status: 'ok' }
+    } catch {
+      return reply.status(503).send({ status: 'error', message: 'database unavailable' })
+    }
+  })
 
   const frontendDist = resolve(__dirname, '../../frontend/dist')
   await app.register(staticPlugin, { root: frontendDist, prefix: '/' })

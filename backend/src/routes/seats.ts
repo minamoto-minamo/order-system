@@ -51,7 +51,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
         tableId: body.tableId ?? null,
       },
     })
-    fastify.io.emit('seat:created', seat)
+    fastify.io.to('staff').emit('seat:created', seat)
     return reply.status(201).send(seat)
   })
 
@@ -63,7 +63,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
         where: { id: Number(id) },
         data: { label: body.label, type: body.type, x: body.x, y: body.y, tableId: body.tableId },
       })
-      fastify.io.emit('seat:updated', seat)
+      fastify.io.to('staff').emit('seat:updated', seat)
       return seat
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {

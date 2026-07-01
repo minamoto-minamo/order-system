@@ -46,9 +46,10 @@ export default function GroupDetail() {
   const [showBillConfirm, setShowBillConfirm]   = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { toast: addedToast, showToast } = useToast();
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    Promise.all([
+    const fetchAll = () => Promise.all([
       api.get<Group>(EP.group(groupId)),
       api.get<OrderItem[]>(`${EP.orders}?groupId=${groupId}`),
       api.get<MenuItem[]>(EP.menus),
@@ -58,6 +59,7 @@ export default function GroupDetail() {
       api.get<DrinkPlan[]>(EP.drinkPlans),
       api.get<Seat[]>(EP.seats),
     ]).then(([g, o, m, c, sc, cr, dp, s]) => {
+      setLoadError(false);
       setGroup(g);
       setItems(o);
       setMenus(m);
@@ -66,7 +68,10 @@ export default function GroupDetail() {
       setCourses(cr);
       setDrinkPlans(dp);
       setSeats(s);
-    }).catch(console.error);
+    }).catch(() => setLoadError(true));
+    fetchAll();
+    socket.on('connect', fetchAll);
+    return () => { socket.off('connect', fetchAll); };
   }, [groupId]);
 
   useSocketListeners({
@@ -84,6 +89,9 @@ export default function GroupDetail() {
     },
     [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) =>
       setMenus(prev => prev.map(m => m.id === menuItemId ? { ...m, soldOut } : m)),
+    [SE.menuCreated]: (item: MenuItem) => setMenus(prev => [...prev, item]),
+    [SE.menuUpdated]: (item: MenuItem) => setMenus(prev => prev.map(m => m.id === item.id ? item : m)),
+    [SE.menuDeleted]: (menuItemId: number) => setMenus(prev => prev.filter(m => m.id !== menuItemId)),
   });
 
   const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;
@@ -91,21 +99,10 @@ export default function GroupDetail() {
 
   const seatLabels = getSeatLabels(seats, group?.seatIds ?? []);
 
-  // 食事アイテムを先に注文として登録してからグループの courseId/drinkPlanId を更新する
   const handleCourseOrder = async (course: Course, qty: number) => {
     if (!group) return;
     try {
-      if (course.foodItems.length > 0) {
-        await api.post<OrderItem[]>(EP.orders, {
-          groupId: group.id,
-          items: course.foodItems.map(fi => ({ menuItemId: fi.menuItemId, qty: fi.qty * qty, isTakeout: false })),
-          courseId: course.id,
-        });
-      }
-      const updatedGroup = await api.put<Group>(EP.group(group.id), {
-        courseId: course.id,
-        drinkPlanId: course.drinkPlanId,
-      });
+      const updatedGroup = await api.post<Group>(EP.groupCourse(group.id), { courseId: course.id, qty });
       setGroup(updatedGroup);
       showToast(t('group.courseAppliedToast', { name: course.name }));
       setShowCourseConfirm(null);
@@ -116,7 +113,7 @@ export default function GroupDetail() {
   const handleCourseRemove = async () => {
     if (!group) return;
     try {
-      const updatedGroup = await api.put<Group>(EP.group(group.id), { courseId: null, drinkPlanId: null });
+      const updatedGroup = await api.delete<Group>(EP.groupCourse(group.id));
       setGroup(updatedGroup);
       showToast(t('group.courseRemovedToast'));
     } catch (e) { console.error(e); }
@@ -193,6 +190,13 @@ export default function GroupDetail() {
     const updated = await api.put<Group>(EP.group(group.id), { status: 'closed' }).catch(() => null);
     if (updated) navigate(-1);
   };
+
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
+      <p>{t('common.loadError')}</p>
+      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
+    </div>
+  );
 
   return (
     <>

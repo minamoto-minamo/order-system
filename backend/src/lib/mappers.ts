@@ -37,7 +37,7 @@ export function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: 
 }
 
 export function toOrderItem(o: {
-  id: string; groupId: string; menuItemId: number; menuItemName: string; price: number;
+  id: string; groupId: string; menuItemId: number | null; menuItemName: string; price: number;
   qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null; orderedAt: Date;
 }) {
   return {

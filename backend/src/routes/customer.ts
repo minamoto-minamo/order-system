@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
+import rateLimit from '@fastify/rate-limit'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem, toGroup } from '../lib/mappers.js'
 
@@ -15,7 +16,7 @@ const createOrderBodySchema = {
         required: ['menuItemId', 'qty'],
         properties: {
           menuItemId: { type: 'integer', minimum: 1 },
-          qty: { type: 'integer', minimum: 1 },
+          qty: { type: 'integer', minimum: 1, maximum: 99 },
         },
         additionalProperties: false,
       },
@@ -25,6 +26,8 @@ const createOrderBodySchema = {
 } as const
 
 const customerRoutes: FastifyPluginAsync = async (fastify) => {
+  await fastify.register(rateLimit, { max: 60, timeWindow: '1 minute' })
+
   fastify.get('/groups/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const group = await prisma.group.findUnique({ where: { id } })
@@ -75,7 +78,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       data: { status: 'bill_requested' },
       include: { seats: true },
     })
-    fastify.io.emit('group:updated', toGroup(updated))
+    fastify.io.to('staff').emit('group:updated', toGroup(updated))
     return reply.status(204).send()
   })
 
@@ -88,7 +91,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const group = await prisma.group.findUnique({ where: { id } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
-    fastify.io.emit('staff:called', group.id, group.name)
+    fastify.io.to('staff').emit('staff:called', group.id, group.name)
     return reply.status(204).send()
   })
 
@@ -116,29 +119,48 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
     }
 
+    if (group.drinkPlanId) {
+      const planItems = await prisma.drinkPlanItem.findMany({
+        where: { drinkPlanId: group.drinkPlanId },
+        select: { menuItemId: true },
+      })
+      const planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
+      const outOfPlan = body.items.filter(i => !planMenuItemIds.has(i.menuItemId))
+      if (outOfPlan.length > 0) {
+        return reply.status(422).send({ error: 'ドリンクプランに含まれていない商品が選択されています' })
+      }
+    }
+
     const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
 
-    const created = await prisma.$transaction(
-      body.items.map(item =>
-        prisma.orderItem.create({
-          data: {
-            groupId: body.groupId,
-            menuItemId: item.menuItemId,
-            menuItemName: menuItemMap.get(item.menuItemId)!.name,
-            price: menuItemMap.get(item.menuItemId)!.price,
-            qty: item.qty,
-            isTakeout: false,
-            taxRate: taxRateInHouse,
-            courseId: null,
-          },
-        })
+    const txResult = await prisma.$transaction(async (tx) => {
+      const current = await tx.group.findUnique({ where: { id: body.groupId }, select: { status: true } })
+      if (current?.status !== 'active') return null
+      return Promise.all(
+        body.items.map(item =>
+          tx.orderItem.create({
+            data: {
+              groupId: body.groupId,
+              menuItemId: item.menuItemId,
+              menuItemName: menuItemMap.get(item.menuItemId)!.name,
+              price: menuItemMap.get(item.menuItemId)!.price,
+              qty: item.qty,
+              isTakeout: false,
+              taxRate: taxRateInHouse,
+              courseId: null,
+            },
+          })
+        )
       )
-    )
+    })
 
-    const results = created.map(toOrderItem)
+    if (!txResult) return reply.status(400).send({ error: '現在注文を受け付けていません' })
+
+    const results = txResult.map(toOrderItem)
     for (const result of results) {
-      fastify.io.emit('order:created', result)
+      fastify.io.to('staff').emit('order:created', result)
     }
 
     return reply.status(201).send(results)

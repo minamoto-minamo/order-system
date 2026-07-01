@@ -9,7 +9,7 @@ const createBodySchema = {
   required: ['username', 'password', 'role'],
   properties: {
     username: { type: 'string', minLength: 1 },
-    password: { type: 'string', minLength: 1 },
+    password: { type: 'string', minLength: 8, maxLength: 100 },
     role:     { type: 'string', enum: ['admin', 'staff'] },
   },
   additionalProperties: false,
@@ -19,7 +19,7 @@ const updateBodySchema = {
   type: 'object',
   properties: {
     username: { type: 'string', minLength: 1 },
-    password: { type: 'string', minLength: 1 },
+    password: { type: 'string', minLength: 8, maxLength: 100 },
     role:     { type: 'string', enum: ['admin', 'staff'] },
   },
   additionalProperties: false,
