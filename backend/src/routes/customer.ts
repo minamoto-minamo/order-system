@@ -119,13 +119,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
     }
 
+    const takeoutOnly = body.items.filter(i => menuItemMap.get(i.menuItemId)?.takeout === 'takeout')
+    if (takeoutOnly.length > 0) {
+      return reply.status(422).send({ error: 'テイクアウト専用の商品は店内でご注文いただけません' })
+    }
+
+    let planMenuItemIds: Set<number> | null = null
     if (group.drinkPlanId) {
       const planItems = await prisma.drinkPlanItem.findMany({
         where: { drinkPlanId: group.drinkPlanId },
         select: { menuItemId: true },
       })
-      const planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
-      const outOfPlan = body.items.filter(i => !planMenuItemIds.has(i.menuItemId))
+      planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
+      const outOfPlan = body.items.filter(i => !planMenuItemIds!.has(i.menuItemId))
       if (outOfPlan.length > 0) {
         return reply.status(422).send({ error: 'ドリンクプランに含まれていない商品が選択されています' })
       }
@@ -145,7 +151,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               groupId: body.groupId,
               menuItemId: item.menuItemId,
               menuItemName: menuItemMap.get(item.menuItemId)!.name,
-              price: menuItemMap.get(item.menuItemId)!.price,
+              price: planMenuItemIds?.has(item.menuItemId) ? 0 : menuItemMap.get(item.menuItemId)!.price,
               qty: item.qty,
               isTakeout: false,
               taxRate: taxRateInHouse,

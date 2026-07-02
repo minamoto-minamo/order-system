@@ -36,6 +36,18 @@ const updateBodySchema = {
   additionalProperties: false,
 } as const
 
+async function ownsMenuItems(storeId: number, menuItemIds: number[]): Promise<boolean> {
+  const ids = [...new Set(menuItemIds)]
+  if (ids.length === 0) return true
+  const owned = await prisma.menuItem.count({ where: { id: { in: ids }, storeId } })
+  return owned === ids.length
+}
+
+async function ownsDrinkPlan(storeId: number, drinkPlanId: number): Promise<boolean> {
+  const plan = await prisma.drinkPlan.findFirst({ where: { id: drinkPlanId, storeId } })
+  return plan !== null
+}
+
 const coursesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
     const courses = await prisma.course.findMany({ where: { storeId: request.storeId }, include: { foodItems: true } })
@@ -47,6 +59,12 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       name: string; price: number;
       foodItems: { menuItemId: number; qty: number }[];
       drinkPlanId?: number | null;
+    }
+    if (!(await ownsMenuItems(request.storeId, body.foodItems.map(f => f.menuItemId)))) {
+      return reply.status(422).send({ error: 'メニューが見つかりません' })
+    }
+    if (body.drinkPlanId != null && !(await ownsDrinkPlan(request.storeId, body.drinkPlanId))) {
+      return reply.status(422).send({ error: '飲み放題プランが見つかりません' })
     }
     const course = await prisma.course.create({
       data: {
@@ -70,6 +88,12 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
     }>
     const existing = await prisma.course.findFirst({ where: { id: Number(id), storeId: request.storeId } })
     if (!existing) return reply.status(404).send({ error: 'コースが見つかりません' })
+    if (body.drinkPlanId != null && !(await ownsDrinkPlan(request.storeId, body.drinkPlanId))) {
+      return reply.status(422).send({ error: '飲み放題プランが見つかりません' })
+    }
+    if (body.foodItems !== undefined && !(await ownsMenuItems(request.storeId, body.foodItems.map(f => f.menuItemId)))) {
+      return reply.status(422).send({ error: 'メニューが見つかりません' })
+    }
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
     if (body.price !== undefined) data.price = body.price

@@ -83,14 +83,27 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(409).send({ error: '品切れの商品が含まれています' })
     }
 
-    const invalidTakeout = body.items.filter(i => i.isTakeout === true && menuItemMap.get(i.menuItemId)?.takeout === 'dine_in')
+    const invalidTakeout = body.items.filter(i => {
+      const takeoutType = menuItemMap.get(i.menuItemId)?.takeout
+      const isTakeout = i.isTakeout === true
+      return (isTakeout && takeoutType === 'dine_in') || (!isTakeout && takeoutType === 'takeout')
+    })
     if (invalidTakeout.length > 0) {
-      return reply.status(422).send({ error: 'テイクアウト不可の商品が含まれています' })
+      return reply.status(422).send({ error: 'テイクアウト設定に合わない商品が含まれています' })
     }
 
     if (body.courseId != null) {
       const course = await prisma.course.findFirst({ where: { id: body.courseId, storeId: request.storeId } })
       if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
+    }
+
+    let planMenuItemIds: Set<number> | null = null
+    if (group.drinkPlanId) {
+      const planItems = await prisma.drinkPlanItem.findMany({
+        where: { drinkPlanId: group.drinkPlanId },
+        select: { menuItemId: true },
+      })
+      planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
     }
 
     const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
@@ -103,13 +116,15 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       if (currentGroup?.status !== 'active') throw new GroupStatusError()
       return Promise.all(body.items.map(item => {
         const isTakeout = item.isTakeout ?? false
+        // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
+        const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
         return tx.orderItem.create({
           data: {
             groupId: body.groupId,
             menuItemId: item.menuItemId,
             // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
             menuItemName: menuItemMap.get(item.menuItemId)!.name,
-            price: menuItemMap.get(item.menuItemId)!.price,
+            price: isPlanItem ? 0 : menuItemMap.get(item.menuItemId)!.price,
             qty: item.qty,
             isTakeout,
             taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
@@ -138,9 +153,16 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
     const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.orderItem.findFirst({ where: { id, storeId: request.storeId } })
+      const order = await tx.orderItem.findFirst({
+        where: { id, storeId: request.storeId },
+        include: { group: { include: { session: true } } },
+      })
       if (!order) return null
       if (order.status === 'cancelled') {
+        return { conflict: true }
+      }
+      // 会計済み（closed）のグループ・セッションの注文はキャンセルさせない
+      if (order.group.status === 'closed' || order.group.session.status === 'closed') {
         return { conflict: true }
       }
 

@@ -13,13 +13,17 @@ function DrinkPlanModal({ plan, menus, categories, subCategories, onSave, onDele
   menus: MenuItem[];
   categories: Category[];
   subCategories: SubCategory[];
-  onSave: (name: string, menuItemIds: number[]) => void;
+  onSave: (name: string, price: number, menuItemIds: number[]) => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(plan?.name ?? "");
+  const [price, setPrice] = useState(String(plan?.price ?? ""));
   const [selected, setSelected] = useState<Set<number>>(new Set(plan?.menuItemIds ?? []));
+
+  const priceNum = Number(price);
+  const priceValid = price !== "" && !isNaN(priceNum) && priceNum >= 0;
 
   const toggle = (id: number) => setSelected(prev => {
     const next = new Set(prev);
@@ -50,6 +54,17 @@ function DrinkPlanModal({ plan, menus, categories, subCategories, onSave, onDele
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
+            className="input-field w-full border border-line rounded-[7px] px-3 py-2.25 text-sm outline-none text-ink"
+          />
+        </div>
+
+        <div className="px-6 pt-3 pb-2 shrink-0">
+          <label className="text-xs text-muted block mb-1.5">{t('courses.drinkPlanPriceLabel')}</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={price}
+            onChange={e => setPrice(e.target.value)}
             className="input-field w-full border border-line rounded-[7px] px-3 py-2.25 text-sm outline-none text-ink"
           />
         </div>
@@ -110,8 +125,8 @@ function DrinkPlanModal({ plan, menus, categories, subCategories, onSave, onDele
           <BaseButton
             variant="primary"
             className="flex-1 py-3.25 rounded-[10px] text-sm font-medium disabled:opacity-40"
-            disabled={!name.trim()}
-            onClick={() => name.trim() && onSave(name.trim(), [...selected])}
+            disabled={!name.trim() || !priceValid}
+            onClick={() => name.trim() && priceValid && onSave(name.trim(), priceNum, [...selected])}
           >
             {t('common.save')}
           </BaseButton>
@@ -283,13 +298,13 @@ export default function Courses() {
   }, []);
 
   // ── DrinkPlan CRUD ──────────────────────────────────────────
-  const saveDrinkPlan = async (name: string, menuItemIds: number[]) => {
+  const saveDrinkPlan = async (name: string, price: number, menuItemIds: number[]) => {
     try {
       if (dpModal === 'new') {
-        const created = await api.post<DrinkPlan>(EP.drinkPlans, { name, menuItemIds });
+        const created = await api.post<DrinkPlan>(EP.drinkPlans, { name, price, menuItemIds });
         setDrinkPlans(prev => [...prev, created]);
       } else if (dpModal) {
-        const updated = await api.put<DrinkPlan>(EP.drinkPlan(dpModal.id), { name, menuItemIds });
+        const updated = await api.put<DrinkPlan>(EP.drinkPlan(dpModal.id), { name, price, menuItemIds });
         setDrinkPlans(prev => prev.map(p => p.id === updated.id ? updated : p));
       }
       setDpModal(null);
@@ -347,7 +362,10 @@ export default function Courses() {
           ) : drinkPlans.map(plan => (
             <div key={plan.id} className="py-3 border-b border-surface flex items-start gap-3">
               <div className="flex-1">
-                <div className="text-note text-ink mb-1.5">{plan.name}</div>
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <span className="text-note text-ink">{plan.name}</span>
+                  <span className="text-xs text-muted">¥{plan.price.toLocaleString()}</span>
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {plan.menuItemIds.map(mid => {
                     const name = menus.find(m => m.id === mid)?.name ?? t('common.unknownItem', { id: mid });

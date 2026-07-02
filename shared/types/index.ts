@@ -49,6 +49,8 @@ export interface OrderItem {
   isTakeout: boolean
   taxRate: number
   courseId: number | null
+  isCourseCharge: boolean
+  isDrinkPlanCharge: boolean
   orderedAt: string
 }
 
@@ -81,6 +83,7 @@ export interface MenuItem {
 export interface DrinkPlan {
   id: number
   name: string
+  price: number
   menuItemIds: number[]
 }
 
@@ -160,8 +163,6 @@ export interface CreateGroupRequest {
 
 export interface UpdateGroupRequest {
   status?: GroupStatus
-  courseId?: number | null
-  drinkPlanId?: number | null
   name?: string
   guestCount?: number
   seatIds?: number[]
@@ -254,6 +255,7 @@ export interface UpdateStaffRequest {
 // --- Courses / DrinkPlans ---
 export interface UpsertDrinkPlanRequest {
   name: string
+  price: number
   menuItemIds: number[]
 }
 

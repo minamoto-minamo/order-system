@@ -5,9 +5,10 @@ import { toDrinkPlan } from '../lib/mappers.js'
 
 const createBodySchema = {
   type: 'object',
-  required: ['name', 'menuItemIds'],
+  required: ['name', 'price', 'menuItemIds'],
   properties: {
     name: { type: 'string', minLength: 1 },
+    price: { type: 'integer', minimum: 0 },
     menuItemIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
   },
   additionalProperties: false,
@@ -17,10 +18,18 @@ const updateBodySchema = {
   type: 'object',
   properties: {
     name: { type: 'string', minLength: 1 },
+    price: { type: 'integer', minimum: 0 },
     menuItemIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
   },
   additionalProperties: false,
 } as const
+
+async function ownsMenuItems(storeId: number, menuItemIds: number[]): Promise<boolean> {
+  const ids = [...new Set(menuItemIds)]
+  if (ids.length === 0) return true
+  const owned = await prisma.menuItem.count({ where: { id: { in: ids }, storeId } })
+  return owned === ids.length
+}
 
 const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
@@ -29,10 +38,14 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
-    const body = request.body as { name: string; menuItemIds: number[] }
+    const body = request.body as { name: string; price: number; menuItemIds: number[] }
+    if (!(await ownsMenuItems(request.storeId, body.menuItemIds))) {
+      return reply.status(422).send({ error: 'メニューが見つかりません' })
+    }
     const plan = await prisma.drinkPlan.create({
       data: {
         name: body.name,
+        price: body.price,
         items: { create: body.menuItemIds.map(menuItemId => ({ menuItemId })) },
         storeId: request.storeId,
       },
@@ -43,11 +56,15 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const body = request.body as Partial<{ name: string; menuItemIds: number[] }>
+    const body = request.body as Partial<{ name: string; price: number; menuItemIds: number[] }>
     const existing = await prisma.drinkPlan.findFirst({ where: { id: Number(id), storeId: request.storeId } })
     if (!existing) return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
+    if (body.menuItemIds !== undefined && !(await ownsMenuItems(request.storeId, body.menuItemIds))) {
+      return reply.status(422).send({ error: 'メニューが見つかりません' })
+    }
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
+    if (body.price !== undefined) data.price = body.price
     if (body.menuItemIds !== undefined) {
       // 差分更新ではなく全置換。courses.ts の foodItems と同じ戦略
       data.items = {

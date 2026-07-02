@@ -96,6 +96,8 @@ export default function GroupDetail() {
 
   const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;
   const activeDrinkPlan = drinkPlans.find(p => p.id === group?.drinkPlanId) ?? null;
+  const appliedCourseChargeItem = items.find(i => i.isCourseCharge && !i.isDrinkPlanCharge && i.courseId === group?.courseId);
+  const appliedCourseQty = appliedCourseChargeItem?.qty ?? null;
 
   const seatLabels = getSeatLabels(seats, group?.seatIds ?? []);
 
@@ -119,6 +121,17 @@ export default function GroupDetail() {
     } catch (e) { console.error(e); }
   };
 
+  const handleCourseQtyChange = async (qty: number) => {
+    if (!group) return;
+    try {
+      const updated = await api.put<OrderItem | undefined>(EP.groupCourse(group.id), { qty });
+      if (updated) setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      showToast(t('group.courseQtyChangedToast'));
+    } catch {
+      showToast(t('group.courseQtyChangeFailed'));
+    }
+  };
+
   const handleChangeStatus = (id: string) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
@@ -139,10 +152,12 @@ export default function GroupDetail() {
   const handleAdd = async (orderItems: { item: MenuItem; qty: number }[], isTakeout: boolean) => {
     if (!group || orderItems.length === 0) return;
     try {
-      await api.post<OrderItem[]>(EP.orders, {
+      const created = await api.post<OrderItem[]>(EP.orders, {
         groupId: group.id,
         items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty, isTakeout })),
       });
+      // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
+      setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
       const names = orderItems.map(({ item, qty }) => `${item.name} ×${qty}`).join('、');
       showToast(t('group.addedToastMsg', { name: names }));
       setTab('history');
@@ -262,10 +277,12 @@ export default function GroupDetail() {
               drinkPlans={drinkPlans}
               menus={menus}
               appliedCourse={appliedCourse}
+              appliedCourseQty={appliedCourseQty}
               activeDrinkPlan={activeDrinkPlan}
               groupGuestCount={group?.guestCount ?? 1}
               onApply={(course) => { setShowCourseConfirm(course); setCourseQty(group?.guestCount ?? 1); }}
               onRemove={handleCourseRemove}
+              onChangeQty={handleCourseQtyChange}
             />
           )}
         </div>

@@ -100,7 +100,9 @@ export default function CustomerOrder() {
     setSubmitting(true);
     setErrorMsg(null);
     try {
-      await api.post(EP.customerOrders, { groupId, items: orderItems });
+      const created = await api.post<OrderItem[]>(EP.customerOrders, { groupId, items: orderItems });
+      // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
+      setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
       setQtys({});
       setSuccessMsg(t('customerOrder.orderSuccess'));
       setTimeout(() => setSuccessMsg(null), 3000);

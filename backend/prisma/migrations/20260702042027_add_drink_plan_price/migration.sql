@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "DrinkPlan" ADD COLUMN     "price" INTEGER NOT NULL DEFAULT 0;

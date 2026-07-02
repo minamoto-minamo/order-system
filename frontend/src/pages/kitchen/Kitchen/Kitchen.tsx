@@ -61,7 +61,8 @@ export default function Kitchen() {
       api.get<SubCategory[]>(EP.subcategories),
     ]).then(([o, g, s, m, c, sc]) => {
       setLoadError(false);
-      setOrders(o);
+      // コース/飲み放題の定額課金明細は調理対象ではないためキッチン画面には表示しない
+      setOrders(o.filter(item => !item.isCourseCharge));
       setGroups(g);
       setSeats(s);
       setMenus(m);
@@ -80,9 +81,11 @@ export default function Kitchen() {
 
   useSocketListeners({
     [SE.orderCreated]: (o: OrderItem) => {
+      if (o.isCourseCharge) return;
       if (o.status === 'pending' || o.status === 'ready') setOrders(prev => [...prev, o]);
     },
     [SE.orderUpdated]: (o: OrderItem) => {
+      if (o.isCourseCharge) return;
       setOrders(prev => {
         const filtered = prev.filter(x => x.id !== o.id);
         return (o.status === 'pending' || o.status === 'ready') ? [...filtered, o] : filtered;

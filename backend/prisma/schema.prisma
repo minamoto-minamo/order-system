@@ -175,6 +175,7 @@ model DrinkPlan {
   id      Int    @id @default(autoincrement())
   storeId Int
   name    String
+  price   Int    @default(0)
 
   store   Store           @relation(fields: [storeId], references: [id])
   items   DrinkPlanItem[]
@@ -259,18 +260,24 @@ model GroupSeat {
 }
 
 model OrderItem {
-  id           String          @id @default(uuid())
-  storeId      Int
-  groupId      String
-  menuItemId   Int?
-  menuItemName String
-  price        Int
-  qty          Int
-  status       OrderItemStatus @default(pending)
-  isTakeout    Boolean         @default(false)
-  taxRate      Decimal         @db.Decimal(5, 2)
-  courseId     Int?
-  orderedAt    DateTime        @default(now())
+  id             String          @id @default(uuid())
+  storeId        Int
+  groupId        String
+  menuItemId     Int?
+  menuItemName   String
+  price          Int
+  qty            Int
+  status         OrderItemStatus @default(pending)
+  isTakeout      Boolean         @default(false)
+  taxRate        Decimal         @db.Decimal(5, 2)
+  courseId       Int?
+  // コース/飲み放題の定額課金明細かどうか。menuItemId が null になるだけでは
+  // 「削除済みメニュー」と区別できないため明示的に持たせる
+  isCourseCharge Boolean         @default(false)
+  // isCourseCharge:true の明細のうち、飲み放題の定額課金明細かどうか。
+  // コース自身の料金明細と名前が偶然一致・事後変更されても区別できるようにするため
+  isDrinkPlanCharge Boolean      @default(false)
+  orderedAt      DateTime        @default(now())
 
   store    Store     @relation(fields: [storeId], references: [id])
   group    Group     @relation(fields: [groupId], references: [id])

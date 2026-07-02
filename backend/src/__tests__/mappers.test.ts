@@ -53,8 +53,8 @@ describe('toCourse', () => {
 
 describe('toDrinkPlan', () => {
   it('items を menuItemIds に変換する', () => {
-    const input = { id: 1, name: 'ドリンク飲み放題', items: [{ menuItemId: 7 }, { menuItemId: 8 }] }
-    expect(toDrinkPlan(input)).toEqual({ id: 1, name: 'ドリンク飲み放題', menuItemIds: [7, 8] })
+    const input = { id: 1, name: 'ドリンク飲み放題', price: 2000, items: [{ menuItemId: 7 }, { menuItemId: 8 }] }
+    expect(toDrinkPlan(input)).toEqual({ id: 1, name: 'ドリンク飲み放題', price: 2000, menuItemIds: [7, 8] })
   })
 })
 
@@ -70,6 +70,8 @@ describe('toOrderItem', () => {
     isTakeout: false,
     taxRate: { toNumber: () => 10 },
     courseId: null,
+    isCourseCharge: false,
+    isDrinkPlanCharge: false,
     orderedAt: new Date('2024-06-01T12:00:00.000Z'),
   }
 
@@ -85,12 +87,22 @@ describe('toOrderItem', () => {
       isTakeout: false,
       taxRate: 10,
       courseId: null,
+      isCourseCharge: false,
+      isDrinkPlanCharge: false,
       orderedAt: '2024-06-01T12:00:00.000Z',
     })
   })
 
   it('menuItemId が null のとき null のまま変換する', () => {
     expect(toOrderItem({ ...base, menuItemId: null })).toMatchObject({ menuItemId: null })
+  })
+
+  it('isCourseCharge を変換する', () => {
+    expect(toOrderItem({ ...base, isCourseCharge: true })).toMatchObject({ isCourseCharge: true })
+  })
+
+  it('isDrinkPlanCharge を変換する', () => {
+    expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({ isDrinkPlanCharge: true })
   })
 })
 

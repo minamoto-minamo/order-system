@@ -19,14 +19,20 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
   onCancelTap: (item: OrderItem) => void;
 }) {
   const { t } = useTranslation();
-  const active = items.filter(i => i.status !== "cancelled" && i.status !== "served");
-  const cancelled = items.filter(i => i.status === "cancelled");
+  // コース/飲み放題の定額課金明細は調理・提供の対象外のため、通常注文とは別枠で表示する
+  const foodItems = items.filter(i => !i.isCourseCharge);
+  const courseCharges = items.filter(i => i.isCourseCharge && i.status !== "cancelled");
+  const active = foodItems.filter(i => i.status !== "cancelled" && i.status !== "served");
+  const cancelled = [
+    ...foodItems.filter(i => i.status === "cancelled"),
+    ...items.filter(i => i.isCourseCharge && i.status === "cancelled"),
+  ];
 
-  const served = items.filter(i => i.status === "served");
+  const served = foodItems.filter(i => i.status === "served");
 
   return (
     <div className="flex-1 overflow-y-auto pb-5">
-      <OrderSection>
+      <OrderSection title={t('group.notServed')}>
         {active.map(item => (
           <div key={item.id} className="px-5 py-3 border-b border-surface flex items-center gap-2.5">
             <div className="flex-1">
@@ -94,6 +100,17 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
             <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2 opacity-45">
               <span className="flex-1 text-note text-dim line-through">{item.menuItemName}</span>
               <span className="text-label text-muted">×{item.qty}</span>
+            </div>
+          ))}
+        </OrderSection>
+      )}
+
+      {courseCharges.length > 0 && (
+        <OrderSection title={t('group.courseTab')}>
+          {courseCharges.map(item => (
+            <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2">
+              <span className="flex-1 text-note text-secondary">{item.menuItemName}</span>
+              <span className="text-label text-muted">¥{(item.price * item.qty).toLocaleString()}</span>
             </div>
           ))}
         </OrderSection>

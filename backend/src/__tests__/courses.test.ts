@@ -6,11 +6,17 @@ import jwt from '@fastify/jwt'
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockCourseCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockCourseUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockMenuItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
+const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     group: { findFirst: mockGroupFindFirst },
-    course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete },
+    course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete, create: mockCourseCreate, update: mockCourseUpdate },
+    menuItem: { count: mockMenuItemCount },
+    drinkPlan: { findFirst: mockDrinkPlanFindFirst },
   },
 }))
 
@@ -98,5 +104,84 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     expect(res.statusCode).toBe(404)
     expect(res.json()).toMatchObject({ error: 'コースが見つかりません' })
     expect(mockCourseDelete).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/courses — storeId 検証', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  function token() {
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+  }
+
+  it('他店舗の menuItemId を含む場合は 422 を返す', async () => {
+    mockMenuItemCount.mockResolvedValue(1)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/courses',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: 'コースA', price: 3000, foodItems: [{ menuItemId: 1, qty: 1 }, { menuItemId: 2, qty: 1 }] },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(mockCourseCreate).not.toHaveBeenCalled()
+  })
+
+  it('他店舗の drinkPlanId を指定した場合は 422 を返す', async () => {
+    mockMenuItemCount.mockResolvedValue(1)
+    mockDrinkPlanFindFirst.mockResolvedValue(null)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/courses',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: 'コースA', price: 3000, drinkPlanId: 99, foodItems: [{ menuItemId: 1, qty: 1 }] },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({ error: '飲み放題プランが見つかりません' })
+    expect(mockCourseCreate).not.toHaveBeenCalled()
+  })
+
+  it('自店舗の menuItemId / drinkPlanId のみなら作成できる', async () => {
+    mockMenuItemCount.mockResolvedValue(1)
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, storeId: STORE_ID })
+    mockCourseCreate.mockResolvedValue({ id: 1, name: 'コースA', price: 3000, drinkPlanId: 5, foodItems: [{ menuItemId: 1, qty: 1 }] })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/courses',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: 'コースA', price: 3000, drinkPlanId: 5, foodItems: [{ menuItemId: 1, qty: 1 }] },
+    })
+    expect(res.statusCode).toBe(201)
+    expect(mockCourseCreate).toHaveBeenCalled()
+  })
+})
+
+describe('PUT /api/courses/:id — storeId 検証', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  function token() {
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+  }
+
+  it('他店舗の menuItemId を含む foodItems への更新は 422 を返す', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1, storeId: STORE_ID })
+    mockMenuItemCount.mockResolvedValue(0)
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { foodItems: [{ menuItemId: 99, qty: 1 }] },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(mockCourseUpdate).not.toHaveBeenCalled()
   })
 })

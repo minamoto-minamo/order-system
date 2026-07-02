@@ -32,8 +32,8 @@ export function toCourse(c: {
   }
 }
 
-export function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: number }[] }) {
-  return { id: p.id, name: p.name, menuItemIds: p.items.map(i => i.menuItemId) }
+export function toDrinkPlan(p: { id: number; name: string; price: number; items: { menuItemId: number }[] }) {
+  return { id: p.id, name: p.name, price: p.price, menuItemIds: p.items.map(i => i.menuItemId) }
 }
 
 export function toStaffSession(t: {
@@ -50,7 +50,8 @@ export function toStaffSession(t: {
 
 export function toOrderItem(o: {
   id: string; groupId: string; menuItemId: number | null; menuItemName: string; price: number;
-  qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null; orderedAt: Date;
+  qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null;
+  isCourseCharge: boolean; isDrinkPlanCharge: boolean; orderedAt: Date;
 }) {
   return {
     id: o.id,
@@ -64,6 +65,8 @@ export function toOrderItem(o: {
     isTakeout: o.isTakeout,
     taxRate: o.taxRate.toNumber(),
     courseId: o.courseId,
+    isCourseCharge: o.isCourseCharge,
+    isDrinkPlanCharge: o.isDrinkPlanCharge,
     orderedAt: o.orderedAt.toISOString(),
   }
 }

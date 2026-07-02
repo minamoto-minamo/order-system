@@ -2,6 +2,7 @@ import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@je
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { Prisma } from '@prisma/client'
 
 type GroupSeat = { groupId: string; seatId: number }
 type Group = { id: string; name: string; guestCount: number; status: string; sessionId: number; courseId: number | null; drinkPlanId: number | null; createdAt: Date; seats: { seatId: number }[] }
@@ -99,6 +100,20 @@ describe('POST /api/groups — グループ作成', () => {
     expect(mockGroupCreate).not.toHaveBeenCalled()
   })
 
+  it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
+    mockSeatFindMany.mockResolvedValue([{ id: 1, label: 'A-1' }])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', { code: 'P2034', clientVersion: '5.17.0' })
+    })
+    const res = await app.inject({
+      method: 'POST', url: '/api/groups',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { guestCount: 2, seatIds: [1] },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+  })
+
   it('競合席がない場合グループを作成して 201 を返す', async () => {
     const newGroup: Group = { id: GROUP_ID, name: 'A-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [{ seatId: 1 }] }
     mockSeatFindMany.mockResolvedValue([{ id: 1, label: 'A-1' }])
@@ -150,6 +165,21 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
+  it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
+    mockSeatFindMany.mockResolvedValue([])
+    mockSeatCount.mockResolvedValue(1)
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', { code: 'P2034', clientVersion: '5.17.0' })
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { seatIds: [2] },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+  })
+
   it('seatIds に競合席がない場合グループを更新して 200 を返す', async () => {
     const updatedGroup: Group = { id: GROUP_ID, name: 'B-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [{ seatId: 3 }] }
     mockSeatFindMany.mockResolvedValue([])
@@ -168,5 +198,28 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ id: GROUP_ID })
+  })
+
+  it('courseId / drinkPlanId を送っても更新データに反映されない（コース適用は POST /:id/course 経由に限定）', async () => {
+    const updatedGroup: Group = { id: GROUP_ID, name: 'テスト', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] }
+    mockSeatFindMany.mockResolvedValue([])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockTxGroupUpdate = jest.fn<any>().mockResolvedValue(updatedGroup)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        groupSeat: { findFirst: () => Promise.resolve(null) },
+        group: { update: mockTxGroupUpdate },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, drinkPlanId: 2, name: 'テスト' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: { name: 'テスト' },
+    }))
   })
 })

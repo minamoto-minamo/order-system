@@ -5,19 +5,24 @@ import jwt from '@fastify/jwt'
 
 type Group = { id: string; status: string; courseId: number | null; drinkPlanId: number | null }
 type Course = { id: number; name: string; price: number; drinkPlanId: number | null; foodItems: { menuItemId: number; qty: number }[] }
+type DrinkPlan = { id: number; name: string; price: number }
 
 const mockGroupFindFirst  = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<Course | null>>()
+const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<DrinkPlan | null>>()
 const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number } } | null>>()
-const mockGroupUpdate      = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockOrderItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockOrderItemUpdate    = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    group:   { findFirst: mockGroupFindFirst, update: mockGroupUpdate },
-    course:  { findFirst: mockCourseFindFirst },
-    setting: { findUnique: mockSettingFindUnique },
+    group:     { findFirst: mockGroupFindFirst },
+    course:    { findFirst: mockCourseFindFirst },
+    drinkPlan: { findFirst: mockDrinkPlanFindFirst },
+    setting:   { findUnique: mockSettingFindUnique },
+    orderItem: { findFirst: mockOrderItemFindFirst, update: mockOrderItemUpdate },
     $transaction: mockTransaction,
   },
 }))
@@ -144,10 +149,122 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         menuItemName: 'ディナーコース',
         price: 3000,
         qty: 2,
+        status: 'served',
         taxRate: 10,
+        courseId: 1,
+        isCourseCharge: true,
+        isDrinkPlanCharge: false,
+      }),
+    }))
+  })
+
+  it('drinkPlan.price > 0 のコースを適用すると人数に関わらず1回だけ定額課金される', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 0, drinkPlanId: 5, foodItems: [] })
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, name: '飲み放題プラン', price: 2000 })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 4, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: 5, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    const chargeItem = { id: 'item-2', groupId: GROUP_ID, menuItemId: null, menuItemName: '飲み放題プラン', price: 2000, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockOrderItemCreate = jest.fn<any>().mockResolvedValue(chargeItem)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        menuItem: { findMany: () => Promise.resolve([]) },
+        orderItem: { create: mockOrderItemCreate },
+        drinkPlanItem: { findMany: () => Promise.resolve([]) },
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: () => Promise.resolve(updatedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 4 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemCreate).toHaveBeenCalledTimes(1)
+    expect(mockOrderItemCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        groupId: GROUP_ID,
+        menuItemId: null,
+        menuItemName: '飲み放題プラン',
+        price: 2000,
+        qty: 1,
+        status: 'served',
+        taxRate: 10,
+        courseId: 1,
+        isCourseCharge: true,
+        isDrinkPlanCharge: true,
+      }),
+    }))
+  })
+
+  it('foodItems ありのコースを適用すると個別の料理は 0 円で登録される', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({
+      id: 1, name: 'コースA', price: 0, drinkPlanId: null,
+      foodItems: [{ menuItemId: 10, qty: 2 }],
+    })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 3, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    const foodOrderItem = { id: 'item-food', groupId: GROUP_ID, menuItemId: 10, menuItemName: '唐揚げ', price: 0, qty: 6, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockOrderItemCreate = jest.fn<any>().mockResolvedValue(foodOrderItem)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        menuItem: { findMany: () => Promise.resolve([{ id: 10, name: '唐揚げ', price: 500, soldOut: false }]) },
+        orderItem: { create: mockOrderItemCreate },
+        drinkPlanItem: { findMany: () => Promise.resolve([]) },
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: () => Promise.resolve(updatedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 3 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        menuItemId: 10,
+        menuItemName: '唐揚げ',
+        price: 0,
+        qty: 6,
         courseId: 1,
       }),
     }))
+  })
+
+  it('飲み放題プランを適用すると既存の対象商品の注文も遡って 0 円になる', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 0, drinkPlanId: 5, foodItems: [] })
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, name: '飲み放題プラン', price: 0 })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: 5, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    const existingItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 0, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
+    const mockUpdateMany = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({ count: 1 })
+    const mockOrderItemFindMany = jest.fn<() => Promise<unknown[]>>().mockResolvedValue([existingItem])
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        menuItem: { findMany: () => Promise.resolve([]) },
+        orderItem: { create: jest.fn(), updateMany: mockUpdateMany, findMany: mockOrderItemFindMany },
+        drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: () => Promise.resolve(updatedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 2 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ groupId: GROUP_ID, menuItemId: { in: [20] } }),
+      data: { price: 0 },
+    }))
+    expect(mockOrderItemFindMany).toHaveBeenCalled()
   })
 })
 
@@ -160,16 +277,52 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
   it('存在するグループのコースを解除すると 200 を返す', async () => {
     const clearedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
-    mockGroupUpdate.mockResolvedValue(clearedGroup)
+    const mockTxGroupUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(clearedGroup)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = { orderItem: { findMany: () => Promise.resolve([]) }, group: { update: mockTxGroupUpdate } }
+      return cb(tx)
+    })
     const res = await app.inject({
       method: 'DELETE', url: `/api/groups/${GROUP_ID}/course`,
       headers: { cookie: `token=${token(app)}` },
     })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ courseId: null, drinkPlanId: null })
-    expect(mockGroupUpdate).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: GROUP_ID },
       data: { courseId: null, drinkPlanId: null },
+    }))
+  })
+
+  it('コースを解除するとコース料金・飲み放題料金の定額課金明細が取消済みになる', async () => {
+    const clearedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    const courseChargeItem = { id: 'charge-1', groupId: GROUP_ID, menuItemId: null, menuItemName: 'Aコース', price: 3000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
+    const drinkPlanChargeItem = { id: 'charge-2', groupId: GROUP_ID, menuItemId: null, menuItemName: '飲み放題', price: 2000, qty: 1, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: true, orderedAt: new Date() }
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+      .mockImplementation(async (args: any) => ({
+        ...(args.where.id === 'charge-1' ? courseChargeItem : drinkPlanChargeItem),
+        status: 'cancelled',
+      }))
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        orderItem: { findMany: () => Promise.resolve([courseChargeItem, drinkPlanChargeItem]), update: mockOrderItemUpdateInTx },
+        group: { update: () => Promise.resolve(clearedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'DELETE', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'charge-1' },
+      data: { status: 'cancelled' },
+    }))
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'charge-2' },
+      data: { status: 'cancelled' },
     }))
   })
 
@@ -180,7 +333,125 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       headers: { cookie: `token=${token(app)}` },
     })
     expect(res.statusCode).toBe(404)
-    expect(mockGroupUpdate).not.toHaveBeenCalled()
+    expect(mockTransaction).not.toHaveBeenCalled()
     expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
+  })
+
+  it('飲み放題プランを解除すると対象商品の価格が現在のメニュー価格に書き戻される', async () => {
+    const clearedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 })
+    const restoredItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
+    const targetItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20 }
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(restoredItem)
+    const mockOrderItemFindManyInTx = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
+      .mockResolvedValueOnce([targetItem])
+      .mockResolvedValueOnce([])
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
+        menuItem: { findMany: () => Promise.resolve([{ id: 20, name: 'ビール', price: 500 }]) },
+        orderItem: { findMany: mockOrderItemFindManyInTx, update: mockOrderItemUpdateInTx },
+        group: { update: () => Promise.resolve(clearedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'DELETE', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'existing-1' },
+      data: { price: 500 },
+    }))
+  })
+})
+
+describe('PUT /api/groups/:id/course — コース人数変更', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  it('グループが存在しない場合 404 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue(null)
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 3 },
+    })
+    expect(res.statusCode).toBe(404)
+    expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
+  })
+
+  it('グループが active でない場合 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'bill_requested', courseId: 1, drinkPlanId: null })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 3 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: 'このグループのコース人数は変更できません' })
+  })
+
+  it('コースが適用されていない場合 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 3 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: 'コースが適用されていません' })
+  })
+
+  it('コース料金明細が存在する場合 qty を更新して返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    const chargeItem = { id: 'item-1', groupId: GROUP_ID, menuItemId: null, menuItemName: 'ディナーコース', price: 3000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
+    const updatedChargeItem = { ...chargeItem, qty: 5 }
+    mockOrderItemFindFirst.mockResolvedValue(chargeItem)
+    mockOrderItemUpdate.mockResolvedValue(updatedChargeItem)
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 5 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ qty: 5 })
+    expect(mockOrderItemFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ isCourseCharge: true, isDrinkPlanCharge: false, courseId: 1 }),
+    }))
+    expect(mockOrderItemUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'item-1' },
+      data: { qty: 5 },
+    }))
+  })
+
+  it('コース料金明細が存在しない(course.price === 0)場合 204 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    mockOrderItemFindFirst.mockResolvedValue(null)
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 5 },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(mockOrderItemUpdate).not.toHaveBeenCalled()
+  })
+
+  it('飲み放題プランの定額課金明細は qty 変更の対象にならない', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 })
+    mockOrderItemFindFirst.mockResolvedValue(null)
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 5 },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(mockOrderItemFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ isDrinkPlanCharge: false }),
+    }))
+    expect(mockOrderItemUpdate).not.toHaveBeenCalled()
   })
 })
