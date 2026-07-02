@@ -60,6 +60,14 @@ src/
 - `index.ts` で HTTP サーバーを手動作成し `buildApp()` に渡す。Socket.io と HTTP サーバーを共有するため。
 - プラグイン登録順: cors → store → socket → auth → routes。`store` が Host から `storeId` を解決して以降のフックに供給する。
 
+## 状態変更エンドポイントのガード条件
+
+同一リソースに対する複数の状態変更エンドポイント（作成・更新・削除・部分操作）は、ガード条件（ステータスチェック等）を横並びで揃える。1つのエンドポイントにガードを実装した後、別のエンドポイントへの追加を忘れやすい。
+
+実例: `groups.ts` の `POST /:id/course` と `PUT /:id/course` は `group.status !== 'active'` を検査するが、`DELETE /:id/course` にはこのチェックが漏れていた。結果、会計後（`closed`/`bill_requested`）のグループでもコース解除ができ、料金の遡及書き換えが可能になっていた。
+
+新しいエンドポイントを追加・変更する際は、同一リソースの既存エンドポイント（同ファイル内の他メソッド）のガード条件を先に洗い出し、揃っているか確認する。
+
 ## 認証
 
 - JWT（httpOnly cookie）。`plugins/auth.ts` で管理。
