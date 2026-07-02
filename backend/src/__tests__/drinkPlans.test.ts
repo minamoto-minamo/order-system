@@ -3,6 +3,7 @@ import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
+const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
 const mockDrinkPlanDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -11,18 +12,20 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     course: { findFirst: mockCourseFindFirst },
     group: { findFirst: mockGroupFindFirst },
-    drinkPlan: { delete: mockDrinkPlanDelete },
+    drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete },
   },
 }))
 
 const { default: drinkPlansRoutes } = await import('../routes/drinkPlans.js')
-const { Prisma } = await import('@prisma/client')
 
 const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const STORE_ID = 1
 
 async function buildTestApp() {
   const app = Fastify({ logger: false })
+  app.decorateRequest('storeId', 0)
+  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
@@ -45,10 +48,11 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   beforeEach(() => { jest.clearAllMocks() })
 
   function token() {
-    return app.jwt.sign({ userId: ADMIN_ID, username: 'admin', role: 'admin' })
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
   }
 
   it('active グループが使用中なら 409 を返す', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
     mockCourseFindFirst.mockResolvedValue(null)
     mockGroupFindFirst.mockResolvedValue({ id: 'group-1', status: 'active' })
     const res = await app.inject({
@@ -62,6 +66,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   })
 
   it('bill_requested グループが使用中なら 409 を返す', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
     mockCourseFindFirst.mockResolvedValue(null)
     mockGroupFindFirst.mockResolvedValue({ id: 'group-2', status: 'bill_requested' })
     const res = await app.inject({
@@ -75,6 +80,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   })
 
   it('コースから参照されていれば 409 を返す', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
     mockCourseFindFirst.mockResolvedValue({ id: 1 })
     const res = await app.inject({
       method: 'DELETE',
@@ -87,6 +93,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   })
 
   it('使用中グループがなければ 204 を返す', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
     mockCourseFindFirst.mockResolvedValue(null)
     mockGroupFindFirst.mockResolvedValue(null)
     mockDrinkPlanDelete.mockResolvedValue({})
@@ -100,11 +107,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
-    mockCourseFindFirst.mockResolvedValue(null)
-    mockGroupFindFirst.mockResolvedValue(null)
-    mockDrinkPlanDelete.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Not found', { code: 'P2025', clientVersion: '5.0.0' })
-    )
+    mockDrinkPlanFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/drink-plans/999',
@@ -112,5 +115,6 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(404)
     expect(res.json()).toMatchObject({ error: '飲み放題プランが見つかりません' })
+    expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 })

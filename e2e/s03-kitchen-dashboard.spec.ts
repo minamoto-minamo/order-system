@@ -1,23 +1,27 @@
-import { test, expect } from '@playwright/test'
 import { resetDb, prisma, disconnect } from './helpers/db'
 import { loginAs } from './helpers/auth'
+import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
 import ja from '../frontend/src/i18n/locales/ja'
+
+const { test, expect, getStore } = testWithStore()
 
 const TEST_GROUP_NAME = 'テストグループ'
 
 async function setupOrderedSession() {
-  const session = await prisma.session.create({ data: { status: 'open' } })
-  const seat = await prisma.seat.findFirst()
+  const storeId = getStore().id
+  const session = await prisma.session.create({ data: { status: 'open', storeId } })
+  const seat = await prisma.seat.findFirst({ where: { storeId } })
   const group = await prisma.group.create({
     data: {
       name: TEST_GROUP_NAME,
       guestCount: 2,
       sessionId: session.id,
+      storeId,
       seats: seat ? { create: [{ seatId: seat.id }] } : undefined,
     },
   })
-  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false } })
+  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, storeId } })
   if (menu) {
     await prisma.orderItem.create({
       data: {
@@ -28,6 +32,7 @@ async function setupOrderedSession() {
         qty: 1,
         status: 'pending',
         taxRate: 10,
+        storeId,
       },
     })
   }
@@ -35,7 +40,7 @@ async function setupOrderedSession() {
 }
 
 test.beforeEach(async ({ page }) => {
-  await resetDb()
+  await resetDb(getStore().id)
   await loginAs(page, 'staff')
 })
 
@@ -44,7 +49,7 @@ test.afterAll(async () => {
 })
 
 test('注文がない場合「未対応の注文はありません」と表示', async ({ page }) => {
-  await prisma.session.create({ data: { status: 'open' } })
+  await prisma.session.create({ data: { status: 'open', storeId: getStore().id } })
   await page.goto(ROUTES.kitchen)
   await expect(page.getByText(ja.kitchen.noOrders)).toBeVisible()
 })
@@ -66,7 +71,7 @@ test('グループビューに切り替えられる', async ({ page }) => {
 })
 
 test('ホールボタンでホールへ遷移', async ({ page }) => {
-  await prisma.session.create({ data: { status: 'open' } })
+  await prisma.session.create({ data: { status: 'open', storeId: getStore().id } })
   await page.goto(ROUTES.kitchen)
   await page.getByRole('button', { name: ja.nav.openMenu }).click()
   await page.getByRole('button', { name: ja.mode.hall }).click()

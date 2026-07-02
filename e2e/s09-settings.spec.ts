@@ -1,12 +1,14 @@
-import { test, expect } from '@playwright/test'
 import { resetDb, disconnect } from './helpers/db'
 import { loginAs } from './helpers/auth'
+import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
 import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
 
+const { test, expect, getStore } = testWithStore()
+
 test.beforeEach(async ({ page }) => {
-  await resetDb()
+  await resetDb(getStore().id)
   await loginAs(page, 'admin')
 })
 
@@ -49,4 +51,20 @@ test('店舗名を変更して保存できる', async ({ page }) => {
   await input.fill('テスト店舗')
   await page.getByRole('button', { name: ja.common.save }).click()
   await expect(page.getByText(ja.common.saved)).toBeVisible()
+})
+
+test('税率に上限を超える値を入力するとフォーカスを外した時点で上限にクランプされる', async ({ page }) => {
+  await page.goto(ROUTES.adminSettings)
+  const taxDineIn = page.locator('input[type="number"]').nth(1)
+  await taxDineIn.fill('150')
+  await taxDineIn.blur()
+  await expect(taxDineIn).toHaveValue('100')
+})
+
+test('税率に下限を下回る値を入力するとフォーカスを外した時点で下限にクランプされる', async ({ page }) => {
+  await page.goto(ROUTES.adminSettings)
+  const taxTakeout = page.locator('input[type="number"]').nth(2)
+  await taxTakeout.fill('-5')
+  await taxTakeout.blur()
+  await expect(taxTakeout).toHaveValue('0')
 })

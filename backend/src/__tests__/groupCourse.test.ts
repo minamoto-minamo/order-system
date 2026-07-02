@@ -6,8 +6,8 @@ import jwt from '@fastify/jwt'
 type Group = { id: string; status: string; courseId: number | null; drinkPlanId: number | null }
 type Course = { id: number; name: string; price: number; drinkPlanId: number | null; foodItems: { menuItemId: number; qty: number }[] }
 
-const mockGroupFindUnique  = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
-const mockCourseFindUnique = jest.fn<(...args: unknown[]) => Promise<Course | null>>()
+const mockGroupFindFirst  = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
+const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<Course | null>>()
 const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number } } | null>>()
 const mockGroupUpdate      = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,8 +15,8 @@ const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    group:   { findUnique: mockGroupFindUnique, update: mockGroupUpdate },
-    course:  { findUnique: mockCourseFindUnique },
+    group:   { findFirst: mockGroupFindFirst, update: mockGroupUpdate },
+    course:  { findFirst: mockCourseFindFirst },
     setting: { findUnique: mockSettingFindUnique },
     $transaction: mockTransaction,
   },
@@ -27,9 +27,12 @@ const { default: groupsRoutes } = await import('../routes/groups.js')
 const SECRET   = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const GROUP_ID = 'gggggggg-gggg-gggg-gggg-gggggggggggg'
+const STORE_ID = 1
 
 async function buildTestApp() {
   const app = Fastify({ logger: false })
+  app.decorateRequest('storeId', 0)
+  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
@@ -45,7 +48,7 @@ async function buildTestApp() {
 }
 
 function token(app: Awaited<ReturnType<typeof buildTestApp>>) {
-  return app.jwt.sign({ userId: ADMIN_ID, username: 'admin', role: 'admin' })
+  return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
 }
 
 describe('POST /api/groups/:id/course — コース適用', () => {
@@ -55,7 +58,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   beforeEach(() => { jest.clearAllMocks() })
 
   it('グループが存在しない場合 404 を返す', async () => {
-    mockGroupFindUnique.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
       headers: { cookie: `token=${token(app)}` },
@@ -66,7 +69,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   })
 
   it('グループが active でない場合 409 を返す', async () => {
-    mockGroupFindUnique.mockResolvedValue({ id: GROUP_ID, status: 'bill_requested', courseId: null, drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'bill_requested', courseId: null, drinkPlanId: null })
     const res = await app.inject({
       method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
       headers: { cookie: `token=${token(app)}` },
@@ -77,8 +80,8 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   })
 
   it('コースが存在しない場合 404 を返す', async () => {
-    mockGroupFindUnique.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
-    mockCourseFindUnique.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
       headers: { cookie: `token=${token(app)}` },
@@ -89,8 +92,8 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   })
 
   it('food items なしのコースを適用すると group が更新され 200 を返す', async () => {
-    mockGroupFindUnique.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
-    mockCourseFindUnique.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const mockOrderItemCreate = jest.fn<() => Promise<unknown>>().mockResolvedValue({})
@@ -113,8 +116,8 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   })
 
   it('course.price > 0 のコースを適用するとコース料金 OrderItem が作成される', async () => {
-    mockGroupFindUnique.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
-    mockCourseFindUnique.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 3000, drinkPlanId: null, foodItems: [] })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 3000, drinkPlanId: null, foodItems: [] })
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 3, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const chargeItem = { id: 'item-1', groupId: GROUP_ID, menuItemId: null, menuItemName: 'ディナーコース', price: 3000, qty: 2, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
@@ -156,6 +159,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
 
   it('存在するグループのコースを解除すると 200 を返す', async () => {
     const clearedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
     mockGroupUpdate.mockResolvedValue(clearedGroup)
     const res = await app.inject({
       method: 'DELETE', url: `/api/groups/${GROUP_ID}/course`,
@@ -170,15 +174,13 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
   })
 
   it('存在しないグループに対して 404 を返す', async () => {
-    const { Prisma } = await import('@prisma/client')
-    mockGroupUpdate.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Not found', { code: 'P2025', clientVersion: '5.0.0' })
-    )
+    mockGroupFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'DELETE', url: `/api/groups/nonexistent/course`,
       headers: { cookie: `token=${token(app)}` },
     })
     expect(res.statusCode).toBe(404)
+    expect(mockGroupUpdate).not.toHaveBeenCalled()
     expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
   })
 })

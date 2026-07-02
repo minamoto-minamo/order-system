@@ -1,20 +1,24 @@
-import { test, expect } from '@playwright/test'
 import { resetDb, prisma, disconnect } from './helpers/db'
 import { loginAs } from './helpers/auth'
+import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
 import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
 
+const { test, expect, getStore } = testWithStore()
+
 const TEST_GROUP_NAME = 'テストグループ'
 
 async function setupGroup() {
-  const session = await prisma.session.create({ data: { status: 'open' } })
-  const seat = await prisma.seat.findFirst()
+  const storeId = getStore().id
+  const session = await prisma.session.create({ data: { status: 'open', storeId } })
+  const seat = await prisma.seat.findFirst({ where: { storeId } })
   const group = await prisma.group.create({
     data: {
       name: TEST_GROUP_NAME,
       guestCount: 2,
       sessionId: session.id,
+      storeId,
       seats: seat ? { create: [{ seatId: seat.id }] } : undefined,
     },
   })
@@ -22,7 +26,7 @@ async function setupGroup() {
 }
 
 test.beforeEach(async ({ page }) => {
-  await resetDb()
+  await resetDb(getStore().id)
   await loginAs(page, 'staff')
 })
 
@@ -54,7 +58,7 @@ test('メニュータブを開いてメニューが表示される', async ({ pa
 
 test('メニューから注文追加 → 注文履歴に表示される', async ({ page }) => {
   const { group } = await setupGroup()
-  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, takeout: { in: ['dine_in', 'both'] } } })
+  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, takeout: { in: ['dine_in', 'both'] }, storeId: getStore().id } })
   if (!menu) test.skip()
 
   await page.goto(ROUTES.hallGroup(group.id))
@@ -95,7 +99,7 @@ test('退店ボタンでモーダルが開く', async ({ page }) => {
 
 test('注文を追加してキャンセルできる', async ({ page }) => {
   const { group } = await setupGroup()
-  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false } })
+  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, storeId: getStore().id } })
   if (!menu) test.skip()
 
   await prisma.orderItem.create({
@@ -107,6 +111,7 @@ test('注文を追加してキャンセルできる', async ({ page }) => {
       qty: 1,
       status: 'pending',
       taxRate: 10,
+      storeId: getStore().id,
     },
   })
 

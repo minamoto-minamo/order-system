@@ -11,7 +11,6 @@ export default defineConfig({
   maxFailures: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
   projects: [

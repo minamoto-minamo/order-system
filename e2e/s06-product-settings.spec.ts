@@ -1,15 +1,17 @@
-import { test, expect } from '@playwright/test'
 import { resetDb, disconnect } from './helpers/db'
 import { loginAs } from './helpers/auth'
+import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
 import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
+
+const { test, expect, getStore } = testWithStore()
 
 const NEW_CATEGORY = '新カテゴリ'
 const TEST_PRODUCT = 'テスト商品'
 
 test.beforeEach(async ({ page }) => {
-  await resetDb()
+  await resetDb(getStore().id)
   await loginAs(page, 'admin')
 })
 

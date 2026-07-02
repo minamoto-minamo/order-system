@@ -6,9 +6,10 @@ export const CREDS = {
   staff: { username: 'staff', password: 'staff1234' },
 }
 
-export async function loginAs(page: Page, role: 'admin' | 'staff') {
+export async function loginAs(page: Page, role: 'admin' | 'staff', opts?: { host?: string }) {
   const { username, password } = CREDS[role]
-  await page.request.post('/api/auth/login', { data: { username, password } })
-  await page.goto('/')
+  const url = opts?.host ? `${opts.host}/api/auth/login` : '/api/auth/login'
+  await page.request.post(url, { data: { username, password } })
+  await page.goto(opts?.host ?? '/')
   await page.waitForSelector(`text=${ja.nav.home}`, { timeout: 10000 })
 }

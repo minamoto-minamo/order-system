@@ -4,6 +4,7 @@ import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
 const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
+const mockMenuItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
@@ -11,19 +12,21 @@ const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     orderItem: { count: mockOrderItemCount },
-    menuItem: { delete: mockMenuItemDelete },
+    menuItem: { findFirst: mockMenuItemFindFirst, delete: mockMenuItemDelete },
     $transaction: mockTransaction,
   },
 }))
 
 const { default: menusRoutes } = await import('../routes/menus.js')
-const { Prisma } = await import('@prisma/client')
 
 const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const STORE_ID = 1
 
 async function buildTestApp() {
   const app = Fastify({ logger: false })
+  app.decorateRequest('storeId', 0)
+  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
@@ -57,10 +60,11 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
   })
 
   function token() {
-    return app.jwt.sign({ userId: ADMIN_ID, username: 'admin', role: 'admin' })
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
   }
 
   it('pending の注文があれば 409 を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({ id: 1 })
     mockOrderItemCount.mockResolvedValue(1)
     const res = await app.inject({
       method: 'DELETE',
@@ -73,6 +77,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
   })
 
   it('ready の注文があれば 409 を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({ id: 2 })
     mockOrderItemCount.mockResolvedValue(3)
     const res = await app.inject({
       method: 'DELETE',
@@ -85,6 +90,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
   })
 
   it('処理中の注文がなければ 204 を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({ id: 1 })
     mockOrderItemCount.mockResolvedValue(0)
     mockMenuItemDelete.mockResolvedValue({})
     const res = await app.inject({
@@ -97,10 +103,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
-    mockOrderItemCount.mockResolvedValue(0)
-    mockMenuItemDelete.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Not found', { code: 'P2025', clientVersion: '5.0.0' })
-    )
+    mockMenuItemFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/menus/999',
@@ -108,5 +111,6 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(404)
     expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 })

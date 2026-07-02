@@ -1,4 +1,4 @@
-import { toGroup, toCourse, toDrinkPlan, toOrderItem } from '../lib/mappers.js'
+import { toGroup, toCourse, toDrinkPlan, toOrderItem, toStaffSession } from '../lib/mappers.js'
 
 describe('toGroup', () => {
   const base = {
@@ -91,5 +91,34 @@ describe('toOrderItem', () => {
 
   it('menuItemId が null のとき null のまま変換する', () => {
     expect(toOrderItem({ ...base, menuItemId: null })).toMatchObject({ menuItemId: null })
+  })
+})
+
+describe('toStaffSession', () => {
+  it('Prismaレコードを共有型に変換する', () => {
+    const input = {
+      id: 'uuid-token-1',
+      issuedAt: new Date('2024-06-01T12:00:00.000Z'),
+      expiresAt: new Date('2024-06-02T12:00:00.000Z'),
+      userAgent: 'Mozilla/5.0',
+      ipAddress: '127.0.0.1',
+    }
+    expect(toStaffSession(input)).toEqual({
+      id: 'uuid-token-1',
+      issuedAt: '2024-06-01T12:00:00.000Z',
+      expiresAt: '2024-06-02T12:00:00.000Z',
+      userAgent: 'Mozilla/5.0',
+      ipAddress: '127.0.0.1',
+    })
+  })
+
+  it('userAgent / ipAddress が null のとき null のまま変換する', () => {
+    expect(toStaffSession({
+      id: 'uuid-token-2',
+      issuedAt: new Date('2024-06-01T12:00:00.000Z'),
+      expiresAt: new Date('2024-06-02T12:00:00.000Z'),
+      userAgent: null,
+      ipAddress: null,
+    })).toMatchObject({ userAgent: null, ipAddress: null })
   })
 })

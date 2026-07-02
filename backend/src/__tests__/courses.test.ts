@@ -4,23 +4,26 @@ import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
+const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     group: { findFirst: mockGroupFindFirst },
-    course: { delete: mockCourseDelete },
+    course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete },
   },
 }))
 
 const { default: coursesRoutes } = await import('../routes/courses.js')
-const { Prisma } = await import('@prisma/client')
 
 const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const STORE_ID = 1
 
 async function buildTestApp() {
   const app = Fastify({ logger: false })
+  app.decorateRequest('storeId', 0)
+  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
@@ -43,10 +46,11 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
   beforeEach(() => { jest.clearAllMocks() })
 
   function token() {
-    return app.jwt.sign({ userId: ADMIN_ID, username: 'admin', role: 'admin' })
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
   }
 
   it('active グループが使用中なら 409 を返す', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
     mockGroupFindFirst.mockResolvedValue({ id: 'group-1', status: 'active' })
     const res = await app.inject({
       method: 'DELETE',
@@ -59,6 +63,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
   })
 
   it('bill_requested グループが使用中なら 409 を返す', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
     mockGroupFindFirst.mockResolvedValue({ id: 'group-2', status: 'bill_requested' })
     const res = await app.inject({
       method: 'DELETE',
@@ -71,6 +76,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
   })
 
   it('使用中グループがなければ 204 を返す', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
     mockGroupFindFirst.mockResolvedValue(null)
     mockCourseDelete.mockResolvedValue({})
     const res = await app.inject({
@@ -83,10 +89,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue(null)
-    mockCourseDelete.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Not found', { code: 'P2025', clientVersion: '5.0.0' })
-    )
+    mockCourseFindFirst.mockResolvedValue(null)
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/courses/999',
@@ -94,5 +97,6 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(404)
     expect(res.json()).toMatchObject({ error: 'コースが見つかりません' })
+    expect(mockCourseDelete).not.toHaveBeenCalled()
   })
 })
