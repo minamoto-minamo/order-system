@@ -1,16 +1,13 @@
-# Deploy
-
-## Purpose
-
-デプロイ手順とロールバック手順。
-
-## Audience
-
-開発者、運用担当
-
+---
+type: Deploy Guide
+title: Deploy Guide
+description: デプロイ手順とロールバック手順。開発者・運用担当向け。
+tags: [ops, deploy, ci-cd]
 ---
 
-## デプロイ
+# Deploy Guide
+
+デプロイとロールバックの手順をまとめる。開発者・運用担当向け。
 
 デプロイは GHA → AWS ECS を前提とする。詳細は CI/CD 整備後に記載予定。
 

@@ -46,4 +46,4 @@ pnpm dev   # frontend: http://localhost:5173 / backend: http://localhost:3000
 
 ## ドキュメント
 
-`docs/DOCUMENTS.md` を参照。
+`docs/index.md` を参照。

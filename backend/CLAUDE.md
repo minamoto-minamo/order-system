@@ -30,7 +30,8 @@ src/
 ├── app.ts            # Fastify インスタンス生成・プラグイン登録・ルート登録
 ├── plugins/
 │   ├── auth.ts       # JWT 検証プラグイン（fastify-jwt）
-│   ├── cors.ts       # CORS 設定（CORS_ORIGIN env から動的に生成）
+│   ├── cors.ts       # CORS 設定（BASE_DOMAIN env から動的に生成。*.BASE_DOMAIN を許可）
+│   ├── store.ts      # Host からサブドメインを解決し storeId を request にセット
 │   └── socket.ts     # Socket.io を同一 HTTP サーバーに載せる初期化
 ├── routes/           # 1ファイル = 1リソース
 │   ├── auth.ts       # POST /auth/login, GET /auth/me
@@ -47,7 +48,8 @@ src/
 │   ├── staff.ts      # GET/POST/PUT/DELETE /staff
 │   └── seatTables.ts # GET/POST/PUT/DELETE /seat-tables
 ├── lib/
-│   ├── config.ts     # requireEnv(), parseCorsOrigins()
+│   ├── config.ts     # requireEnv(), getBaseDomain(), extractSubdomainLabel(), corsOriginValidator()
+│   ├── store.ts      # resolveStoreContext(host) — サブドメインから store/platform/apex/unknown を判定
 │   ├── mappers.ts    # Prisma モデル → 共有型への変換関数
 │   └── prisma.ts     # PrismaClient シングルトン
 └── models/           # (予約ディレクトリ)
@@ -56,7 +58,7 @@ src/
 ## Fastify 構成
 
 - `index.ts` で HTTP サーバーを手動作成し `buildApp()` に渡す。Socket.io と HTTP サーバーを共有するため。
-- プラグイン登録順: cors → auth → routes。
+- プラグイン登録順: cors → store → socket → auth → routes。`store` が Host から `storeId` を解決して以降のフックに供給する。
 
 ## 認証
 

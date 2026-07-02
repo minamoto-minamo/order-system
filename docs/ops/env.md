@@ -1,22 +1,20 @@
-# Env
+---
+type: Env Reference
+title: Env Reference
+description: 環境変数一覧（開発・本番）と説明。開発者・運用担当向け。
+tags: [ops, env, configuration]
+---
 
-## Purpose
+# Env Reference
 
-環境変数一覧（開発・本番）と説明。
+環境変数の一覧（開発・本番）とその説明をまとめる。
 
-## Audience
+- `NODE_ENV`: development|production
+- `PORT`: Listen port (default 3000)
+- `DATABASE_URL`: PostgreSQL connection string
+- `JWT_SECRET`: Secret for JWT signing
+- `BASE_DOMAIN`: サブドメインルーティングの基準ドメイン（例: `localhost`、本番は `example.com`）。CORS の許可オリジンもこの値から動的に導出される（`*.BASE_DOMAIN` を許可）
+- `ACCESS_TOKEN_EXPIRES_IN`: e.g. 15m
+- `REFRESH_TOKEN_REUSE_GRACE_SECONDS`: リフレッシュトークン再利用検知の猶予秒数（default 8）
 
-開発者、運用担当
-
-## Variables
-
-- NODE_ENV: development|production
-- PORT: Listen port (default 3000)
-- DATABASE_URL: PostgreSQL connection string
-- JWT_SECRET: Secret for JWT signing
-- CORS_ORIGIN: Allowed origins for frontend
-- JWT_EXPIRES_IN: e.g. 8h
-
-## Notes
-
-Do not commit .env to VCS. Use secrets manager in production.
+`.env` は VCS にコミットしない。本番環境では secrets manager を使用する。

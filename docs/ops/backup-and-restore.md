@@ -1,26 +1,27 @@
+---
+type: Runbook
+title: Backup and Restore
+description: DB のバックアップ・復旧手順。DBA / SRE 向け。
+tags: [ops, backup, restore, database]
+---
+
 # Backup and Restore
 
-## Purpose
-
-DB のバックアップ/復旧手順。
-
-## Audience
-
-DBA, SRE
+DB のバックアップと復旧の手順をまとめる。DBA / SRE 向け。
 
 ## Backup
 
-- Example command:
+バックアップコマンドの例:
 
 ```bash
 pg_dumpall -U postgres -h <host> -f /backups/order_system_$(date +%F).sql
 ```
 
-- Transfer the resulting file to durable storage (S3)
+生成したファイルは durable storage（S3）へ転送する。
 
 ## Restore
 
-- Example command:
+復旧コマンドの例:
 
 ```bash
 psql -U postgres -h <host> -f /backups/<file>.sql
@@ -28,4 +29,4 @@ psql -U postgres -h <host> -f /backups/<file>.sql
 
 ## Verification
 
-- Periodic restore test to staging
+定期的に staging へのリストアテストを実施し、バックアップの妥当性を検証する。

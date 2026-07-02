@@ -1,26 +1,24 @@
-# E011 — Reports
+---
+type: API Endpoint Group
+id: E011
+title: Reports
+description: セッション単位の売上レポート出力 API。
+resource: backend/src/routes/sessions.ts
+tags: [reports, api]
+---
 
-## Purpose
+# Reports
 
-セッション単位の売上レポート出力 API。
+セッション単位の売上レポート出力 API。管理 UI 実装者・バックエンド実装者・経営向け。セッションの操作自体は [Sessions](./sessions.md) を参照。
 
-## Audience
-
-管理 UI 実装者、バックエンド実装者、経営
-
-## ID / Paths / Auth
-
-- ID: E011
 - Base: `/api/sessions/:id/report`
 - Auth: login required（JWT cookie）
 
-## Summary
+## GET /api/sessions/:id/report
 
-- GET `/api/sessions/:id/report` — 指定セッションの売上集計を返す
+指定セッションの売上集計を返す。
 
-## Request / Response (例)
-
-GET /api/sessions/12/report
+例: `GET /api/sessions/12/report`
 
 Response 200:
 
@@ -46,14 +44,8 @@ Response 200:
 }
 ```
 
-- 集計対象は `status != 'cancelled'` の注文のみ。
+- 集計対象は `status != 'cancelled'` の注文のみ。集計結果は対象セッションの注文・グループと一致し、キャンセル済み注文は含まれない。
 - `seatUsageRate` は全席数に対する利用席数の割合（%）。
 - `taxBreakdown`: 税率（%、文字列キー）ごとの税抜合計（`subtotal`）と税額（`tax`）。税額は切り捨て。
-- 削除済みメニューの注文は `categoryName: "削除済みメニュー"` として集計に含まれる。
+- 削除済みメニューの注文は `categoryName: "削除済みメニュー"` として集計に含まれる（集計から欠落しない）。
 - 存在しないセッション ID は 404。
-
-## Acceptance Criteria
-
-- 集計結果が対象セッションの注文・グループと一致する。
-- キャンセル済み注文は集計に含まれない。
-- 削除済みメニューの注文が集計から欠落しない。

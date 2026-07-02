@@ -45,7 +45,7 @@ order-system/
 env ファイルは `env/` ディレクトリで管理。
 
 ```txt
-env/backend.env.example  → env/backend.env   # NODE_ENV, DATABASE_URL, JWT_SECRET, CORS_ORIGIN など
+env/backend.env.example  → env/backend.env   # NODE_ENV, DATABASE_URL, JWT_SECRET, BASE_DOMAIN など
 env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビルド時のみ）
 ```
 
@@ -69,4 +69,4 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 | S404 | 詳細設定             | `/admin/settings`                         | 管理者     |
 | S405 | スタッフ管理         | `/admin/staff`                            | 管理者     |
 
-詳細仕様は `docs/screens/`、ドキュメント一覧は `docs/DOCUMENTS.md` を参照。
+詳細仕様は `docs/screens/`、ドキュメント一覧は `docs/index.md` を参照。

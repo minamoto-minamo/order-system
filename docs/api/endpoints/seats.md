@@ -1,24 +1,20 @@
-# E005 — Seats / SeatTables
+---
+type: API Endpoint Group
+id: E005
+title: Seats / SeatTables
+description: 席（Seat）とテーブル枠（SeatTable）の参照・管理 API。占有情報はクライアント側でグループから算出する。
+resource: backend/src/routes/seats.ts
+tags: [seats, api]
+---
 
-## Purpose
+# Seats / SeatTables
 
-席（Seat）とテーブル枠（SeatTable）に関する参照・管理 API。占有情報はクライアント側でグループから算出する。
+席（Seat）とテーブル枠（SeatTable）に関する参照・管理 API。占有情報はクライアント側でグループから算出する。フロント実装者・バックエンド実装者向け。関連: [SeatTables 一括レイアウトは Seat Layout](./seat-layout.md) を参照。
 
-## Audience
-
-フロント実装者、バックエンド実装者
-
-## ID / Paths / Auth
-
-- ID: E005
 - Base: `/api/seats`, `/api/seat-tables`
 - Auth: JWT cookie（全エンドポイント要認証。POST/PUT/DELETE は admin 限定）
 
----
-
 ## Seats
-
-### Summary
 
 | Method | Path | Auth | 説明 |
 |---|---|---|---|
@@ -74,21 +70,17 @@ Request body（全フィールド省略可）:
 }
 ```
 
-Response 200: 更新後の Seat オブジェクト  
+Response 200: 更新後の Seat オブジェクト
 Socket emit: `seat:updated`（Seat 全体）
 
 ### DELETE /api/seats/:id — 席削除
 
-Response 204: No Content  
+Response 204: No Content
 Response 409: `{ "error": "使用中の席は削除できません" }`（active/bill_requested グループが使用中）
-
----
 
 ## SeatTables
 
 テーブル枠（席をグルーピングする矩形領域）の管理。
-
-### Summary
 
 | Method | Path | Auth | 説明 |
 |---|---|---|---|
@@ -137,7 +129,7 @@ Request body（全フィールド省略可）:
 }
 ```
 
-Response 200: 更新後の SeatTable オブジェクト  
+Response 200: 更新後の SeatTable オブジェクト
 Response 404: `{ "error": "テーブルが見つかりません" }`
 
 ### DELETE /api/seat-tables/:id — テーブル枠削除

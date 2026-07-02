@@ -1,29 +1,27 @@
-# E003 — Groups
+---
+type: API Endpoint Group
+id: E003
+title: Groups
+description: 来店グループ（テーブル割当て・状態遷移）の作成・更新・削除を扱う API。
+resource: backend/src/routes/groups.ts
+tags: [groups, api]
+---
 
-## Purpose
+# Groups
 
-テーブルやグループ（来店グループ）に関する操作。
+テーブルやグループ（来店グループ）に関する操作。フロント実装者・バックエンド実装者向け。
 
-## Audience
-
-フロント実装者、バックエンド実装者
-
-## ID / Paths / Auth
-
-- ID: E003
 - Base: `/api/groups`
 - Auth: bearer
 
-## Summary
+## エンドポイント
 
-- GET `/api/groups/:id` — グループ詳細
-- POST `/api/groups` — グループ作成
-- PUT `/api/groups/:id` — グループ更新（席割当て、状態変更）
-- DELETE `/api/groups/:id` — グループ削除（キャンセル）
+- `GET /api/groups/:id` — グループ詳細
+- `POST /api/groups` — グループ作成
+- `PUT /api/groups/:id` — グループ更新（席割当て、状態変更）
+- `DELETE /api/groups/:id` — グループ削除（キャンセル）
 
-## Request / Response (例)
-
-POST /api/groups
+## POST /api/groups
 
 ```json
 {
@@ -54,7 +52,9 @@ Response 201: group object
 
 - `id` は UUID string
 
-PUT /api/groups/:id
+グループ作成時に seatIds の競合が検出される。席占有はサーバ側での排他制御を要求する。
+
+## PUT /api/groups/:id
 
 - `:id` は UUID string
 
@@ -68,7 +68,7 @@ PUT /api/groups/:id
 }
 ```
 
-Response 200: group object（上記と同形式）
+Response 200: group object（POST と同形式）
 
 Response 409 — 営業セッションが closed の場合:
 
@@ -91,13 +91,4 @@ Response 409 — 無効な状態遷移の場合:
 | `bill_requested` | `closed` |
 | `closed` | （遷移不可） |
 
-## Acceptance Criteria
-
-- グループ作成時に seatIds の競合が検出される
-- 更新で状態遷移が正しく反映される
-- closed セッション中はグループ更新を拒否する
-- 無効な状態遷移（`active` → `closed` 等）は 409 を返す
-
-## Notes
-
-席占有はサーバ側での排他制御を要求する。
+更新で状態遷移が正しく反映される。closed セッション中はグループ更新を拒否する。無効な状態遷移（`active` → `closed` 等）は 409 を返す。

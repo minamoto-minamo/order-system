@@ -1,29 +1,25 @@
-# E012 — Seat Layout
+---
+type: API Endpoint Group
+id: E012
+title: Seat Layout
+description: 席レイアウト（キャンバスサイズ・グリッドサイズ・テーブル・席配置）の一括取得・保存 API。
+resource: backend/src/routes/seatLayout.ts
+tags: [seat-layout, seats, api]
+---
 
-## Purpose
+# Seat Layout
 
-席レイアウト（キャンバスサイズ・グリッドサイズ・テーブル・席配置）の一括取得・保存。
+席レイアウト（キャンバスサイズ・グリッドサイズ・テーブル・席配置）の一括取得・保存。個別の席・テーブル枠操作は [Seats / SeatTables](./seats.md) を参照。管理 UI 実装者・バックエンド実装者向け。
 
-## Audience
-
-管理 UI 実装者、バックエンド実装者
-
-## ID / Paths / Auth
-
-- ID: E012
 - Base: `/api/seat-layout`
 - Auth: GET は bearer、PUT は bearer + admin 限定
 
-## Summary
+## エンドポイント
 
-- GET `/api/seat-layout` — レイアウト全体取得
-- PUT `/api/seat-layout` — レイアウト一括保存（admin のみ）
+- `GET /api/seat-layout` — レイアウト全体取得
+- `PUT /api/seat-layout` — レイアウト一括保存（admin のみ）
 
-## Request / Response (例)
-
-### GET /api/seat-layout
-
-レスポンス:
+## GET /api/seat-layout
 
 ```json
 {
@@ -49,9 +45,7 @@
 - 座標・サイズはグリッド単位の整数
 - `Min` / `Max` フィールドはキャンバス編集時の UI 制約値
 
-### PUT /api/seat-layout
-
-リクエストボディ:
+## PUT /api/seat-layout
 
 ```json
 {
@@ -73,18 +67,11 @@
 - リクエストに含まれない既存 id は削除される
 - 使用中の席（active/bill_requested グループに紐づく）を削除しようとすると 409
 - `canvasCols` / `canvasRows` / `gridSize` は DB の Min/Max 制約内でないと 400
-- Setting.canvasCols / canvasRows / gridSize を同時に更新する
+- `Setting.canvasCols` / `canvasRows` / `gridSize` を同時に更新する
 
-レスポンス: 保存後のレイアウト（GET と同形式）  
+Response: 保存後のレイアウト（GET と同形式）
 Socket emit: `seatLayout:updated`（保存後の SeatLayoutResponse オブジェクト）
 
-## Acceptance Criteria
+テーブル・席の追加・更新・削除を1リクエストで完結できる。使用中席の誤削除を防止し、保存後に接続中の全スタッフクライアントへリアルタイム通知する。
 
-- テーブル・席の追加・更新・削除を1リクエストで完結できる
-- 使用中席の誤削除を防止できる
-- 保存後に接続中の全スタッフクライアントへリアルタイム通知する
-
-## Notes
-
-座席タイプ（`type`）は `tableId` の有無から自動判定（`table` / `counter`）。
-クライアント側で `tableId` に仮 id（負数）を指定した場合、サーバーが実 id に解決して保存する。
+座席タイプ（`type`）は `tableId` の有無から自動判定（`table` / `counter`）。クライアント側で `tableId` に仮 id（負数）を指定した場合、サーバーが実 id に解決して保存する。

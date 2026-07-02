@@ -1,24 +1,20 @@
-# E006 — Menus / Categories / SubCategories
+---
+type: API Endpoint Group
+id: E006
+title: Menus / Categories / SubCategories
+description: メニュー項目（MenuItem）・カテゴリ（Category）・サブカテゴリ（SubCategory）の参照・管理 API。
+resource: backend/src/routes/menus.ts
+tags: [menus, categories, api]
+---
 
-## Purpose
+# Menus / Categories / SubCategories
 
-メニュー項目（MenuItem）・カテゴリ（Category）・サブカテゴリ（SubCategory）に関する参照・管理 API。
+メニュー項目（MenuItem）・カテゴリ（Category）・サブカテゴリ（SubCategory）に関する参照・管理 API。フロント実装者・バックエンド実装者向け。
 
-## Audience
-
-フロント実装者、バックエンド実装者
-
-## ID / Paths / Auth
-
-- ID: E006
 - Base: `/api/menus`, `/api/categories`, `/api/subcategories`
 - Auth: JWT cookie（全エンドポイント要認証。POST/PUT/DELETE は admin 限定）
 
----
-
 ## Menus
-
-### Summary
 
 | Method | Path | Auth | 説明 |
 |---|---|---|---|
@@ -72,8 +68,8 @@ Request body（`name`, `price`, `categoryId`, `subCategoryId` は必須）:
 }
 ```
 
-Response 201: 作成した MenuItem オブジェクト  
-Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合  
+Response 201: 作成した MenuItem オブジェクト
+Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合
 Socket emit: `menu:created`（作成した MenuItem オブジェクト）
 
 ### PUT /api/menus/:id — メニュー更新
@@ -88,23 +84,19 @@ Request body（全フィールド省略可）:
 }
 ```
 
-Response 200: 更新後の MenuItem オブジェクト  
-Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合  
-Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）  
+Response 200: 更新後の MenuItem オブジェクト
+Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合
+Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）
 Socket emit: `menu:updated`（常に、更新後の MenuItem オブジェクト）
 
 ### DELETE /api/menus/:id — メニュー削除
 
-Response 204: No Content  
-Response 404: `{ "error": "メニューが見つかりません" }`  
-Response 409: `{ "error": "処理中の注文があるため削除できません" }` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。  
+Response 204: No Content
+Response 404: `{ "error": "メニューが見つかりません" }`
+Response 409: `{ "error": "処理中の注文があるため削除できません" }` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。
 Socket emit: `menu:deleted`（削除した `menuItemId: number`）
 
----
-
 ## Categories
-
-### Summary
 
 | Method | Path | Auth | 説明 |
 |---|---|---|---|
@@ -147,20 +139,16 @@ Request body（全フィールド省略可）:
 }
 ```
 
-Response 200: 更新後の Category オブジェクト  
+Response 200: 更新後の Category オブジェクト
 Response 404: `{ "error": "カテゴリが見つかりません" }`
 
 ### DELETE /api/categories/:id — カテゴリ削除
 
-Response 204: No Content  
-Response 404: `{ "error": "カテゴリが見つかりません" }`  
+Response 204: No Content
+Response 404: `{ "error": "カテゴリが見つかりません" }`
 Response 409: `{ "error": "使用中のカテゴリは削除できません" }`
 
----
-
 ## SubCategories
-
-### Summary
 
 | Method | Path | Auth | 説明 |
 |---|---|---|---|
@@ -213,11 +201,11 @@ Request body（全フィールド省略可）:
 }
 ```
 
-Response 200: 更新後の SubCategory オブジェクト  
+Response 200: 更新後の SubCategory オブジェクト
 Response 404: `{ "error": "サブカテゴリが見つかりません" }`
 
 ### DELETE /api/subcategories/:id — サブカテゴリ削除
 
-Response 204: No Content  
-Response 404: `{ "error": "サブカテゴリが見つかりません" }`  
+Response 204: No Content
+Response 404: `{ "error": "サブカテゴリが見つかりません" }`
 Response 409: `{ "error": "使用中のサブカテゴリは削除できません" }`
