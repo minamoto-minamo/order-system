@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -29,13 +28,13 @@ const updateBodySchema = {
 } as const
 
 const seatsRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => {
-    return prisma.seat.findMany()
+  fastify.get('/', async (request) => {
+    return prisma.seat.findMany({ where: { storeId: request.storeId } })
   })
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const seat = await prisma.seat.findUnique({ where: { id: Number(id) } })
+    const seat = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
     if (!seat) return reply.status(404).send({ error: '席が見つかりません' })
     return seat
   })
@@ -49,32 +48,30 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
         x: body.x,
         y: body.y,
         tableId: body.tableId ?? null,
+        storeId: request.storeId,
       },
     })
-    fastify.io.to('staff').emit('seat:created', seat)
+    fastify.io.to(`store:${request.storeId}`).emit('seat:created', seat)
     return reply.status(201).send(seat)
   })
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ label: string; type: 'counter' | 'table'; x: number; y: number; tableId: number | null }>
-    try {
-      const seat = await prisma.seat.update({
-        where: { id: Number(id) },
-        data: { label: body.label, type: body.type, x: body.x, y: body.y, tableId: body.tableId },
-      })
-      fastify.io.to('staff').emit('seat:updated', seat)
-      return seat
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: '席が見つかりません' })
-      }
-      throw e
-    }
+    const existing = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: '席が見つかりません' })
+    const seat = await prisma.seat.update({
+      where: { id: Number(id) },
+      data: { label: body.label, type: body.type, x: body.x, y: body.y, tableId: body.tableId },
+    })
+    fastify.io.to(`store:${request.storeId}`).emit('seat:updated', seat)
+    return seat
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const existing = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: '席が見つかりません' })
     // bill_requested も会計完了前は席を占有しているため削除不可とする
     const inUse = await prisma.groupSeat.findFirst({
       where: {

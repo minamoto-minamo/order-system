@@ -2,13 +2,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
-
-function parseDurationSeconds(d: string): number {
-  const m = d.match(/^(\d+)([smhd])$/)
-  if (!m) return 60 * 60 * 24 * 7
-  const n = Number(m[1])
-  return { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as 's'|'m'|'h'|'d'] * n
-}
+import { setAccessCookie, setRefreshCookie, clearAuthCookies } from '../plugins/auth.js'
+import { issueRefreshToken, revokeTokenByRaw } from '../lib/refreshToken.js'
 
 const loginBodySchema = {
   type: 'object',
@@ -35,33 +30,32 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     },
   }, async (request, reply) => {
     const { username, password } = request.body as { username: string; password: string }
-    const user = await prisma.staff.findUnique({ where: { username } })
+    const user = await prisma.staff.findUnique({ where: { storeId_username: { storeId: request.storeId, username } } })
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       return reply.status(401).send({ error: '認証情報が正しくありません' })
     }
-    const expiresIn = process.env.JWT_EXPIRES_IN ?? '8h'
     const token = fastify.jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
-      { expiresIn }
+      { type: 'staff', userId: user.id, username: user.username, role: user.role, storeId: user.storeId },
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? '15m' }
     )
-    const maxAge = parseDurationSeconds(expiresIn)
-    reply.setCookie('token', token, {
-      httpOnly: true,
-      path: '/',
-      maxAge,
-      sameSite: 'lax',
-      // 開発環境は http のため secure を外す（本番は https 必須）
-      secure: process.env.NODE_ENV === 'production',
+    const refreshToken = await issueRefreshToken(user.storeId, user.id, {
+      userAgent: request.headers['user-agent'],
+      ipAddress: request.ip,
     })
+    setAccessCookie(reply, token)
+    setRefreshCookie(reply, refreshToken.raw, refreshToken.expiresAt)
     return { id: user.id, username: user.username, role: user.role }
   })
 
-  fastify.post('/logout', async (_request, reply) => {
-    reply.clearCookie('token', { path: '/' })
+  fastify.post('/logout', async (request, reply) => {
+    const rawRefreshToken = request.cookies.refresh_token
+    if (rawRefreshToken) await revokeTokenByRaw(rawRefreshToken)
+    clearAuthCookies(reply)
     return { ok: true }
   })
 
-  fastify.get('/me', async (request) => {
+  fastify.get('/me', async (request, reply) => {
+    if (request.user.type !== 'staff') return reply.status(401).send({ error: '認証が必要です' })
     return { id: request.user.userId, username: request.user.username, role: request.user.role }
   })
 }

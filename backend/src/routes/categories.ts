@@ -23,14 +23,14 @@ const updateBodySchema = {
 } as const
 
 const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => {
-    return prisma.category.findMany({ orderBy: { sort: 'asc' } })
+  fastify.get('/', async (request) => {
+    return prisma.category.findMany({ where: { storeId: request.storeId }, orderBy: { sort: 'asc' } })
   })
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const body = request.body as { name: string; sort?: number }
     const category = await prisma.category.create({
-      data: { name: body.name, sort: body.sort ?? 0 },
+      data: { name: body.name, sort: body.sort ?? 0, storeId: request.storeId },
     })
     return reply.status(201).send(category)
   })
@@ -38,28 +38,23 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ name: string; sort: number }>
-    try {
-      const category = await prisma.category.update({
-        where: { id: Number(id) },
-        data: { name: body.name, sort: body.sort },
-      })
-      return category
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'カテゴリが見つかりません' })
-      }
-      throw e
-    }
+    const existing = await prisma.category.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'カテゴリが見つかりません' })
+    return prisma.category.update({
+      where: { id: Number(id) },
+      data: { name: body.name, sort: body.sort },
+    })
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const existing = await prisma.category.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'カテゴリが見つかりません' })
     try {
       await prisma.category.delete({ where: { id: Number(id) } })
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'カテゴリが見つかりません' })
-        if (e.code === 'P2003') return reply.status(409).send({ error: '使用中のカテゴリは削除できません' })
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        return reply.status(409).send({ error: '使用中のカテゴリは削除できません' })
       }
       throw e
     }

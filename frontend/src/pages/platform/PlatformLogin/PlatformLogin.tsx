@@ -2,19 +2,16 @@ import { BaseButton } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
-import type { AuthUser } from "@/stores/auth";
-import { useAuthStore } from "@/stores/auth";
-import { useSessionStore } from "@/stores/session";
-import type { Session } from "@order-system/shared";
+import type { PlatformAdmin } from "@/stores/platformAuth";
+import { usePlatformAuthStore } from "@/stores/platformAuth";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+export default function PlatformLogin() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { setUser } = useAuthStore();
-  const { setSession } = useSessionStore();
+  const { setAdmin } = usePlatformAuthStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,18 +21,16 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     if (!username || !password) {
-      setError(t('login.errorRequired'));
+      setError(t('platform.errorRequired'));
       return;
     }
     setLoading(true);
     try {
-      const user = await api.post<AuthUser>(EP.authLogin, { username, password });
-      setUser(user);
-      const session = await api.get<Session | null>(EP.sessionsCurrent).catch(() => null);
-      setSession(session);
-      navigate(ROUTES.root, { replace: true });
+      const admin = await api.post<PlatformAdmin>(EP.platformAuthLogin, { username, password });
+      setAdmin(admin);
+      navigate(ROUTES.platformStores, { replace: true });
     } catch {
-      setError(t('login.errorInvalid'));
+      setError(t('platform.errorInvalid'));
     } finally {
       setLoading(false);
     }
@@ -45,12 +40,12 @@ export default function Login() {
     <div className="min-h-dvh bg-surface flex items-center justify-center p-5">
       <div className="w-full max-w-80">
         <div className="text-center mb-8">
-          <div className="text-xl font-medium text-ink">{t('login.title')}</div>
+          <div className="text-xl font-medium text-ink">{t('platform.loginTitle')}</div>
         </div>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
           <input
             type="text"
-            placeholder={t('login.usernamePlaceholder')}
+            placeholder={t('platform.usernamePlaceholder')}
             value={username}
             onChange={e => setUsername(e.target.value)}
             className="border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-ink transition-colors"
@@ -58,7 +53,7 @@ export default function Login() {
           />
           <input
             type="password"
-            placeholder={t('login.passwordPlaceholder')}
+            placeholder={t('platform.passwordPlaceholder')}
             value={password}
             onChange={e => setPassword(e.target.value)}
             className="border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-ink transition-colors"
@@ -73,7 +68,7 @@ export default function Login() {
             disabled={loading}
             className="w-full rounded-[10px] py-3 text-sm font-medium mt-1 disabled:opacity-50"
           >
-            {loading ? t('login.submitting') : t('login.submit')}
+            {loading ? t('platform.submitting') : t('platform.submit')}
           </BaseButton>
         </form>
       </div>

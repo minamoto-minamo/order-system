@@ -36,6 +36,18 @@ export function toDrinkPlan(p: { id: number; name: string; items: { menuItemId: 
   return { id: p.id, name: p.name, menuItemIds: p.items.map(i => i.menuItemId) }
 }
 
+export function toStaffSession(t: {
+  id: string; issuedAt: Date; expiresAt: Date; userAgent: string | null; ipAddress: string | null;
+}) {
+  return {
+    id: t.id,
+    issuedAt: t.issuedAt.toISOString(),
+    expiresAt: t.expiresAt.toISOString(),
+    userAgent: t.userAgent,
+    ipAddress: t.ipAddress,
+  }
+}
+
 export function toOrderItem(o: {
   id: string; groupId: string; menuItemId: number | null; menuItemName: string; price: number;
   qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null; orderedAt: Date;

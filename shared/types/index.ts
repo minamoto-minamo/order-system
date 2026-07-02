@@ -106,6 +106,8 @@ export interface Setting {
   closingTime: string
   taxRateInHouse: number
   taxRateTakeout: number
+  refreshTokenAutoExtend: boolean
+  refreshTokenExpiresMinutes: number
 }
 
 export interface ServerToClientEvents {
@@ -209,6 +211,8 @@ export interface UpdateSettingRequest {
   closingTime?: string
   taxRateInHouse?: number
   taxRateTakeout?: number
+  refreshTokenAutoExtend?: boolean
+  refreshTokenExpiresMinutes?: number
 }
 
 // --- Staff ---
@@ -219,6 +223,14 @@ export interface StaffMember {
   username: string
   role: StaffRole
   createdAt: string
+}
+
+export interface StaffSession {
+  id: string
+  issuedAt: string
+  expiresAt: string
+  userAgent: string | null
+  ipAddress: string | null
 }
 
 export interface AuthUser {
@@ -264,6 +276,32 @@ export interface UpsertSeatTableRequest {
   y: number
   w: number
   h: number
+}
+
+// --- Platform ---
+export interface PlatformAdmin {
+  id: string
+  username: string
+}
+
+export interface Store {
+  id: number
+  subdomain: string
+  name: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface CreateStoreRequest {
+  subdomain: string
+  name: string
+  adminUsername: string
+  adminPassword: string
+}
+
+export interface UpdateStoreRequest {
+  name?: string
+  isActive?: boolean
 }
 
 // --- SeatLayout ---

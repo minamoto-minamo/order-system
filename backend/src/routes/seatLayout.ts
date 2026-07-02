@@ -50,11 +50,11 @@ type PutBody = {
   seats: Array<{ id: number; label: string; x: number; y: number; tableId?: number | null }>
 }
 
-async function fetchLayout(): Promise<SeatLayoutResponse> {
+async function fetchLayout(storeId: number): Promise<SeatLayoutResponse> {
   const [setting, tables, seats] = await Promise.all([
-    prisma.setting.findUnique({ where: { id: 1 } }),
-    prisma.seatTable.findMany(),
-    prisma.seat.findMany(),
+    prisma.setting.findUnique({ where: { storeId } }),
+    prisma.seatTable.findMany({ where: { storeId } }),
+    prisma.seat.findMany({ where: { storeId } }),
   ])
   return {
     canvasCols:    setting?.canvasCols    ?? 16,
@@ -72,16 +72,17 @@ async function fetchLayout(): Promise<SeatLayoutResponse> {
 }
 
 const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => fetchLayout())
+  fastify.get('/', async (request) => fetchLayout(request.storeId))
 
   fastify.put('/', { schema: { body: putBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { canvasCols, canvasRows, gridSize, tables, seats } = request.body as PutBody
+    const { storeId } = request
 
     // Setting・削除対象を並列取得
     const [setting, dbSeats, dbTables] = await Promise.all([
-      prisma.setting.findUnique({ where: { id: 1 } }),
-      prisma.seat.findMany({ select: { id: true } }),
-      prisma.seatTable.findMany({ select: { id: true } }),
+      prisma.setting.findUnique({ where: { storeId } }),
+      prisma.seat.findMany({ where: { storeId }, select: { id: true } }),
+      prisma.seatTable.findMany({ where: { storeId }, select: { id: true } }),
     ])
 
     // DB の制約値でバリデーション
@@ -101,8 +102,14 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: `gridSize は ${gsMin}〜${gsMax} の範囲で指定してください` })
     }
 
+    // 自店舗が所有する ID のみを対象にする（他店舗 ID の注入防止）
+    const dbTableIds = new Set(dbTables.map(t => t.id))
+    const dbSeatIds = new Set(dbSeats.map(s => s.id))
+    const ownedTables = tables.filter(t => t.id < 0 || dbTableIds.has(t.id))
+    const ownedSeats = seats.filter(s => s.id < 0 || dbSeatIds.has(s.id))
+
     // 削除対象の事前チェック（使用中席の保護）
-    const reqSeatIds = new Set(seats.filter(s => s.id > 0).map(s => s.id))
+    const reqSeatIds = new Set(ownedSeats.filter(s => s.id > 0).map(s => s.id))
     const deleteSeatIds = dbSeats.map(s => s.id).filter(id => !reqSeatIds.has(id))
 
     if (deleteSeatIds.length > 0) {
@@ -123,10 +130,10 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
 
     await prisma.$transaction(async (tx) => {
       // Setting 更新
-      await tx.setting.update({ where: { id: 1 }, data: { canvasCols, canvasRows, gridSize } })
+      await tx.setting.update({ where: { storeId }, data: { canvasCols, canvasRows, gridSize } })
 
       // SeatTable 削除
-      const reqTableIds = new Set(tables.filter(t => t.id > 0).map(t => t.id))
+      const reqTableIds = new Set(ownedTables.filter(t => t.id > 0).map(t => t.id))
       const deleteTableIds = dbTables.map(t => t.id).filter(id => !reqTableIds.has(id))
       if (deleteTableIds.length > 0) {
         await tx.seatTable.deleteMany({ where: { id: { in: deleteTableIds } } })
@@ -134,13 +141,13 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
 
       // SeatTable 作成（仮ID → 実ID マップ構築）
       const idMap = new Map<number, number>()
-      for (const t of tables.filter(t => t.id < 0)) {
-        const created = await tx.seatTable.create({ data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h } })
+      for (const t of ownedTables.filter(t => t.id < 0)) {
+        const created = await tx.seatTable.create({ data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h, storeId } })
         idMap.set(t.id, created.id)
       }
 
       // SeatTable 更新
-      for (const t of tables.filter(t => t.id > 0)) {
+      for (const t of ownedTables.filter(t => t.id > 0)) {
         await tx.seatTable.update({ where: { id: t.id }, data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h } })
       }
 
@@ -150,20 +157,20 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Seat 作成
-      for (const s of seats.filter(s => s.id < 0)) {
+      for (const s of ownedSeats.filter(s => s.id < 0)) {
         const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
-        await tx.seat.create({ data: { label: s.label, type: tid != null ? 'table' : 'counter', x: s.x, y: s.y, tableId: tid } })
+        await tx.seat.create({ data: { label: s.label, type: tid != null ? 'table' : 'counter', x: s.x, y: s.y, tableId: tid, storeId } })
       }
 
       // Seat 更新
-      for (const s of seats.filter(s => s.id > 0)) {
+      for (const s of ownedSeats.filter(s => s.id > 0)) {
         const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
         await tx.seat.update({ where: { id: s.id }, data: { label: s.label, type: tid != null ? 'table' : 'counter', x: s.x, y: s.y, tableId: tid } })
       }
     })
 
-    const layout = await fetchLayout()
-    fastify.io.to('staff').emit('seatLayout:updated', layout)
+    const layout = await fetchLayout(storeId)
+    fastify.io.to(`store:${request.storeId}`).emit('seatLayout:updated', layout)
     return layout
   })
 }

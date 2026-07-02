@@ -2,13 +2,14 @@ import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 
-// 設定はシングルトン構成。id=1 の1レコードのみ使用する
+// 設定は店舗ごとに1レコードのシングルトン構成
 const DEFAULT_SETTING = {
-  id: 1,
   storeName: '居酒屋',
   closingTime: '23:00',
   taxRateInHouse: 10,
   taxRateTakeout: 8,
+  refreshTokenAutoExtend: true,
+  refreshTokenExpiresMinutes: 1440,
 }
 
 const updateBodySchema = {
@@ -18,18 +19,22 @@ const updateBodySchema = {
     closingTime: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
     taxRateInHouse: { type: 'number', minimum: 0, maximum: 100 },
     taxRateTakeout: { type: 'number', minimum: 0, maximum: 100 },
+    refreshTokenAutoExtend: { type: 'boolean' },
+    refreshTokenExpiresMinutes: { type: 'integer', minimum: 5, maximum: 43200 },
   },
   additionalProperties: false,
 } as const
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => {
-    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+  fastify.get('/', async (request) => {
+    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     return {
       storeName: setting?.storeName ?? DEFAULT_SETTING.storeName,
       closingTime: setting?.closingTime ?? DEFAULT_SETTING.closingTime,
       taxRateInHouse: setting ? setting.taxRateInHouse.toNumber() : DEFAULT_SETTING.taxRateInHouse,
       taxRateTakeout: setting ? setting.taxRateTakeout.toNumber() : DEFAULT_SETTING.taxRateTakeout,
+      refreshTokenAutoExtend: setting?.refreshTokenAutoExtend ?? DEFAULT_SETTING.refreshTokenAutoExtend,
+      refreshTokenExpiresMinutes: setting?.refreshTokenExpiresMinutes ?? DEFAULT_SETTING.refreshTokenExpiresMinutes,
     }
   })
 
@@ -37,19 +42,22 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as Partial<{
       storeName: string; closingTime: string;
       taxRateInHouse: number; taxRateTakeout: number;
+      refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
     }>
     const setting = await prisma.setting.upsert({
-      where: { id: 1 },
+      where: { storeId: request.storeId },
       update: body,
-      create: { ...DEFAULT_SETTING, ...body },
+      create: { ...DEFAULT_SETTING, ...body, storeId: request.storeId },
     })
     const result = {
       storeName: setting.storeName,
       closingTime: setting.closingTime,
       taxRateInHouse: setting.taxRateInHouse.toNumber(),
       taxRateTakeout: setting.taxRateTakeout.toNumber(),
+      refreshTokenAutoExtend: setting.refreshTokenAutoExtend,
+      refreshTokenExpiresMinutes: setting.refreshTokenExpiresMinutes,
     }
-    fastify.io.to('staff').emit('settings:updated', result)
+    fastify.io.to(`store:${request.storeId}`).emit('settings:updated', result)
     return result
   })
 }

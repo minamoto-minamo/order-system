@@ -1,14 +1,16 @@
-import { AppHeader, BaseButton, BottomSheetModal, SubHeader } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, SubHeader, Toast } from "@/components";
 import { useForm } from "@/hooks/useForm";
+import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
 import { useAuthStore } from "@/stores/auth";
-import type { StaffMember } from "@order-system/shared";
+import type { StaffMember, StaffSession } from "@order-system/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RoleBadge } from "./components/RoleBadge";
 import { StaffFormModal } from "./components/StaffFormModal";
+import { StaffSessionsModal } from "./components/StaffSessionsModal";
 
 type ModalMode = "add" | "edit" | null;
 
@@ -27,7 +29,12 @@ export default function Staff() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
+  const [sessionsTarget, setSessionsTarget] = useState<StaffMember | null>(null);
+  const [sessions, setSessions] = useState<StaffSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokeSessionTarget, setRevokeSessionTarget] = useState<StaffSession | null>(null);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StaffForm>(EMPTY_FORM);
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
     api.get<StaffMember[]>(EP.staff).then(setStaffList).catch(console.error);
@@ -90,6 +97,32 @@ export default function Staff() {
     setDeleteTarget(null);
   };
 
+  const openSessions = (s: StaffMember) => {
+    setSessionsTarget(s);
+    setSessionsLoading(true);
+    api.get<StaffSession[]>(EP.staffSessions(s.id))
+      .then(setSessions)
+      .catch(() => showToast(t("common.saveFailed")))
+      .finally(() => setSessionsLoading(false));
+  };
+
+  const closeSessions = () => {
+    setSessionsTarget(null);
+    setSessions([]);
+  };
+
+  const handleRevokeSession = async () => {
+    if (!sessionsTarget || !revokeSessionTarget) return;
+    try {
+      await api.delete(EP.staffSession(sessionsTarget.id, revokeSessionTarget.id));
+      setSessions(prev => prev.filter(s => s.id !== revokeSessionTarget.id));
+      showToast(t("staff.devices.revoked"));
+    } catch {
+      showToast(t("common.deleteFailed"));
+    }
+    setRevokeSessionTarget(null);
+  };
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
@@ -142,6 +175,13 @@ export default function Staff() {
                   <BaseButton
                     variant="secondary"
                     className="rounded-md px-3 py-1 text-label"
+                    onClick={() => openSessions(s)}
+                  >
+                    {t("staff.devices.button")}
+                  </BaseButton>
+                  <BaseButton
+                    variant="secondary"
+                    className="rounded-md px-3 py-1 text-label"
                     onClick={() => openEdit(s)}
                   >
                     {t("common.edit")}
@@ -181,6 +221,27 @@ export default function Staff() {
         secondaryAction={{ label: t("common.cancel"), onClick: () => setDeleteTarget(null) }}
         primaryAction={{ label: t("common.delete"), onClick: handleDelete }}
       />
+
+      {sessionsTarget && (
+        <StaffSessionsModal
+          target={sessionsTarget}
+          sessions={sessions}
+          loading={sessionsLoading}
+          onClose={closeSessions}
+          onRevoke={setRevokeSessionTarget}
+        />
+      )}
+
+      {/* 強制ログアウト確認 */}
+      <BottomSheetModal
+        show={!!revokeSessionTarget}
+        title={t("staff.devices.revokeConfirm")}
+        onClose={() => setRevokeSessionTarget(null)}
+        secondaryAction={{ label: t("common.cancel"), onClick: () => setRevokeSessionTarget(null) }}
+        primaryAction={{ label: t("staff.devices.revoke"), onClick: handleRevokeSession, variant: "danger" }}
+      />
+
+      <Toast message={toast} />
     </>
   );
 }

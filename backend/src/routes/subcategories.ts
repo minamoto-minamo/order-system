@@ -27,14 +27,15 @@ const updateBodySchema = {
 const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
     const { categoryId } = request.query as { categoryId?: string }
-    const where = categoryId ? { categoryId: Number(categoryId) } : {}
+    const where: Prisma.SubCategoryWhereInput = { storeId: request.storeId }
+    if (categoryId) where.categoryId = Number(categoryId)
     return prisma.subCategory.findMany({ where, orderBy: { sort: 'asc' } })
   })
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const body = request.body as { name: string; categoryId: number; sort?: number }
     const sub = await prisma.subCategory.create({
-      data: { name: body.name, categoryId: body.categoryId, sort: body.sort ?? 0 },
+      data: { name: body.name, categoryId: body.categoryId, sort: body.sort ?? 0, storeId: request.storeId },
     })
     return reply.status(201).send(sub)
   })
@@ -42,28 +43,23 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ name: string; categoryId: number; sort: number }>
-    try {
-      const sub = await prisma.subCategory.update({
-        where: { id: Number(id) },
-        data: { name: body.name, categoryId: body.categoryId, sort: body.sort },
-      })
-      return sub
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
-      }
-      throw e
-    }
+    const existing = await prisma.subCategory.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
+    return prisma.subCategory.update({
+      where: { id: Number(id) },
+      data: { name: body.name, categoryId: body.categoryId, sort: body.sort },
+    })
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const existing = await prisma.subCategory.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
     try {
       await prisma.subCategory.delete({ where: { id: Number(id) } })
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === 'P2025') return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
-        if (e.code === 'P2003') return reply.status(409).send({ error: '使用中のサブカテゴリは削除できません' })
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        return reply.status(409).send({ error: '使用中のサブカテゴリは削除できません' })
       }
       throw e
     }

@@ -1,22 +1,36 @@
-import { AppHeader, BaseButton, SubHeader } from "@/components";
+import { AppHeader, BaseButton, SubHeader, ToggleButtonGroup, Toast } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/useToast";
 import { Section, SettingRow } from "./components/SettingRow";
+
+function clamp(value: string, min: number, max: number): string {
+  const n = parseInt(value, 10);
+  if (isNaN(n)) return String(min);
+  return String(Math.min(max, Math.max(min, n)));
+}
+
 // ── メイン ────────────────────────────────────────────────────
 export default function Settings() {
   const { t } = useTranslation();
+  const { toast, showToast } = useToast();
   const [storeName, setStoreName] = useState("居酒屋");
   const [closeHour, setCloseHour] = useState("23");
   const [closeMin, setCloseMin] = useState("00");
   const [taxDineIn, setTaxDineIn] = useState("10");
   const [taxTakeout, setTaxTakeout] = useState("8");
+  const [refreshTokenAutoExtend, setRefreshTokenAutoExtend] = useState(true);
+  const [refreshTokenExpiresMinutes, setRefreshTokenExpiresMinutes] = useState("1440");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    api.get<{ storeName: string; closingTime: string; taxRateInHouse: number; taxRateTakeout: number }>(EP.settings)
+    api.get<{
+      storeName: string; closingTime: string; taxRateInHouse: number; taxRateTakeout: number;
+      refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
+    }>(EP.settings)
       .then(s => {
         setStoreName(s.storeName)
         const [h, m] = s.closingTime.split(':')
@@ -24,6 +38,8 @@ export default function Settings() {
         setCloseMin(m)
         setTaxDineIn(String(s.taxRateInHouse))
         setTaxTakeout(String(s.taxRateTakeout))
+        setRefreshTokenAutoExtend(s.refreshTokenAutoExtend)
+        setRefreshTokenExpiresMinutes(String(s.refreshTokenExpiresMinutes))
       })
       .catch(() => { })
   }, [])
@@ -34,12 +50,14 @@ export default function Settings() {
       closingTime: `${closeHour.padStart(2, '0')}:${closeMin.padStart(2, '0')}`,
       taxRateInHouse: parseInt(taxDineIn, 10),
       taxRateTakeout: parseInt(taxTakeout, 10),
+      refreshTokenAutoExtend,
+      refreshTokenExpiresMinutes: parseInt(refreshTokenExpiresMinutes, 10),
     })
       .then(() => {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       })
-      .catch(() => { })
+      .catch(() => { showToast(t('common.saveFailed')) })
   };
 
   // 時刻フォーマット（25:00 = 翌1:00 表記）
@@ -97,7 +115,7 @@ export default function Settings() {
                   type="number" min="0" max="30"
                   value={closeHour}
                   onChange={e => setCloseHour(e.target.value)}
-                  onBlur={e => setCloseHour(e.target.value.padStart(2, "0"))}
+                  onBlur={e => setCloseHour(clamp(e.target.value, 0, 30).padStart(2, "0"))}
                 />
                 <span className="text-note text-dim">:</span>
                 <select
@@ -142,6 +160,7 @@ export default function Settings() {
                 type="number" min="0" max="100"
                 value={taxDineIn}
                 onChange={e => setTaxDineIn(e.target.value)}
+                onBlur={e => setTaxDineIn(clamp(e.target.value, 0, 100))}
               />
               <span className="text-note text-dim">%</span>
             </div>
@@ -156,6 +175,7 @@ export default function Settings() {
                 type="number" min="0" max="100"
                 value={taxTakeout}
                 onChange={e => setTaxTakeout(e.target.value)}
+                onBlur={e => setTaxTakeout(clamp(e.target.value, 0, 100))}
               />
               <span className="text-note text-dim">%</span>
             </div>
@@ -167,7 +187,39 @@ export default function Settings() {
           </div>
         </Section>
 
+        {/* セッション設定 */}
+        <Section title={t('settings.sessionSettings')}>
+          <SettingRow label={t('settings.refreshExpireType')}>
+            <ToggleButtonGroup
+              options={[
+                { key: 'auto', label: t('settings.refreshAutoExtend') },
+                { key: 'fixed', label: t('settings.refreshFixedExpiry') },
+              ]}
+              value={refreshTokenAutoExtend ? 'auto' : 'fixed'}
+              onChange={v => setRefreshTokenAutoExtend(v === 'auto')}
+            />
+          </SettingRow>
+          <SettingRow
+            label={t('settings.refreshExpiresMinutes')}
+            sub={t('settings.refreshExpiresMinutesSub')}
+          >
+            <input
+              className="input-field border border-line rounded-[7px] px-2.5 py-1.5 text-sm w-20 text-center text-ink"
+              type="number" min="5" max="43200"
+              value={refreshTokenExpiresMinutes}
+              onChange={e => setRefreshTokenExpiresMinutes(e.target.value)}
+              onBlur={e => setRefreshTokenExpiresMinutes(clamp(e.target.value, 5, 43200))}
+            />
+          </SettingRow>
+          <div className="px-5 pt-2.5 pb-3.5">
+            <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
+              {t('settings.sessionSettingsHint')}
+            </div>
+          </div>
+        </Section>
+
       </div>
+      <Toast message={toast} />
     </>
   );
 }

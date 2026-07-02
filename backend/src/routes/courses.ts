@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 import { toCourse } from '../lib/mappers.js'
@@ -38,8 +37,8 @@ const updateBodySchema = {
 } as const
 
 const coursesRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => {
-    const courses = await prisma.course.findMany({ include: { foodItems: true } })
+  fastify.get('/', async (request) => {
+    const courses = await prisma.course.findMany({ where: { storeId: request.storeId }, include: { foodItems: true } })
     return courses.map(toCourse)
   })
 
@@ -55,6 +54,7 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
         price: body.price,
         drinkPlanId: body.drinkPlanId ?? null,
         foodItems: { create: body.foodItems.map(f => ({ menuItemId: f.menuItemId, qty: f.qty })) },
+        storeId: request.storeId,
       },
       include: { foodItems: true },
     })
@@ -68,6 +68,8 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       foodItems: { menuItemId: number; qty: number }[];
       drinkPlanId: number | null;
     }>
+    const existing = await prisma.course.findFirst({ where: { id: Number(id), storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'コースが見つかりません' })
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
     if (body.price !== undefined) data.price = body.price
@@ -79,36 +81,24 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
         create: body.foodItems.map(f => ({ menuItemId: f.menuItemId, qty: f.qty })),
       }
     }
-    try {
-      const course = await prisma.course.update({
-        where: { id: Number(id) },
-        data,
-        include: { foodItems: true },
-      })
-      return toCourse(course)
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'コースが見つかりません' })
-      }
-      throw e
-    }
+    const course = await prisma.course.update({
+      where: { id: Number(id) },
+      data,
+      include: { foodItems: true },
+    })
+    return toCourse(course)
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const courseId = Number(id)
+    const existing = await prisma.course.findFirst({ where: { id: courseId, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'コースが見つかりません' })
     const activeGroup = await prisma.group.findFirst({
       where: { courseId, status: { in: ['active', 'bill_requested'] } },
     })
     if (activeGroup) return reply.status(409).send({ error: '使用中のコースは削除できません' })
-    try {
-      await prisma.course.delete({ where: { id: courseId } })
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'コースが見つかりません' })
-      }
-      throw e
-    }
+    await prisma.course.delete({ where: { id: courseId } })
     return reply.status(204).send()
   })
 }

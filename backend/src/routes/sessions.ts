@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 
@@ -23,7 +22,8 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     },
   }, async (request) => {
     const { status } = request.query as { status?: string }
-    const where = status ? { status: status as 'open' | 'closed' } : {}
+    const where: Record<string, unknown> = { storeId: request.storeId }
+    if (status) where.status = status
     const sessions = await prisma.session.findMany({
       where,
       orderBy: { openedAt: 'desc' },
@@ -36,8 +36,8 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     }))
   })
 
-  fastify.get('/current', async (_request, reply) => {
-    const session = await prisma.session.findFirst({ where: { status: 'open' } })
+  fastify.get('/current', async (request, reply) => {
+    const session = await prisma.session.findFirst({ where: { status: 'open', storeId: request.storeId } })
     // return null だと Fastify が本文なしで応答するため reply.send を使う
     if (!session) return reply.send(null)
     return {
@@ -49,10 +49,11 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/', { preHandler: requireAdmin }, async (request, reply) => {
+    const { storeId } = request
     const session = await prisma.$transaction(async (tx) => {
-      const existing = await tx.session.findFirst({ where: { status: 'open' } })
+      const existing = await tx.session.findFirst({ where: { status: 'open', storeId } })
       if (existing) return null
-      return tx.session.create({ data: { status: 'open' } })
+      return tx.session.create({ data: { status: 'open', storeId } })
     })
     if (!session) return reply.status(409).send({ error: '既に営業中のセッションがあります' })
     const result = {
@@ -61,7 +62,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       openedAt: session.openedAt.toISOString(),
       closedAt: null,
     }
-    fastify.io.to('staff').emit('session:updated', result)
+    fastify.io.to(`store:${request.storeId}`).emit('session:updated', result)
     return reply.status(201).send(result)
   })
 
@@ -69,7 +70,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const sessionId = Number(id)
 
-    const session = await prisma.session.findUnique({ where: { id: sessionId } })
+    const session = await prisma.session.findFirst({ where: { id: sessionId, storeId: request.storeId } })
     if (!session) return reply.status(404).send({ error: 'セッションが見つかりません' })
 
     const groups = await prisma.group.findMany({
@@ -137,7 +138,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const ranking = [...rankMap.values()].sort((a, b) => b.amount - a.amount)
 
-    const totalSeats = await prisma.seat.count()
+    const totalSeats = await prisma.seat.count({ where: { storeId: request.storeId } })
     const usedSeatIds = new Set(groups.flatMap(g => g.seats.map(gs => gs.seatId)))
     const seatUsageRate = totalSeats > 0 ? Math.round(usedSeatIds.size / totalSeats * 100) : 0
 
@@ -158,6 +159,9 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const { status } = request.body as { status: 'open' | 'closed' }
     const sessionId = Number(id)
+
+    const existing = await prisma.session.findFirst({ where: { id: sessionId, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'セッションが見つかりません' })
 
     try {
       const session = await prisma.$transaction(async (tx) => {
@@ -187,14 +191,11 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
         openedAt: session.openedAt.toISOString(),
         closedAt: session.closedAt?.toISOString() ?? null,
       }
-      fastify.io.to('staff').emit('session:updated', result)
+      fastify.io.to(`store:${request.storeId}`).emit('session:updated', result)
       return result
     } catch (e) {
       if (e instanceof Error && e.message === 'active_groups_exist') {
         return reply.status(409).send({ error: 'active_groups_exist', count: (e as any).count })
-      }
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'セッションが見つかりません' })
       }
       throw e
     }

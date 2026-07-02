@@ -30,20 +30,20 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/groups/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
     return { id: group.id, name: group.name, status: group.status }
   })
 
   fastify.get('/groups/:id/menus', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
 
     const [menus, categories, subCategories] = await Promise.all([
-      prisma.menuItem.findMany({ where: { soldOut: false }, orderBy: { id: 'asc' } }),
-      prisma.category.findMany({ orderBy: { sort: 'asc' } }),
-      prisma.subCategory.findMany({ orderBy: { sort: 'asc' } }),
+      prisma.menuItem.findMany({ where: { soldOut: false, storeId: request.storeId }, orderBy: { id: 'asc' } }),
+      prisma.category.findMany({ where: { storeId: request.storeId }, orderBy: { sort: 'asc' } }),
+      prisma.subCategory.findMany({ where: { storeId: request.storeId }, orderBy: { sort: 'asc' } }),
     ])
 
     return {
@@ -59,7 +59,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/groups/:id/orders', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
     const orders = await prisma.orderItem.findMany({
       where: { groupId: id },
@@ -70,7 +70,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/groups/:id/bill', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
     if (group.status !== 'active') return reply.status(400).send({ error: '会計を依頼できない状態です' })
     const updated = await prisma.group.update({
@@ -78,20 +78,20 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       data: { status: 'bill_requested' },
       include: { seats: true },
     })
-    fastify.io.to('staff').emit('group:updated', toGroup(updated))
+    fastify.io.to(`store:${request.storeId}`).emit('group:updated', toGroup(updated))
     return reply.status(204).send()
   })
 
-  fastify.get('/settings', async () => {
-    const s = await prisma.setting.findFirst()
+  fastify.get('/settings', async (request) => {
+    const s = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     return { taxRateInHouse: s?.taxRateInHouse ?? 10, taxRateTakeout: s?.taxRateTakeout ?? 8 }
   })
 
   fastify.post('/groups/:id/call-staff', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
-    fastify.io.to('staff').emit('staff:called', group.id, group.name)
+    fastify.io.to(`store:${request.storeId}`).emit('staff:called', group.id, group.name)
     return reply.status(204).send()
   })
 
@@ -101,12 +101,12 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       items: { menuItemId: number; qty: number }[];
     }
 
-    const group = await prisma.group.findUnique({ where: { id: body.groupId } })
+    const group = await prisma.group.findFirst({ where: { id: body.groupId, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'テーブルが見つかりません' })
     if (group.status !== 'active') return reply.status(400).send({ error: '現在注文を受け付けていません' })
 
     const menuItemIds = body.items.map(i => i.menuItemId)
-    const menuItems = await prisma.menuItem.findMany({ where: { id: { in: menuItemIds } } })
+    const menuItems = await prisma.menuItem.findMany({ where: { id: { in: menuItemIds }, storeId: request.storeId } })
     const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
 
     const missing = menuItemIds.filter(id => !menuItemMap.has(id))
@@ -131,7 +131,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
 
@@ -150,6 +150,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               isTakeout: false,
               taxRate: taxRateInHouse,
               courseId: null,
+              storeId: request.storeId,
             },
           })
         )
@@ -160,7 +161,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results = txResult.map(toOrderItem)
     for (const result of results) {
-      fastify.io.to('staff').emit('order:created', result)
+      fastify.io.to(`store:${request.storeId}`).emit('order:created', result)
     }
 
     return reply.status(201).send(results)

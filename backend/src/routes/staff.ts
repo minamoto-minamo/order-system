@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs'
 import { StaffRole } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { listActiveSessions, revokeTokenById } from '../lib/refreshToken.js'
+import { toStaffSession } from '../lib/mappers.js'
 
 const createBodySchema = {
   type: 'object',
@@ -29,27 +31,27 @@ const updateBodySchema = {
 const select = { id: true, username: true, role: true, createdAt: true }
 
 const staffRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', { preHandler: requireAdmin }, async () => {
-    return prisma.staff.findMany({ select, orderBy: { createdAt: 'asc' } })
+  fastify.get('/', { preHandler: requireAdmin }, async (request) => {
+    return prisma.staff.findMany({ where: { storeId: request.storeId }, select, orderBy: { createdAt: 'asc' } })
   })
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { username, password, role } = request.body as { username: string; password: string; role: StaffRole }
-    const existing = await prisma.staff.findUnique({ where: { username } })
+    const existing = await prisma.staff.findUnique({ where: { storeId_username: { storeId: request.storeId, username } } })
     if (existing) return reply.status(409).send({ error: 'そのユーザー名は既に使用されています' })
     const passwordHash = await bcrypt.hash(password, 12)
-    const member = await prisma.staff.create({ data: { username, passwordHash, role }, select })
+    const member = await prisma.staff.create({ data: { username, passwordHash, role, storeId: request.storeId }, select })
     return reply.status(201).send(member)
   })
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = request.body as { username?: string; password?: string; role?: StaffRole }
-    const existing = await prisma.staff.findUnique({ where: { id } })
+    const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
     if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
     const data: Record<string, unknown> = {}
     if (body.username !== undefined) {
-      const dup = await prisma.staff.findFirst({ where: { username: body.username, NOT: { id } } })
+      const dup = await prisma.staff.findFirst({ where: { username: body.username, storeId: request.storeId, NOT: { id } } })
       if (dup) return reply.status(409).send({ error: 'そのユーザー名は既に使用されています' })
       data.username = body.username
     }
@@ -60,12 +62,29 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    if (id === request.user.userId) {
+    if (request.user.type === 'staff' && id === request.user.userId) {
       return reply.status(422).send({ error: '自分自身は削除できません' })
     }
-    const existing = await prisma.staff.findUnique({ where: { id } })
+    const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
     if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
     await prisma.staff.delete({ where: { id } })
+    return reply.status(204).send()
+  })
+
+  fastify.get('/:id/sessions', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    const sessions = await listActiveSessions(id)
+    return sessions.map(toStaffSession)
+  })
+
+  fastify.delete('/:id/sessions/:sessionId', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id, sessionId } = request.params as { id: string; sessionId: string }
+    const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    const revoked = await revokeTokenById(id, sessionId)
+    if (!revoked) return reply.status(404).send({ error: 'セッションが見つかりません' })
     return reply.status(204).send()
   })
 }

@@ -45,7 +45,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     const { categoryId, subCategoryId, takeout, soldOut } = request.query as {
       categoryId?: string; subCategoryId?: string; takeout?: string; soldOut?: string;
     }
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { storeId: request.storeId }
     if (categoryId) where.categoryId = Number(categoryId)
     if (subCategoryId) where.subCategoryId = Number(subCategoryId)
     if (takeout) where.takeout = takeout
@@ -56,19 +56,22 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const item = await prisma.menuItem.findUnique({ where: { id: Number(id) } })
+    const item = await prisma.menuItem.findFirst({ where: { id: Number(id), storeId: request.storeId } })
     if (!item) return reply.status(404).send({ error: 'メニューが見つかりません' })
     return item
   })
 
   fastify.patch('/sort', { schema: { body: sortBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { ids } = request.body as { ids: number[] }
-    await prisma.$transaction(ids.map((id, index) =>
+    const owned = await prisma.menuItem.findMany({ where: { id: { in: ids }, storeId: request.storeId }, select: { id: true } })
+    const ownedIds = new Set(owned.map(o => o.id))
+    const validIds = ids.filter(id => ownedIds.has(id))
+    await prisma.$transaction(validIds.map((id, index) =>
       prisma.menuItem.update({ where: { id }, data: { sort: index } })
     ))
-    const updated = await prisma.menuItem.findMany({ where: { id: { in: ids } } })
+    const updated = await prisma.menuItem.findMany({ where: { id: { in: validIds } } })
     for (const item of updated) {
-      fastify.io.to('staff').emit('menu:updated', item)
+      fastify.io.to(`store:${request.storeId}`).emit('menu:updated', item)
     }
     return reply.status(204).send()
   })
@@ -78,7 +81,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       name: string; price: number; categoryId: number; subCategoryId: number;
       soldOut?: boolean; takeout?: string; sort?: number;
     }
-    const subCat = await prisma.subCategory.findUnique({ where: { id: body.subCategoryId } })
+    const subCat = await prisma.subCategory.findFirst({ where: { id: body.subCategoryId, storeId: request.storeId } })
     if (!subCat) return reply.status(422).send({ error: 'サブカテゴリが見つかりません' })
     if (subCat.categoryId !== body.categoryId) {
       return reply.status(422).send({ error: 'サブカテゴリがカテゴリと一致しません' })
@@ -92,9 +95,10 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         soldOut: body.soldOut ?? false,
         takeout: (body.takeout as 'dine_in' | 'both' | 'takeout') ?? 'dine_in',
         sort: body.sort ?? 0,
+        storeId: request.storeId,
       },
     })
-    fastify.io.to('staff').emit('menu:created', item)
+    fastify.io.to(`store:${request.storeId}`).emit('menu:created', item)
     return reply.status(201).send(item)
   })
 
@@ -106,12 +110,12 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     }>
 
     try {
-      const current = await prisma.menuItem.findUnique({ where: { id: Number(id) } })
+      const current = await prisma.menuItem.findFirst({ where: { id: Number(id), storeId: request.storeId } })
       if (!current) return reply.status(404).send({ error: 'メニューが見つかりません' })
 
       const targetCategoryId = body.categoryId ?? current.categoryId
       if (body.subCategoryId !== undefined) {
-        const subCat = await prisma.subCategory.findUnique({ where: { id: body.subCategoryId } })
+        const subCat = await prisma.subCategory.findFirst({ where: { id: body.subCategoryId, storeId: request.storeId } })
         if (!subCat) return reply.status(422).send({ error: 'サブカテゴリが見つかりません' })
         if (subCat.categoryId !== targetCategoryId) {
           return reply.status(422).send({ error: 'サブカテゴリがカテゴリと一致しません' })
@@ -131,9 +135,9 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       if (body.soldOut !== undefined && body.soldOut !== current.soldOut) {
-        fastify.io.to('staff').emit('menu:soldout', item.id, item.soldOut)
+        fastify.io.to(`store:${request.storeId}`).emit('menu:soldout', item.id, item.soldOut)
       }
-      fastify.io.to('staff').emit('menu:updated', item)
+      fastify.io.to(`store:${request.storeId}`).emit('menu:updated', item)
 
       return item
     } catch (e) {
@@ -148,6 +152,9 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const menuItemId = Number(id)
 
+    const existing = await prisma.menuItem.findFirst({ where: { id: menuItemId, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'メニューが見つかりません' })
+
     try {
       const deleted = await prisma.$transaction(async (tx) => {
         const activeOrderCount = await tx.orderItem.count({
@@ -157,7 +164,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         return tx.menuItem.delete({ where: { id: menuItemId } })
       })
       if (deleted === null) return reply.status(409).send({ error: '処理中の注文があるため削除できません' })
-      fastify.io.to('staff').emit('menu:deleted', menuItemId)
+      fastify.io.to(`store:${request.storeId}`).emit('menu:deleted', menuItemId)
       return reply.status(204).send()
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {

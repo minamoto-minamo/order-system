@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toGroup, toOrderItem } from '../lib/mappers.js'
 
@@ -56,7 +55,7 @@ const VALID_GROUP_STATUSES = new Set(['active', 'bill_requested', 'closed'])
 const groupsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     const { sessionId, status } = request.query as { sessionId?: string; status?: string | string[] }
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { storeId: request.storeId }
     if (sessionId) where.sessionId = Number(sessionId)
     if (status) {
       // ?status=active,bill_requested（カンマ区切り）と ?status=active&status=bill_requested（配列）を両方受け付ける
@@ -76,8 +75,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findUnique({
-      where: { id },
+    const group = await prisma.group.findFirst({
+      where: { id, storeId: request.storeId },
       include: { seats: true },
     })
     if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
@@ -87,14 +86,18 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { schema: { body: createBodySchema } }, async (request, reply) => {
     const body = request.body as { name?: string; guestCount: number; seatIds: number[] }
 
+    const ownedSeats = await prisma.seat.findMany({ where: { id: { in: body.seatIds }, storeId: request.storeId } })
+    if (ownedSeats.length !== body.seatIds.length) {
+      return reply.status(422).send({ error: '無効な席が含まれています' })
+    }
+
     let name = body.name
     if (!name) {
-      const seatRecords = await prisma.seat.findMany({ where: { id: { in: body.seatIds } } })
-      name = seatRecords.map(s => s.label).join('・') || `グループ`
+      name = ownedSeats.map(s => s.label).join('・') || `グループ`
     }
 
     const txResult = await prisma.$transaction(async (tx) => {
-      const currentSession = await tx.session.findFirst({ where: { status: 'open' } })
+      const currentSession = await tx.session.findFirst({ where: { status: 'open', storeId: request.storeId } })
       if (!currentSession) return { err: 'no_session' as const }
 
       const conflict = await tx.groupSeat.findFirst({
@@ -110,6 +113,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           name,
           guestCount: body.guestCount,
           sessionId: currentSession.id,
+          storeId: request.storeId,
           seats: {
             create: body.seatIds.map(seatId => ({ seatId })),
           },
@@ -125,12 +129,11 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const { group } = txResult
     const result = toGroup(group)
-    fastify.io.to('staff').emit('group:created', result)
+    fastify.io.to(`store:${request.storeId}`).emit('group:created', result)
 
     // ホール画面の席カードが占有状態をリアルタイムで反映できるよう通知する
-    const seatRecords = await prisma.seat.findMany({ where: { id: { in: body.seatIds } } })
-    for (const seat of seatRecords) {
-      fastify.io.to('staff').emit('seat:updated', seat)
+    for (const seat of ownedSeats) {
+      fastify.io.to(`store:${request.storeId}`).emit('seat:updated', seat)
     }
 
     return reply.status(201).send(result)
@@ -143,8 +146,18 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       name?: string; guestCount?: number; seatIds?: number[];
     }
 
-    const session = await prisma.session.findFirst({ where: { status: 'open' } })
+    const session = await prisma.session.findFirst({ where: { status: 'open', storeId: request.storeId } })
     if (!session) return reply.status(409).send({ error: '営業中のセッションがありません' })
+
+    const existingGroup = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
+    if (!existingGroup) return reply.status(404).send({ error: 'グループが見つかりません' })
+
+    if (body.seatIds !== undefined) {
+      const ownedSeatCount = await prisma.seat.count({ where: { id: { in: body.seatIds }, storeId: request.storeId } })
+      if (ownedSeatCount !== body.seatIds.length) {
+        return reply.status(422).send({ error: '無効な席が含まれています' })
+      }
+    }
 
     const updateData: Record<string, unknown> = {}
     if (body.status !== undefined) updateData.status = body.status
@@ -187,12 +200,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       })
 
       const result = toGroup(group)
-      fastify.io.to('staff').emit('group:updated', result)
+      fastify.io.to(`store:${request.storeId}`).emit('group:updated', result)
 
       const seatIds = body.seatIds ?? group.seats.map(s => s.seatId)
       const seatRecords = await prisma.seat.findMany({ where: { id: { in: seatIds } } })
       for (const seat of seatRecords) {
-        fastify.io.to('staff').emit('seat:updated', seat)
+        fastify.io.to(`store:${request.storeId}`).emit('seat:updated', seat)
       }
 
       return result
@@ -200,9 +213,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       if (e instanceof NotFoundError) return reply.status(404).send({ error: 'グループが見つかりません' })
       if (e instanceof InvalidTransitionError) return reply.status(409).send({ error: `${e.from} から ${e.to} への遷移は許可されていません` })
       if (e instanceof SeatConflictError) return reply.status(409).send({ error: '選択した席はすでに使用中です' })
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'グループが見つかりません' })
-      }
       throw e
     }
   })
@@ -211,14 +221,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const { courseId, qty } = request.body as { courseId: number; qty: number }
 
-    const group = await prisma.group.findUnique({ where: { id } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
     if (group.status !== 'active') return reply.status(409).send({ error: 'このグループにはコースを適用できません' })
 
-    const course = await prisma.course.findUnique({ where: { id: courseId }, include: { foodItems: true } })
+    const course = await prisma.course.findFirst({ where: { id: courseId, storeId: request.storeId }, include: { foodItems: true } })
     if (!course) return reply.status(404).send({ error: 'コースが見つかりません' })
 
-    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
 
@@ -238,6 +248,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
             isTakeout: false,
             taxRate: taxRateInHouse,
             courseId: course.id,
+            storeId: request.storeId,
           },
         })
         createdItems.push(chargeItem)
@@ -260,6 +271,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               isTakeout: false,
               taxRate: taxRateInHouse,
               courseId: course.id,
+              storeId: request.storeId,
             },
           })
           createdItems.push(item)
@@ -281,30 +293,25 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const { createdItems, updatedGroup } = txResult
     const groupResult = toGroup(updatedGroup)
-    fastify.io.to('staff').emit('group:updated', groupResult)
+    fastify.io.to(`store:${request.storeId}`).emit('group:updated', groupResult)
     for (const item of createdItems) {
-      fastify.io.to('staff').emit('order:created', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).emit('order:created', toOrderItem(item))
     }
     return groupResult
   })
 
   fastify.delete('/:id/course', async (request, reply) => {
     const { id } = request.params as { id: string }
-    try {
-      const group = await prisma.group.update({
-        where: { id },
-        data: { courseId: null, drinkPlanId: null },
-        include: { seats: true },
-      })
-      const result = toGroup(group)
-      fastify.io.to('staff').emit('group:updated', result)
-      return result
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'グループが見つかりません' })
-      }
-      throw e
-    }
+    const existing = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
+    if (!existing) return reply.status(404).send({ error: 'グループが見つかりません' })
+    const group = await prisma.group.update({
+      where: { id },
+      data: { courseId: null, drinkPlanId: null },
+      include: { seats: true },
+    })
+    const result = toGroup(group)
+    fastify.io.to(`store:${request.storeId}`).emit('group:updated', result)
+    return result
   })
 }
 

@@ -3,6 +3,7 @@ import { EP } from '@/lib/endpoints'
 import { ROUTES } from '@/lib/routes'
 import { socket } from '@/lib/socket'
 import { SOCKET_EVENTS as SE } from '@/lib/events'
+import { isPlatformAdminHost } from '@/lib/platform'
 import Login from '@/pages/login/Login/Login'
 import Home from '@/pages/home/Home/Home'
 import AdminMenu from '@/pages/admin/AdminMenu/AdminMenu'
@@ -16,9 +17,13 @@ import GroupDetail from '@/pages/group/GroupDetail/GroupDetail'
 import Hall from '@/pages/hall/Hall/Hall'
 import Kitchen from '@/pages/kitchen/Kitchen/Kitchen'
 import CustomerOrder from '@/pages/customer/CustomerOrder/CustomerOrder'
+import PlatformLogin from '@/pages/platform/PlatformLogin/PlatformLogin'
+import StoreList from '@/pages/platform/StoreList/StoreList'
 import NotFound from '@/pages/error/NotFound'
 import type { AuthUser } from '@/stores/auth'
 import { useAuthStore } from '@/stores/auth'
+import type { PlatformAdmin } from '@/stores/platformAuth'
+import { usePlatformAuthStore } from '@/stores/platformAuth'
 import { useSessionStore } from '@/stores/session'
 import type { Session } from '@order-system/shared'
 import { useEffect } from 'react'
@@ -34,14 +39,29 @@ function RequireAuth({ children, adminOnly = false, requireSession = false }: { 
   return <PageLayout>{children}</PageLayout>
 }
 
+function RequirePlatformAuth({ children }: { children: React.ReactNode }) {
+  const { admin } = usePlatformAuthStore()
+  if (!admin) return <Navigate to={ROUTES.platformLogin} replace />
+  return <>{children}</>
+}
+
 export default function App() {
+  const isPlatform = isPlatformAdminHost()
   const { user, initialized, setUser, setInitialized } = useAuthStore()
   const { setSession } = useSessionStore()
+  const { admin, initialized: platformInitialized, setAdmin, setInitialized: setPlatformInitialized } = usePlatformAuthStore()
 
   useEffect(() => {
+    if (isPlatform) {
+      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
+        .then(setAdmin)
+        .finally(() => setPlatformInitialized(true))
+      return
+    }
+
     Promise.all([
       api.get<AuthUser>(EP.authMe).catch(() => null),
-      api.get<Session | null>(EP.sessionsCurrent),
+      api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
     ]).then(([u, s]) => {
       setUser(u)
       setSession(s)
@@ -50,7 +70,20 @@ export default function App() {
     const onSessionUpdated = (s: Session) => setSession(s)
     socket.on(SE.sessionUpdated, onSessionUpdated)
     return () => { socket.off(SE.sessionUpdated, onSessionUpdated) }
-  }, [setUser, setInitialized, setSession])
+  }, [isPlatform, setUser, setInitialized, setSession, setAdmin, setPlatformInitialized])
+
+  if (isPlatform) {
+    // 初期認証確認が終わるまで描画しないことでルートのフラッシュを防ぐ
+    if (!platformInitialized) return null
+
+    return (
+      <Routes>
+        <Route path={ROUTES.platformLogin} element={admin ? <Navigate to={ROUTES.platformStores} replace /> : <PlatformLogin />} />
+        <Route path={ROUTES.platformStores} element={<RequirePlatformAuth><StoreList /></RequirePlatformAuth>} />
+        <Route path="*" element={<Navigate to={admin ? ROUTES.platformStores : ROUTES.platformLogin} replace />} />
+      </Routes>
+    )
+  }
 
   // 初期認証確認が終わるまで描画しないことでルートのフラッシュを防ぐ
   if (!initialized) return null

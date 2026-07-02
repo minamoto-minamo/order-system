@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
 
@@ -43,7 +42,7 @@ const VALID_ORDER_STATUSES = new Set(['pending', 'ready', 'served', 'cancelled']
 const ordersRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     const { groupId, status, sessionId } = request.query as { groupId?: string; status?: string | string[]; sessionId?: string }
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = { storeId: request.storeId }
     if (groupId) where.groupId = groupId
     if (status) {
       const statuses = Array.isArray(status) ? status : status.split(',')
@@ -66,12 +65,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       courseId?: number | null;
     }
 
-    const group = await prisma.group.findUnique({ where: { id: body.groupId } })
+    const group = await prisma.group.findFirst({ where: { id: body.groupId, storeId: request.storeId } })
     if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
     if (group.status !== 'active') return reply.status(409).send({ error: 'このグループには注文を追加できません' })
 
     const menuItemIds = body.items.map(i => i.menuItemId)
-    const menuItems = await prisma.menuItem.findMany({ where: { id: { in: menuItemIds } } })
+    const menuItems = await prisma.menuItem.findMany({ where: { id: { in: menuItemIds }, storeId: request.storeId } })
     const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
 
     const missing = menuItemIds.filter(id => !menuItemMap.has(id))
@@ -90,11 +89,11 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (body.courseId != null) {
-      const course = await prisma.course.findUnique({ where: { id: body.courseId } })
+      const course = await prisma.course.findFirst({ where: { id: body.courseId, storeId: request.storeId } })
       if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
     }
 
-    const setting = await prisma.setting.findUnique({ where: { id: 1 } })
+    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
     const taxRateTakeout = setting?.taxRateTakeout.toNumber() ?? 8
@@ -115,6 +114,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
             isTakeout,
             taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
             courseId: body.courseId ?? null,
+            storeId: request.storeId,
           },
         })
       }))
@@ -126,7 +126,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results = created.map(toOrderItem)
     for (const result of results) {
-      fastify.io.to('staff').emit('order:created', result)
+      fastify.io.to(`store:${request.storeId}`).emit('order:created', result)
     }
 
     return reply.status(201).send(results)
@@ -136,45 +136,38 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const { qty } = request.body as { qty: number }
 
-    try {
-      // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
-      const result = await prisma.$transaction(async (tx) => {
-        const order = await tx.orderItem.findUnique({ where: { id } })
-        if (!order) return null
-        if (order.status === 'cancelled') {
-          return { conflict: true }
-        }
+    // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.orderItem.findFirst({ where: { id, storeId: request.storeId } })
+      if (!order) return null
+      if (order.status === 'cancelled') {
+        return { conflict: true }
+      }
 
-        if (qty >= order.qty) {
-          return tx.orderItem.update({
-            where: { id },
-            data: { status: 'cancelled' },
-          })
-        } else {
-          return tx.orderItem.update({
-            where: { id },
-            data: { qty: order.qty - qty },
-          })
-        }
-      })
-
-      if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
-      if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })
-
-      const mapped = toOrderItem(result)
-      // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
-      if (result.status === 'cancelled') {
-        fastify.io.to('staff').emit('order:cancelled', mapped.id)
+      if (qty >= order.qty) {
+        return tx.orderItem.update({
+          where: { id },
+          data: { status: 'cancelled' },
+        })
       } else {
-        fastify.io.to('staff').emit('order:updated', mapped)
+        return tx.orderItem.update({
+          where: { id },
+          data: { qty: order.qty - qty },
+        })
       }
-      return mapped
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: '注文が見つかりません' })
-      }
-      throw e
+    })
+
+    if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
+    if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })
+
+    const mapped = toOrderItem(result)
+    // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
+    if (result.status === 'cancelled') {
+      fastify.io.to(`store:${request.storeId}`).emit('order:cancelled', mapped.id)
+    } else {
+      fastify.io.to(`store:${request.storeId}`).emit('order:updated', mapped)
     }
+    return mapped
   })
 }
 

@@ -3,9 +3,12 @@ import staticPlugin from '@fastify/static'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import corsPlugin from './plugins/cors.js'
+import storePlugin from './plugins/store.js'
 import socketPlugin from './plugins/socket.js'
 import authPlugin from './plugins/auth.js'
 import authRoutes from './routes/auth.js'
+import platformAuthRoutes from './routes/platformAuth.js'
+import platformStoresRoutes from './routes/platformStores.js'
 import sessionsRoutes from './routes/sessions.js'
 import seatsRoutes from './routes/seats.js'
 import groupsRoutes from './routes/groups.js'
@@ -28,13 +31,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 export async function buildApp() {
   const app = Fastify({ logger: true })
 
-  // 登録順: cors → socket → auth の順を守る
+  // 登録順: cors → store → socket → auth の順を守る
+  // store は Host から storeId を解決し以降のフックに供給するため socket/auth より前、
   // socket は CORS 設定を参照するため cors より後、auth はルート登録前に必要
   await app.register(corsPlugin)
+  await app.register(storePlugin)
   await app.register(socketPlugin)
   await app.register(authPlugin)
 
   await app.register(authRoutes,        { prefix: '/api/auth' })
+  await app.register(platformAuthRoutes, { prefix: '/api/platform/auth' })
+  await app.register(platformStoresRoutes, { prefix: '/api/platform/stores' })
   await app.register(sessionsRoutes,    { prefix: '/api/sessions' })
   await app.register(seatsRoutes,       { prefix: '/api/seats' })
   await app.register(groupsRoutes,      { prefix: '/api/groups' })

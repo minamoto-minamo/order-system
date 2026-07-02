@@ -42,28 +42,69 @@ enum StaffRole {
   staff
 }
 
+model Store {
+  id        Int      @id @default(autoincrement())
+  subdomain String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sessions      Session[]
+  seatTables    SeatTable[]
+  seats         Seat[]
+  categories    Category[]
+  subCategories SubCategory[]
+  menuItems     MenuItem[]
+  drinkPlans    DrinkPlan[]
+  courses       Course[]
+  groups        Group[]
+  orderItems    OrderItem[]
+  setting       Setting?
+  staff         Staff[]
+
+  @@map("store")
+}
+
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("platform_admin")
+}
+
 model Session {
   id       Int           @id @default(autoincrement())
+  storeId  Int
   status   SessionStatus @default(open)
   openedAt DateTime      @default(now())
   closedAt DateTime?
 
+  store  Store   @relation(fields: [storeId], references: [id])
   groups Group[]
+
+  @@index([storeId, status])
 }
 
 model SeatTable {
-  id    Int    @id @default(autoincrement())
-  label String
-  x     Int
-  y     Int
-  w     Int
-  h     Int
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  label   String
+  x       Int
+  y       Int
+  w       Int
+  h       Int
 
+  store Store  @relation(fields: [storeId], references: [id])
   seats Seat[]
+
+  @@index([storeId])
 }
 
 model Seat {
   id      Int        @id @default(autoincrement())
+  storeId Int
   label   String
   type    SeatType
   x       Int
@@ -71,34 +112,44 @@ model Seat {
   tableId Int?
   table   SeatTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
 
+  store      Store       @relation(fields: [storeId], references: [id])
   groupSeats GroupSeat[]
 
   @@index([tableId])
+  @@index([storeId])
 }
 
 model Category {
-  id   Int    @id @default(autoincrement())
-  name String
-  sort Int    @default(0)
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String
+  sort    Int    @default(0)
 
+  store         Store         @relation(fields: [storeId], references: [id])
   subCategories SubCategory[]
   menuItems     MenuItem[]
+
+  @@index([storeId])
 }
 
 model SubCategory {
   id         Int    @id @default(autoincrement())
+  storeId    Int
   categoryId Int
   name       String
   sort       Int    @default(0)
 
+  store     Store      @relation(fields: [storeId], references: [id])
   category  Category   @relation(fields: [categoryId], references: [id])
   menuItems MenuItem[]
 
   @@index([categoryId])
+  @@index([storeId])
 }
 
 model MenuItem {
   id            Int         @id @default(autoincrement())
+  storeId       Int
   name          String
   price         Int
   categoryId    Int
@@ -107,6 +158,7 @@ model MenuItem {
   takeout       TakeoutType @default(dine_in)
   sort          Int         @default(0)
 
+  store       Store       @relation(fields: [storeId], references: [id])
   category    Category    @relation(fields: [categoryId], references: [id])
   subCategory SubCategory @relation(fields: [subCategoryId], references: [id])
 
@@ -116,15 +168,20 @@ model MenuItem {
 
   @@index([categoryId])
   @@index([subCategoryId])
+  @@index([storeId])
 }
 
 model DrinkPlan {
-  id   Int    @id @default(autoincrement())
-  name String
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String
 
+  store   Store           @relation(fields: [storeId], references: [id])
   items   DrinkPlanItem[]
   courses Course[]
   groups  Group[]
+
+  @@index([storeId])
 }
 
 model DrinkPlanItem {
@@ -139,10 +196,12 @@ model DrinkPlanItem {
 
 model Course {
   id          Int    @id @default(autoincrement())
+  storeId     Int
   name        String
   price       Int
   drinkPlanId Int?
 
+  store     Store      @relation(fields: [storeId], references: [id])
   drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
 
   foodItems  CourseFoodItem[]
@@ -150,6 +209,7 @@ model Course {
   orderItems OrderItem[]
 
   @@index([drinkPlanId])
+  @@index([storeId])
 }
 
 model CourseFoodItem {
@@ -165,6 +225,7 @@ model CourseFoodItem {
 
 model Group {
   id          String      @id @default(uuid())
+  storeId     Int
   name        String
   guestCount  Int
   status      GroupStatus @default(active)
@@ -173,6 +234,7 @@ model Group {
   drinkPlanId Int?
   createdAt   DateTime    @default(now())
 
+  store     Store      @relation(fields: [storeId], references: [id])
   session   Session    @relation(fields: [sessionId], references: [id])
   course    Course?    @relation(fields: [courseId], references: [id])
   drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
@@ -182,6 +244,7 @@ model Group {
 
   @@index([sessionId])
   @@index([status])
+  @@index([storeId])
 }
 
 model GroupSeat {
@@ -197,6 +260,7 @@ model GroupSeat {
 
 model OrderItem {
   id           String          @id @default(uuid())
+  storeId      Int
   groupId      String
   menuItemId   Int?
   menuItemName String
@@ -208,6 +272,7 @@ model OrderItem {
   courseId     Int?
   orderedAt    DateTime        @default(now())
 
+  store    Store     @relation(fields: [storeId], references: [id])
   group    Group     @relation(fields: [groupId], references: [id])
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
@@ -215,31 +280,63 @@ model OrderItem {
   @@index([groupId])
   @@index([status])
   @@index([orderedAt])
+  @@index([storeId])
 }
 
 model Setting {
-  id             Int    @id @default(1)
-  storeName      String
-  closingTime    String
-  taxRateInHouse Decimal @db.Decimal(5, 2)
-  taxRateTakeout Decimal @db.Decimal(5, 2)
-  canvasCols     Int    @default(16)
-  canvasRows     Int    @default(12)
-  canvasColsMin  Int    @default(8)
-  canvasColsMax  Int    @default(32)
-  canvasRowsMin  Int    @default(6)
-  canvasRowsMax  Int    @default(24)
-  gridSize       Int    @default(48)
-  gridSizeMin    Int    @default(32)
-  gridSizeMax    Int    @default(80)
+  id                         Int     @id @default(autoincrement())
+  storeId                    Int     @unique
+  storeName                  String
+  closingTime                String
+  taxRateInHouse             Decimal @db.Decimal(5, 2)
+  taxRateTakeout             Decimal @db.Decimal(5, 2)
+  canvasCols                 Int     @default(16)
+  canvasRows                 Int     @default(12)
+  canvasColsMin              Int     @default(8)
+  canvasColsMax              Int     @default(32)
+  canvasRowsMin              Int     @default(6)
+  canvasRowsMax              Int     @default(24)
+  gridSize                   Int     @default(48)
+  gridSizeMin                Int     @default(32)
+  gridSizeMax                Int     @default(80)
+  refreshTokenAutoExtend     Boolean @default(true)
+  refreshTokenExpiresMinutes Int     @default(1440)
+
+  store Store @relation(fields: [storeId], references: [id])
 }
 
 model Staff {
   id           String    @id @default(uuid())
-  username     String    @unique
+  storeId      Int
+  username     String
   passwordHash String
   role         StaffRole @default(staff)
   createdAt    DateTime  @default(now())
 
+  store         Store          @relation(fields: [storeId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([storeId, username])
   @@map("staff")
+}
+
+model RefreshToken {
+  id             String    @id @default(uuid())
+  staffId        String
+  tokenHash      String    @unique
+  parentId       String?
+  familyIssuedAt DateTime
+  issuedAt       DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  userAgent      String?
+  ipAddress      String?
+
+  staff    Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  parent   RefreshToken?  @relation("RefreshTokenChain", fields: [parentId], references: [id], onDelete: SetNull)
+  children RefreshToken[] @relation("RefreshTokenChain")
+
+  @@index([staffId])
+  @@index([parentId])
+  @@map("refresh_token")
 }

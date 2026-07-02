@@ -27,6 +27,8 @@ export const EP = {
   drinkPlan:         (id: number) => `/drink-plans/${id}`,
   staff:             '/staff',
   staffMember:       (id: string) => `/staff/${id}`,
+  staffSessions:     (staffId: string) => `/staff/${staffId}/sessions`,
+  staffSession:      (staffId: string, sessionId: string) => `/staff/${staffId}/sessions/${sessionId}`,
   seatTables:        '/seat-tables',
   seatTable:         (id: number) => `/seat-tables/${id}`,
   seatLayout:        '/seat-layout',
@@ -37,4 +39,9 @@ export const EP = {
   customerBill:        (id: string) => `/customer/groups/${id}/bill`,
   customerCallStaff:   (id: string) => `/customer/groups/${id}/call-staff`,
   customerSettings:    '/customer/settings',
+  platformAuthLogin:  '/platform/auth/login',
+  platformAuthLogout: '/platform/auth/logout',
+  platformAuthMe:     '/platform/auth/me',
+  platformStores:     '/platform/stores',
+  platformStore:      (id: number) => `/platform/stores/${id}`,
 } as const

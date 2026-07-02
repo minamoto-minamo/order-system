@@ -18,4 +18,6 @@ export const ROUTES = {
   adminCourses:      '/admin/courses',
   customerOrder:        (id: string) => `/order/${id}`,
   customerOrderPattern: '/order/:id',
+  platformLogin:  '/platform/login',
+  platformStores: '/platform/stores',
 } as const

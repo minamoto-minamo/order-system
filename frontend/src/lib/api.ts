@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
+import { usePlatformAuthStore } from '@/stores/platformAuth'
 
 const BASE = (import.meta.env.VITE_BACKEND_URL ?? '') + '/api'
 
@@ -9,8 +10,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: 'include',
     ...init,
   })
+  // /platform/auth 自身が 401 を返したときに再帰ループしないよう除外
+  if (res.status === 401 && path.startsWith('/platform') && !path.startsWith('/platform/auth')) {
+    // React コンテキスト外から Zustand を直接更新
+    usePlatformAuthStore.getState().setAdmin(null)
+    throw new Error('401 Unauthorized')
+  }
   // /auth 自身が 401 を返したときに再帰ループしないよう除外
-  if (res.status === 401 && !path.startsWith('/auth')) {
+  if (res.status === 401 && !path.startsWith('/auth') && !path.startsWith('/platform')) {
     // React コンテキスト外から Zustand を直接更新
     useAuthStore.getState().setUser(null)
     throw new Error('401 Unauthorized')
