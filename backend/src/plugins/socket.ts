@@ -4,8 +4,9 @@ import { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents } from '@order-system/shared'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
-import { corsOriginValidator } from '../lib/config.js'
+import { corsOriginValidator, parseDurationSeconds } from '../lib/config.js'
 import { resolveStoreContext } from '../lib/store.js'
+import { rotateRefreshToken } from '../lib/refreshToken.js'
 import type { JwtPayload } from './auth.js'
 
 declare module 'fastify' {
@@ -18,6 +19,7 @@ declare module 'socket.io' {
   interface SocketData {
     authenticated: boolean
     storeId: number
+    expiresAt?: number
   }
 }
 
@@ -36,41 +38,88 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       return
     }
     socket.data.storeId = context.storeId
+    socket.data.authenticated = false
 
-    try {
-      const cookieHeader = socket.handshake.headers.cookie ?? ''
-      // @fastify/jwt のヘルパーは HTTP リクエストオブジェクト前提なので生ヘッダーから手動パース
-      const tokenCookie = cookieHeader
-        .split(';')
-        .map(c => c.trim())
-        .find(c => c.startsWith('token='))
-      if (!tokenCookie) {
-        socket.data.authenticated = false
-        return next()
-      }
-      const token = tokenCookie.slice('token='.length)
-      const payload = fastify.jwt.verify<JwtPayload>(token)
+    // @fastify/jwt のヘルパーは HTTP リクエストオブジェクト前提なので生ヘッダーから手動パース
+    const cookieHeader = socket.handshake.headers.cookie ?? ''
+    const cookies = new Map(
+      cookieHeader.split(';').map(c => c.trim()).filter(Boolean).map(c => {
+        const i = c.indexOf('=')
+        return [c.slice(0, i), c.slice(i + 1)] as const
+      })
+    )
+
+    const applyAuth = (payload: JwtPayload, exp: number) => {
       // Host 由来の storeId と JWT 内の storeId が一致しない場合はトークン再生とみなし未認証扱いにする
       socket.data.authenticated = payload.type === 'staff' && payload.storeId === context.storeId
+      if (socket.data.authenticated) {
+        socket.data.expiresAt = exp * 1000
+      }
+    }
+
+    const token = cookies.get('token')
+    if (token) {
+      try {
+        const payload = fastify.jwt.verify<JwtPayload>(token) as JwtPayload & { exp: number }
+        applyAuth(payload, payload.exp)
+        return next()
+      } catch {
+        // 期限切れ等の可能性があるため refresh_token での再認証を試みる
+      }
+    }
+
+    // 直前に切断→再接続した際、ブラウザの token cookie がまだ更新されていないケースがあるため
+    // HTTP の preHandler と同様に refresh_token による透過的な再認証を試みる
+    const rawRefreshToken = cookies.get('refresh_token')
+    if (!rawRefreshToken) return next()
+
+    try {
+      const outcome = await rotateRefreshToken(context.storeId, rawRefreshToken, {
+        userAgent: socket.handshake.headers['user-agent'],
+        ipAddress: socket.handshake.address,
+      })
+      if (outcome.status !== 'rotated' && outcome.status !== 'reused') return next()
+
+      const staff = await prisma.staff.findFirst({ where: { id: outcome.staffId, storeId: context.storeId } })
+      if (!staff) return next()
+
+      const expiresInSeconds = parseDurationSeconds(process.env.ACCESS_TOKEN_EXPIRES_IN ?? '15m')
+      applyAuth(
+        { type: 'staff', userId: staff.id, username: staff.username, role: staff.role, storeId: staff.storeId },
+        Math.floor(Date.now() / 1000) + expiresInSeconds,
+      )
       next()
-    } catch {
-      socket.data.authenticated = false
+    } catch (e) {
+      fastify.log.error(e, 'socket refresh-token rotation error')
       next()
     }
   })
 
   io.on('connection', (socket) => {
     fastify.log.info(`client connected: ${socket.id}`)
-    if (socket.data.authenticated) {
-      socket.join(`store:${socket.data.storeId}`)
+    // 客用画面はゲスト接続のため未認証だが、注文・グループ更新等の broadcast は受け取る必要がある
+    socket.join(`store:${socket.data.storeId}`)
+
+    // アクセストークン失効後も接続を維持したまま認証済み扱いになり続けないよう、
+    // 有効期限で切断してクライアントの自動再接続時に再認証させる
+    if (socket.data.authenticated && socket.data.expiresAt) {
+      const timer = setTimeout(() => {
+        socket.disconnect(true)
+      }, Math.max(socket.data.expiresAt - Date.now(), 0))
+      socket.on('disconnect', () => clearTimeout(timer))
     }
 
     socket.on('order:complete', async (itemId) => {
       if (!socket.data.authenticated) return
       try {
-        const order = await prisma.orderItem.findFirst({ where: { id: itemId, storeId: socket.data.storeId } })
+        const order = await prisma.orderItem.findFirst({
+          where: { id: itemId, storeId: socket.data.storeId },
+          include: { group: { include: { session: true } } },
+        })
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
         if (!order || order.status !== 'pending') return
+        // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
+        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'ready' },
@@ -85,9 +134,14 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     socket.on('order:serve', async (itemId) => {
       if (!socket.data.authenticated) return
       try {
-        const order = await prisma.orderItem.findFirst({ where: { id: itemId, storeId: socket.data.storeId } })
+        const order = await prisma.orderItem.findFirst({
+          where: { id: itemId, storeId: socket.data.storeId },
+          include: { group: { include: { session: true } } },
+        })
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける
         if (!order || order.status !== 'ready') return
+        // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
+        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'served' },
