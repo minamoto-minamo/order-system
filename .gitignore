@@ -19,4 +19,7 @@ test-results/
 # OS
 .DS_Store
 
+# Scratch work output (review reports, etc.)
+work/
+
 .claude/settings.local.json
