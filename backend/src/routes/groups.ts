@@ -253,8 +253,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           const from = currentGroup.status
           const to = body.status!
           if (!validTransitions[from]?.includes(to)) throw new InvalidTransitionError(from, to)
-        } else if (currentGroup.status === 'closed') {
-          // 会計済みグループは status 変更以外の更新（人数・名前・席）を許可しない
+        } else if (currentGroup.status === 'closed' || currentGroup.status === 'bill_requested') {
+          // 会計済み・会計待ちのグループは status 変更以外の更新（人数・名前・席）を許可しない
           throw new GroupStatusError()
         }
         if (body.seatIds !== undefined) {
@@ -288,7 +288,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       if (e instanceof NotFoundError) return reply.status(404).send({ error: 'グループが見つかりません' })
       if (e instanceof InvalidTransitionError) return reply.status(409).send({ error: `${e.from} から ${e.to} への遷移は許可されていません` })
       if (e instanceof SeatConflictError) return reply.status(409).send({ error: '選択した席はすでに使用中です' })
-      if (e instanceof GroupStatusError) return reply.status(409).send({ error: '会計済みのグループは変更できません' })
+      if (e instanceof GroupStatusError) return reply.status(409).send({ error: '会計済み・会計待ちのグループは変更できません' })
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
         return reply.status(409).send({ error: '選択した席はすでに使用中です' })
       }

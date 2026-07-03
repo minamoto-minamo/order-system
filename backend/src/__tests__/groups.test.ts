@@ -172,7 +172,25 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { name: 'テスト' },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '会計済みのグループは変更できません' })
+    expect(res.json()).toMatchObject({ error: '会計済み・会計待ちのグループは変更できません' })
+    expect(mockGroupUpdate).not.toHaveBeenCalled()
+  })
+
+  it('bill_requested グループへの status 以外の更新（name等）は 409 を返す', async () => {
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'bill_requested' }), update: mockGroupUpdate },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { guestCount: 5 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '会計済み・会計待ちのグループは変更できません' })
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
