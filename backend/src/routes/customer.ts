@@ -78,7 +78,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       data: { status: 'bill_requested' },
       include: { seats: true },
     })
-    fastify.io.to(`store:${request.storeId}`).emit('group:updated', toGroup(updated))
+    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', toGroup(updated))
     return reply.status(204).send()
   })
 
@@ -171,7 +171,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results = txResult.map(toOrderItem)
     for (const result of results) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:created', result)
+      fastify.io.to(`store:${request.storeId}`).to(`group:${result.groupId}`).emit('order:created', result)
     }
 
     return reply.status(201).send(results)

@@ -145,7 +145,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const results = created.map(toOrderItem)
     for (const result of results) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:created', result)
+      fastify.io.to(`store:${request.storeId}`).to(`group:${result.groupId}`).emit('order:created', result)
     }
 
     return reply.status(201).send(results)
@@ -206,9 +206,9 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const mapped = toOrderItem(result)
     // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
     if (result.status === 'cancelled') {
-      fastify.io.to(`store:${request.storeId}`).emit('order:cancelled', mapped.id)
+      fastify.io.to(`store:${request.storeId}`).to(`group:${mapped.groupId}`).emit('order:cancelled', mapped.id)
     } else {
-      fastify.io.to(`store:${request.storeId}`).emit('order:updated', mapped)
+      fastify.io.to(`store:${request.storeId}`).to(`group:${mapped.groupId}`).emit('order:updated', mapped)
     }
     return mapped
   })

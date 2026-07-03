@@ -275,7 +275,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
       const result = toGroup(group)
-      fastify.io.to(`store:${request.storeId}`).emit('group:updated', result)
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', result)
 
       const seatIds = body.seatIds ?? group.seats.map(s => s.seatId)
       const seatRecords = await prisma.seat.findMany({ where: { id: { in: seatIds } } })
@@ -437,12 +437,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
     const groupResult = toGroup(updatedGroup)
-    fastify.io.to(`store:${request.storeId}`).emit('group:updated', groupResult)
+    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', groupResult)
     for (const item of createdItems) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:created', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:created', toOrderItem(item))
     }
     for (const item of [...unapplied.restoredItems, ...unapplied.cancelledItems, ...updatedOrderItems]) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))
     }
     return groupResult
   })
@@ -497,13 +497,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     for (const item of updatedFoodItems) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))
     }
 
     if (!chargeResult) return reply.status(204).send()
 
     const result = toOrderItem(chargeResult)
-    fastify.io.to(`store:${request.storeId}`).emit('order:updated', result)
+    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', result)
     return result
   })
 
@@ -539,12 +539,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const { group, restoredItems, cancelledItems } = txResult
     const result = toGroup(group)
-    fastify.io.to(`store:${request.storeId}`).emit('group:updated', result)
+    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', result)
     for (const item of restoredItems) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))
     }
     for (const item of cancelledItems) {
-      fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
+      fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))
     }
     return result
   })

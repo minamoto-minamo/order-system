@@ -32,7 +32,9 @@ async function buildTestApp() {
   app.decorateRequest('storeId', 0)
   app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorate('io', { to: () => ({ emit: jest.fn() }), emit: jest.fn() } as any)
+  const mockIo: any = { emit: jest.fn() }
+  mockIo.to = () => mockIo
+  app.decorate('io', mockIo)
   await app.register(customerRoutes, { prefix: '/api/customer' })
   await app.ready()
   return app

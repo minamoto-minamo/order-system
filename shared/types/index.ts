@@ -138,6 +138,7 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'order:complete': (itemId: string) => void
   'order:serve':    (itemId: string) => void
+  'group:join':     (groupId: string) => void
 }
 
 // ============================================================

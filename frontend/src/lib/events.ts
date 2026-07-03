@@ -24,5 +24,6 @@ export const SOCKET_EVENTS = {
   settingsUpdated:    s('settings:updated'),
   orderComplete:      c('order:complete'),
   orderServe:         c('order:serve'),
+  groupJoin:          c('group:join'),
   staffCalled:        s('staff:called'),
 } as const

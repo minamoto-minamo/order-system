@@ -97,8 +97,11 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
 
   io.on('connection', (socket) => {
     fastify.log.info(`client connected: ${socket.id}`)
-    // 客用画面はゲスト接続のため未認証だが、注文・グループ更新等の broadcast は受け取る必要がある
-    socket.join(`store:${socket.data.storeId}`)
+    // スタッフ（認証済み）は店舗全体の可視性が必要なため store ルームに自動 join する。
+    // 客用ゲスト接続は未認証のため、group:join で検証済みの自グループルームにのみ join させる
+    if (socket.data.authenticated) {
+      socket.join(`store:${socket.data.storeId}`)
+    }
 
     // アクセストークン失効後も接続を維持したまま認証済み扱いになり続けないよう、
     // 有効期限で切断してクライアントの自動再接続時に再認証させる
@@ -108,6 +111,17 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       }, Math.max(socket.data.expiresAt - Date.now(), 0))
       socket.on('disconnect', () => clearTimeout(timer))
     }
+
+    // 客用ゲスト接続が自グループの更新のみ受信できるよう、group が自分の storeId に属することを検証してから join する
+    socket.on('group:join', async (groupId) => {
+      try {
+        const group = await prisma.group.findFirst({ where: { id: groupId, storeId: socket.data.storeId } })
+        if (!group) return
+        socket.join(`group:${groupId}`)
+      } catch (e) {
+        fastify.log.error(e, 'group:join error')
+      }
+    })
 
     socket.on('order:complete', async (itemId) => {
       if (!socket.data.authenticated) return
@@ -124,7 +138,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId },
           data: { status: 'ready' },
         })
-        io.to(`store:${socket.data.storeId}`).emit('order:updated', toOrderItem(updated))
+        io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:complete error')
         socket.emit('error', { message: '注文完了の処理に失敗しました' })
@@ -146,7 +160,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId },
           data: { status: 'served' },
         })
-        io.to(`store:${socket.data.storeId}`).emit('order:updated', toOrderItem(updated))
+        io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:serve error')
         socket.emit('error', { message: '提供完了の処理に失敗しました' })

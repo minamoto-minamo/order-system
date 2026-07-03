@@ -95,5 +95,6 @@ src/
 | Server → Client | `session:updated`                 | セッション開閉時       |
 | Server → Client | `settings:updated`                | 設定更新時             |
 | Client → Server | `order:complete` / `order:serve`  | キッチンからの状態変更 |
+| Client → Server | `group:join`                      | 客用ゲスト接続が自グループの更新を受信するための join |
 
-emit は各ルートハンドラ内で `fastify.io.emit(...)` を呼ぶ。
+emit は各ルートハンドラ内で `fastify.io.to(room).emit(...)` を呼ぶ。認証済みスタッフは `store:${storeId}` ルームに自動 join するが、未認証の客用ゲスト接続は `group:join` で検証済みの `group:${groupId}` ルームにのみ join する。注文・グループ関連の emit は原則 `store` と `group` の両ルームへ配信する（`group:created` と `staff:called` は例外でスタッフのみ）。

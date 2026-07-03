@@ -43,7 +43,9 @@ async function buildTestApp() {
   })
   // io.emit のスタブ（型チェックを回避するため any でキャスト）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorate('io', { to: () => ({ emit: jest.fn() }), emit: jest.fn() } as any)
+  const mockIo: any = { emit: jest.fn() }
+  mockIo.to = () => mockIo
+  app.decorate('io', mockIo)
   await app.register(groupsRoutes, { prefix: '/api/groups' })
   await app.ready()
   return app

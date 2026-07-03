@@ -10,10 +10,12 @@ type FakeOrderItem = {
   id: string; status: string
   group: { status: string; session: { status: string } }
 }
+type FakeGroup = { id: string; storeId: number }
 
 const mockOrderItemFindFirst = jest.fn<(...args: unknown[]) => Promise<FakeOrderItem | null>>()
 const mockOrderItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStaffFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<FakeGroup | null>>()
 const mockVerifyRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockResolveStoreContext = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
@@ -21,6 +23,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     orderItem: { findFirst: mockOrderItemFindFirst, update: mockOrderItemUpdate },
     staff: { findFirst: mockStaffFindFirst },
+    group: { findFirst: mockGroupFindFirst },
   },
 }))
 
@@ -122,18 +125,47 @@ describe('Socket.io — 接続時の store ルーム join', () => {
   beforeAll(async () => { app = await buildTestApp() })
   afterAll(async () => { await app.close() })
 
-  it('未認証（客用画面）の接続でも store ルームに join する', () => {
+  it('未認証（客用画面）の接続では store ルームに join しない（group:join で自グループのみ join させる）', () => {
     const socket = fakeSocket({ authenticated: false, storeId: 1 })
     const [onConnection] = app.io.listeners('connection')
     onConnection(socket as never)
-    expect(socket.join).toHaveBeenCalledWith('store:1')
+    expect(socket.join).not.toHaveBeenCalledWith('store:1')
   })
 
-  it('認証済み（スタッフ）の接続でも store ルームに join する', () => {
+  it('認証済み（スタッフ）の接続では store ルームに join する', () => {
     const socket = fakeSocket({ authenticated: true, storeId: 1 })
     const [onConnection] = app.io.listeners('connection')
     onConnection(socket as never)
     expect(socket.join).toHaveBeenCalledWith('store:1')
+  })
+})
+
+describe('Socket.io — group:join（客用ゲスト接続の自グループルーム join）', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  function connect(storeId = 1) {
+    const socket = fakeSocket({ authenticated: false, storeId })
+    const [onConnection] = app.io.listeners('connection')
+    onConnection(socket as never)
+    return socket
+  }
+
+  it('自ストアに属するグループなら group ルームに join する', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue({ id: 'group-1', storeId: 1 })
+    await socket.handlers.get('group:join')!('group-1')
+    expect(mockGroupFindFirst).toHaveBeenCalledWith({ where: { id: 'group-1', storeId: 1 } })
+    expect(socket.join).toHaveBeenCalledWith('group:group-1')
+  })
+
+  it('存在しない、または他ストアのグループなら join しない', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue(null)
+    await socket.handlers.get('group:join')!('other-store-group')
+    expect(socket.join).not.toHaveBeenCalled()
   })
 })
 

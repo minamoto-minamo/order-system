@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { BottomSheetModal, IconButton } from "@/components";
 import { CustomerOrderHistory } from "./CustomerOrderHistory";
@@ -53,6 +54,13 @@ export default function CustomerOrder() {
     }).catch(() => {
       setNotFound(true);
     }).finally(() => setLoading(false));
+  }, [groupId]);
+
+  useEffect(() => {
+    const join = () => socket.emit(SE.groupJoin, groupId);
+    join();
+    socket.on('connect', join);
+    return () => { socket.off('connect', join); };
   }, [groupId]);
 
   useSocketListeners({

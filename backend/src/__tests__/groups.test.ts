@@ -45,7 +45,9 @@ async function buildTestApp() {
     catch { reply.status(401).send({ error: '認証が必要です' }) }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorate('io', { to: () => ({ emit: jest.fn() }), emit: jest.fn() } as any)
+  const mockIo: any = { emit: jest.fn() }
+  mockIo.to = () => mockIo
+  app.decorate('io', mockIo)
   await app.register(groupsRoutes, { prefix: '/api/groups' })
   await app.ready()
   return app
