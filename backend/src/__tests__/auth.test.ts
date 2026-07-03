@@ -49,6 +49,24 @@ describe('auth plugin preHandler', () => {
     await app.close()
   })
 
+  it('platform管理者トークンでstaff専用エンドポイントにアクセスすると401を返す（認可バイパス防止）', async () => {
+    const app = await buildTestApp()
+    const token = app.jwt.sign({ type: 'platform' as const, adminId: 'admin-1', username: 'platadmin' })
+    const res = await app.inject({ method: 'GET', url: '/api/protected', headers: { cookie: `token=${token}` } })
+    expect(res.statusCode).toBe(401)
+    const setCookies = res.cookies
+    expect(setCookies.find(c => c.name === 'token')?.value).toBe('')
+    await app.close()
+  })
+
+  it('JWT内のstoreIdがHost由来のstoreIdと一致しない場合は401を返す（トークン再生防止）', async () => {
+    const app = await buildTestApp()
+    const token = app.jwt.sign({ type: 'staff' as const, userId: STAFF.id, username: STAFF.username, role: STAFF.role, storeId: STORE_ID + 1 })
+    const res = await app.inject({ method: 'GET', url: '/api/protected', headers: { cookie: `token=${token}` } })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
   it('アクセストークンが無く refresh_token も無い場合は 401 を返す', async () => {
     const app = await buildTestApp()
     const res = await app.inject({ method: 'GET', url: '/api/protected' })

@@ -96,8 +96,9 @@ export default fp(async (fastify) => {
 
     try {
       await request.jwtVerify()
-      // Host 由来の storeId と JWT 内の storeId が一致しない場合はトークン再生とみなす
-      if (request.user.type === 'staff' && request.user.storeId !== request.storeId) {
+      // staff 以外（platform管理者トークン等）でのアクセス、または Host 由来の storeId と
+      // JWT 内の storeId が一致しない場合はトークン再生・誤用とみなす
+      if (request.user.type !== 'staff' || request.user.storeId !== request.storeId) {
         clearAuthCookies(reply)
         return reply.status(401).send({ error: '認証が必要です' })
       }
