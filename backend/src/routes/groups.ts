@@ -60,6 +60,59 @@ const updateBodySchema = {
 
 const VALID_GROUP_STATUSES = new Set(['active', 'bill_requested', 'closed'])
 
+// コース/飲み放題の適用を取り消す。飲み放題対象商品の価格を元に戻し、コース・飲み放題の定額課金明細を取消済みにする。
+// コース解除（DELETE /:id/course）とコース再適用時の旧コース取り消し（POST /:id/course）の両方から呼ばれる。
+async function unapplyCourse(
+  tx: Prisma.TransactionClient,
+  params: { groupId: string; storeId: number; courseId: number | null; drinkPlanId: number | null },
+) {
+  const { groupId, storeId, courseId, drinkPlanId } = params
+
+  const restoredItems = []
+  if (drinkPlanId != null) {
+    const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId }, select: { menuItemId: true } })
+    const planMenuItemIds = planItems.map(p => p.menuItemId)
+    if (planMenuItemIds.length > 0) {
+      const menuItems = await tx.menuItem.findMany({ where: { id: { in: planMenuItemIds }, storeId } })
+      const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
+      const targets = await tx.orderItem.findMany({
+        where: {
+          groupId,
+          storeId,
+          menuItemId: { in: planMenuItemIds },
+          isTakeout: false,
+          status: { not: 'cancelled' },
+        },
+      })
+      for (const target of targets) {
+        const menuItem = menuItemMap.get(target.menuItemId!)
+        if (!menuItem) continue
+        const updated = await tx.orderItem.update({ where: { id: target.id }, data: { price: menuItem.price } })
+        restoredItems.push(updated)
+      }
+    }
+  }
+
+  const cancelledItems = []
+  if (courseId != null) {
+    const chargeItems = await tx.orderItem.findMany({
+      where: {
+        groupId,
+        storeId,
+        isCourseCharge: true,
+        courseId,
+        status: { not: 'cancelled' },
+      },
+    })
+    for (const chargeItem of chargeItems) {
+      const updated = await tx.orderItem.update({ where: { id: chargeItem.id }, data: { status: 'cancelled' } })
+      cancelledItems.push(updated)
+    }
+  }
+
+  return { restoredItems, cancelledItems }
+}
+
 const groupsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
     const { sessionId, status } = request.query as { sessionId?: string; status?: string | string[] }
@@ -258,6 +311,16 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       const currentGroup = await tx.group.findUnique({ where: { id } })
       if (currentGroup?.status !== 'active') throw new GroupStatusError()
 
+      // 既にコースが適用されている場合は、二重課金にならないよう先に旧コースを取り消してから新コースを適用する
+      const unapplied = currentGroup.courseId != null
+        ? await unapplyCourse(tx, {
+            groupId: id,
+            storeId: request.storeId,
+            courseId: currentGroup.courseId,
+            drinkPlanId: currentGroup.drinkPlanId,
+          })
+        : { restoredItems: [], cancelledItems: [] }
+
       const createdItems = []
       if (course.price > 0) {
         const chargeItem = await tx.orderItem.create({
@@ -358,7 +421,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         data: { courseId: course.id, drinkPlanId: course.drinkPlanId },
         include: { seats: true },
       })
-      return { createdItems, updatedOrderItems, updatedGroup }
+      return { createdItems, updatedOrderItems, updatedGroup, unapplied }
     }).catch(e => {
       if (e instanceof GroupStatusError || e instanceof SoldOutError) return e
       throw e
@@ -367,13 +430,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     if (txResult instanceof GroupStatusError) return reply.status(409).send({ error: 'このグループにはコースを適用できません' })
     if (txResult instanceof SoldOutError) return reply.status(409).send({ error: 'コース内に品切れの商品が含まれています' })
 
-    const { createdItems, updatedOrderItems, updatedGroup } = txResult
+    const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
     const groupResult = toGroup(updatedGroup)
     fastify.io.to(`store:${request.storeId}`).emit('group:updated', groupResult)
     for (const item of createdItems) {
       fastify.io.to(`store:${request.storeId}`).emit('order:created', toOrderItem(item))
     }
-    for (const item of updatedOrderItems) {
+    for (const item of [...unapplied.restoredItems, ...unapplied.cancelledItems, ...updatedOrderItems]) {
       fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
     }
     return groupResult
@@ -410,51 +473,18 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const existing = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!existing) return reply.status(404).send({ error: 'グループが見つかりません' })
+    if (existing.status !== 'active') return reply.status(409).send({ error: 'このグループのコースは解除できません' })
 
-    const { group, restoredItems, cancelledItems } = await prisma.$transaction(async (tx) => {
-      const restoredItems = []
-      // 飲み放題解除時は、プラン対象商品の価格を現在のメニュー価格に書き戻す（テイクアウトはプラン対象外）
-      if (existing.drinkPlanId != null) {
-        const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId: existing.drinkPlanId }, select: { menuItemId: true } })
-        const planMenuItemIds = planItems.map(p => p.menuItemId)
-        if (planMenuItemIds.length > 0) {
-          const menuItems = await tx.menuItem.findMany({ where: { id: { in: planMenuItemIds }, storeId: request.storeId } })
-          const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
-          const targets = await tx.orderItem.findMany({
-            where: {
-              groupId: id,
-              storeId: request.storeId,
-              menuItemId: { in: planMenuItemIds },
-              isTakeout: false,
-              status: { not: 'cancelled' },
-            },
-          })
-          for (const target of targets) {
-            const menuItem = menuItemMap.get(target.menuItemId!)
-            if (!menuItem) continue
-            const updated = await tx.orderItem.update({ where: { id: target.id }, data: { price: menuItem.price } })
-            restoredItems.push(updated)
-          }
-        }
-      }
+    const txResult = await prisma.$transaction(async (tx) => {
+      const currentGroup = await tx.group.findUnique({ where: { id } })
+      if (currentGroup?.status !== 'active') throw new GroupStatusError()
 
-      // コース料金・飲み放題料金の定額課金明細は取消済み扱いにする（注文履歴から除外・会計/レポート集計対象外になる）
-      const cancelledItems = []
-      if (existing.courseId != null) {
-        const chargeItems = await tx.orderItem.findMany({
-          where: {
-            groupId: id,
-            storeId: request.storeId,
-            isCourseCharge: true,
-            courseId: existing.courseId,
-            status: { not: 'cancelled' },
-          },
-        })
-        for (const chargeItem of chargeItems) {
-          const updated = await tx.orderItem.update({ where: { id: chargeItem.id }, data: { status: 'cancelled' } })
-          cancelledItems.push(updated)
-        }
-      }
+      const { restoredItems, cancelledItems } = await unapplyCourse(tx, {
+        groupId: id,
+        storeId: request.storeId,
+        courseId: currentGroup.courseId,
+        drinkPlanId: currentGroup.drinkPlanId,
+      })
 
       const group = await tx.group.update({
         where: { id },
@@ -462,8 +492,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         include: { seats: true },
       })
       return { group, restoredItems, cancelledItems }
+    }).catch(e => {
+      if (e instanceof GroupStatusError) return e
+      throw e
     })
 
+    if (txResult instanceof GroupStatusError) return reply.status(409).send({ error: 'このグループのコースは解除できません' })
+
+    const { group, restoredItems, cancelledItems } = txResult
     const result = toGroup(group)
     fastify.io.to(`store:${request.storeId}`).emit('group:updated', result)
     for (const item of restoredItems) {
