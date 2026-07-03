@@ -19,7 +19,7 @@ export function ToggleButtonGroup({ options, value, onChange }: ToggleButtonGrou
       {options.map(opt => (
         <button
           key={opt.key}
-          className={`px-2.5 py-1 text-[10px] border-none cursor-pointer ${
+          className={`px-2.5 py-1 text-caption border-none cursor-pointer ${
             value === opt.key
               ? (opt.activeClass ?? "bg-ink text-white")
               : "bg-white text-dim"
