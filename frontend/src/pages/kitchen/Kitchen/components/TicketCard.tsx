@@ -29,7 +29,7 @@ export function TicketCard({ order, accentColor, onComplete, onClick }: {
         <span className="text-caption text-dim">{timeStr(order.orderedAt)}</span>
       </div>
       <button
-        className="complete-btn w-full bg-surface-deep border border-line rounded-[5px] py-1.25 text-label text-secondary"
+        className="complete-btn w-full bg-surface-deep border border-line rounded-[5px] py-2.5 text-label text-secondary"
         onClick={(e) => { e.stopPropagation(); onComplete(order.id); }}
       >
         {t('kitchen.complete')}
