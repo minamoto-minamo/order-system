@@ -73,8 +73,6 @@ async function unapplyCourse(
     const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId }, select: { menuItemId: true } })
     const planMenuItemIds = planItems.map(p => p.menuItemId)
     if (planMenuItemIds.length > 0) {
-      const menuItems = await tx.menuItem.findMany({ where: { id: { in: planMenuItemIds }, storeId } })
-      const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
       const targets = await tx.orderItem.findMany({
         where: {
           groupId,
@@ -85,9 +83,11 @@ async function unapplyCourse(
         },
       })
       for (const target of targets) {
-        const menuItem = menuItemMap.get(target.menuItemId!)
-        if (!menuItem) continue
-        const updated = await tx.orderItem.update({ where: { id: target.id }, data: { price: menuItem.price } })
+        // originalPrice はゼロ化時点の注文価格スナップショット。現在のメニュー価格ではなくこちらで復元する
+        const updated = await tx.orderItem.update({
+          where: { id: target.id },
+          data: { price: target.originalPrice ?? target.price, originalPrice: null },
+        })
         restoredItems.push(updated)
       }
     }
@@ -399,17 +399,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId: drinkPlan.id }, select: { menuItemId: true } })
         const planMenuItemIds = planItems.map(p => p.menuItemId)
         if (planMenuItemIds.length > 0) {
-          await tx.orderItem.updateMany({
-            where: {
-              groupId: id,
-              storeId: request.storeId,
-              menuItemId: { in: planMenuItemIds },
-              isTakeout: false,
-              status: { not: 'cancelled' },
-            },
-            data: { price: 0 },
-          })
-          const zeroed = await tx.orderItem.findMany({
+          const targets = await tx.orderItem.findMany({
             where: {
               groupId: id,
               storeId: request.storeId,
@@ -418,7 +408,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               status: { not: 'cancelled' },
             },
           })
-          updatedOrderItems.push(...zeroed)
+          // 解除時に注文時点の価格へ復元できるよう、ゼロ化前の price を originalPrice に退避する
+          for (const target of targets) {
+            const zeroed = await tx.orderItem.update({
+              where: { id: target.id },
+              data: { price: 0, originalPrice: target.price },
+            })
+            updatedOrderItems.push(zeroed)
+          }
         }
       }
 

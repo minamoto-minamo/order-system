@@ -145,13 +145,17 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       const current = await tx.group.findUnique({ where: { id: body.groupId }, select: { status: true } })
       if (current?.status !== 'active') return null
       return Promise.all(
-        body.items.map(item =>
-          tx.orderItem.create({
+        body.items.map(item => {
+          const isPlanItem = planMenuItemIds?.has(item.menuItemId) ?? false
+          // 飲み放題対象商品は price を 0 にするため、解除時に復元できるよう元価格を originalPrice に退避する
+          const originalPrice = menuItemMap.get(item.menuItemId)!.price
+          return tx.orderItem.create({
             data: {
               groupId: body.groupId,
               menuItemId: item.menuItemId,
               menuItemName: menuItemMap.get(item.menuItemId)!.name,
-              price: planMenuItemIds?.has(item.menuItemId) ? 0 : menuItemMap.get(item.menuItemId)!.price,
+              price: isPlanItem ? 0 : originalPrice,
+              originalPrice: isPlanItem ? originalPrice : null,
               qty: item.qty,
               isTakeout: false,
               taxRate: taxRateInHouse,
@@ -159,7 +163,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               storeId: request.storeId,
             },
           })
-        )
+        })
       )
     })
 

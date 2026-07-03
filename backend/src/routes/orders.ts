@@ -119,13 +119,16 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         const isTakeout = item.isTakeout ?? false
         // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
         const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
+        // 飲み放題対象商品は price を 0 にするため、解除時に復元できるよう元価格を originalPrice に退避する
+        const originalPrice = menuItemMap.get(item.menuItemId)!.price
         return tx.orderItem.create({
           data: {
             groupId: body.groupId,
             menuItemId: item.menuItemId,
             // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
             menuItemName: menuItemMap.get(item.menuItemId)!.name,
-            price: isPlanItem ? 0 : menuItemMap.get(item.menuItemId)!.price,
+            price: isPlanItem ? 0 : originalPrice,
+            originalPrice: isPlanItem ? originalPrice : null,
             qty: item.qty,
             isTakeout,
             taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,

@@ -60,7 +60,7 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 0, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() })
+    const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 0, originalPrice: 600, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() })
     mockTx(mockCreate)
 
     const res = await app.inject({
@@ -70,7 +70,7 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
 
     expect(res.statusCode).toBe(201)
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ menuItemId: 1, price: 0 }),
+      data: expect.objectContaining({ menuItemId: 1, price: 0, originalPrice: 600 }),
     }))
   })
 
@@ -79,7 +79,7 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 600, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() })
+    const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 600, originalPrice: null, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() })
     mockTx(mockCreate)
 
     const res = await app.inject({
@@ -90,7 +90,7 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     expect(res.statusCode).toBe(201)
     expect(mockDrinkPlanItemFindMany).not.toHaveBeenCalled()
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ menuItemId: 1, price: 600 }),
+      data: expect.objectContaining({ menuItemId: 1, price: 600, originalPrice: null }),
     }))
   })
 

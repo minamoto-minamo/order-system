@@ -86,7 +86,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
 
     expect(res.statusCode).toBe(201)
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ menuItemId: 1, price: 0 }),
+      data: expect.objectContaining({ menuItemId: 1, price: 0, originalPrice: 600 }),
     }))
   })
 
@@ -107,7 +107,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
 
     expect(res.statusCode).toBe(201)
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ menuItemId: 1, price: 600 }),
+      data: expect.objectContaining({ menuItemId: 1, price: 600, originalPrice: null }),
     }))
   })
 
@@ -128,7 +128,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
     expect(res.statusCode).toBe(201)
     expect(mockDrinkPlanItemFindMany).not.toHaveBeenCalled()
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ menuItemId: 1, price: 600 }),
+      data: expect.objectContaining({ menuItemId: 1, price: 600, originalPrice: null }),
     }))
   })
 })
