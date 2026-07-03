@@ -456,20 +456,53 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     if (group.status !== 'active') return reply.status(409).send({ error: 'このグループのコース人数は変更できません' })
     if (group.courseId == null) return reply.status(409).send({ error: 'コースが適用されていません' })
 
-    const chargeItem = await prisma.orderItem.findFirst({
-      where: {
-        groupId: id,
-        storeId: request.storeId,
-        isCourseCharge: true,
-        isDrinkPlanCharge: false,
-        courseId: group.courseId,
-        status: { not: 'cancelled' },
-      },
-    })
-    if (!chargeItem) return reply.status(204).send()
+    const course = await prisma.course.findFirst({ where: { id: group.courseId, storeId: request.storeId }, include: { foodItems: true } })
+    const foodItemQtyByMenuItemId = new Map((course?.foodItems ?? []).map(fi => [fi.menuItemId, fi.qty]))
 
-    const updated = await prisma.orderItem.update({ where: { id: chargeItem.id }, data: { qty } })
-    const result = toOrderItem(updated)
+    const { chargeResult, updatedFoodItems } = await prisma.$transaction(async (tx) => {
+      const chargeItem = await tx.orderItem.findFirst({
+        where: {
+          groupId: id,
+          storeId: request.storeId,
+          isCourseCharge: true,
+          isDrinkPlanCharge: false,
+          courseId: group.courseId,
+          status: { not: 'cancelled' },
+        },
+      })
+      const chargeResult = chargeItem ? await tx.orderItem.update({ where: { id: chargeItem.id }, data: { qty } }) : null
+
+      // コース料金明細だけでなく、コース適用時に自動生成された食事明細（1人あたり qty）も
+      // 人数変更に応じて比例して再計算する。手動追加の明細（courseId が異なる／null）は対象外
+      const updatedFoodItems = []
+      if (foodItemQtyByMenuItemId.size > 0) {
+        const foodItems = await tx.orderItem.findMany({
+          where: {
+            groupId: id,
+            storeId: request.storeId,
+            courseId: group.courseId,
+            isCourseCharge: false,
+            status: { not: 'cancelled' },
+          },
+        })
+        for (const item of foodItems) {
+          const perGuestQty = item.menuItemId != null ? foodItemQtyByMenuItemId.get(item.menuItemId) : undefined
+          if (perGuestQty == null) continue
+          const updatedFoodItem = await tx.orderItem.update({ where: { id: item.id }, data: { qty: perGuestQty * qty } })
+          updatedFoodItems.push(updatedFoodItem)
+        }
+      }
+
+      return { chargeResult, updatedFoodItems }
+    })
+
+    for (const item of updatedFoodItems) {
+      fastify.io.to(`store:${request.storeId}`).emit('order:updated', toOrderItem(item))
+    }
+
+    if (!chargeResult) return reply.status(204).send()
+
+    const result = toOrderItem(chargeResult)
     fastify.io.to(`store:${request.storeId}`).emit('order:updated', result)
     return result
   })
