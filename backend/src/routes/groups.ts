@@ -95,17 +95,19 @@ async function unapplyCourse(
 
   const cancelledItems = []
   if (courseId != null) {
-    const chargeItems = await tx.orderItem.findMany({
+    // 定額課金明細（isCourseCharge:true）に加え、courseId 適用時に CourseFoodItem から自動生成された
+    // 個別食事明細（isCourseCharge:false・price:0）も対象。courseId は他の注文経路では設定されないため、
+    // courseId が一致する時点でコース由来の明細と確定できる
+    const courseItems = await tx.orderItem.findMany({
       where: {
         groupId,
         storeId,
-        isCourseCharge: true,
         courseId,
         status: { not: 'cancelled' },
       },
     })
-    for (const chargeItem of chargeItems) {
-      const updated = await tx.orderItem.update({ where: { id: chargeItem.id }, data: { status: 'cancelled' } })
+    for (const courseItem of courseItems) {
+      const updated = await tx.orderItem.update({ where: { id: courseItem.id }, data: { status: 'cancelled' } })
       cancelledItems.push(updated)
     }
   }

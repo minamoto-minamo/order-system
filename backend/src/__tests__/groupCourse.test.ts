@@ -283,7 +283,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     const mockOrderItemCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(mockNewChargeItem)
     const mockOrderItemFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
       .mockImplementation(async (args: any) =>
-        'isCourseCharge' in args.where ? [oldChargeItem] : [drinkItem])
+        'courseId' in args.where ? [oldChargeItem] : [drinkItem])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([{ id: 20, name: 'ビール', price: 500 }]) },
@@ -313,6 +313,53 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     }))
     expect(mockOrderItemCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ menuItemName: '新コース', price: 4000, courseId: 2 }),
+    }))
+  })
+
+  it('旧コースの食事明細（isCourseCharge:false）も切替時にキャンセルされる（重複蓄積防止）', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 2, name: '新コース', price: 4000, drinkPlanId: null, foodItems: [] })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 2, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
+    const oldChargeItem = { id: 'old-charge', groupId: GROUP_ID, menuItemId: null, menuItemName: '旧コース', price: 3000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
+    const oldFoodItem = { id: 'old-food', groupId: GROUP_ID, menuItemId: 10, menuItemName: '唐揚げ', price: 0, qty: 4, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: false, isDrinkPlanCharge: false, orderedAt: new Date() }
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+      .mockImplementation(async (args: any) => ({
+        ...(args.where.id === 'old-charge' ? oldChargeItem : oldFoodItem),
+        status: 'cancelled',
+      }))
+    const mockNewChargeItem = { id: 'new-charge', groupId: GROUP_ID, menuItemId: null, menuItemName: '新コース', price: 4000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 2, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
+    const mockOrderItemCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(mockNewChargeItem)
+    const mockOrderItemFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
+      .mockResolvedValue([oldChargeItem, oldFoodItem])
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        menuItem: { findMany: () => Promise.resolve([]) },
+        orderItem: {
+          create: mockOrderItemCreate,
+          update: mockOrderItemUpdateInTx,
+          findMany: mockOrderItemFindMany,
+        },
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }), update: () => Promise.resolve(updatedGroup) },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 2, qty: 2 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ groupId: GROUP_ID, courseId: 1 }),
+    }))
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'old-charge' },
+      data: { status: 'cancelled' },
+    }))
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'old-food' },
+      data: { status: 'cancelled' },
     }))
   })
 })
