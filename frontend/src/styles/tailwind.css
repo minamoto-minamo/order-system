@@ -23,6 +23,7 @@
   --color-bill-bg:     #fff9f0;
   --color-bill-border: #f0c060;
   --color-bill-glow:   #f0c06044;
+  --color-bill-fg:     #7a4a06;
 
   /* ── Danger: error / delete ── */
   --color-danger:        #e53935;

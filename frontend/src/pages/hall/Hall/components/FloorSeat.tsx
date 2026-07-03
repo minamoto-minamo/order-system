@@ -44,11 +44,11 @@ export function FloorSeat({ seat, status, group, readyCount, isSelected, onTap, 
     >
       <span className="text-caption font-medium" style={{ color: st.text }}>{seat.label}</span>
       {status === "bill" && (
-        <span className="text-nano font-medium text-bill">{t('hall.billShort')}</span>
+        <span className="text-nano font-medium text-bill-fg">{t('hall.billShort')}</span>
       )}
       {status === "occupied" && group && (
         readyCount > 0
-          ? <span className="text-nano font-medium text-amber">🍽 {readyCount}件</span>
+          ? <span className="text-nano font-medium text-amber-fg">🍽 {readyCount}件</span>
           : <span className="text-nano text-dim">{t('hall.occupied')}</span>
       )}
     </div>
