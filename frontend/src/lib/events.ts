@@ -26,4 +26,5 @@ export const SOCKET_EVENTS = {
   orderServe:         c('order:serve'),
   groupJoin:          c('group:join'),
   staffCalled:        s('staff:called'),
+  error:              s('error'),
 } as const
