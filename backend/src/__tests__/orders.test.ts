@@ -191,7 +191,7 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
   afterAll(async () => { await app.close() })
   beforeEach(() => { jest.clearAllMocks() })
 
-  function mockCancelTx(order: { status: string; qty: number; group: { status: string; session: { status: string } } }, updateFn = jest.fn<any>()) {
+  function mockCancelTx(order: { status: string; qty: number; group: { status: string; session: { status: string } }; isCourseCharge?: boolean }, updateFn = jest.fn<any>()) {
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
         orderItem: {
@@ -246,6 +246,21 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
 
     expect(res.statusCode).toBe(200)
     expect(updateFn).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'cancelled' } }))
+  })
+
+  it('コース・飲み放題の定額課金明細（isCourseCharge:true）はキャンセルできない', async () => {
+    const updateFn = jest.fn<any>()
+    mockCancelTx({ status: 'served', qty: 1, group: { status: 'active', session: { status: 'open' } }, isCourseCharge: true }, updateFn)
+
+    const res = await app.inject({
+      method: 'PUT', url: '/api/orders/item-1/cancel',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 1 },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: 'コース・飲み放題料金はこの操作では取消できません' })
+    expect(updateFn).not.toHaveBeenCalled()
   })
 
   it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す（同一注文への同時キャンセル対策）', async () => {

@@ -168,6 +168,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         if (order.group.status === 'closed' || order.group.session.status === 'closed') {
           return { conflict: true }
         }
+        // コース/飲み放題の定額課金明細はこのAPIでは取消不可（Group.courseId等との整合が崩れるため POST/DELETE /groups/:id/course を使う）
+        if (order.isCourseCharge) {
+          return { conflict: true, courseCharge: true as const }
+        }
 
         if (qty >= order.qty) {
           return tx.orderItem.update({
@@ -191,7 +195,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
-    if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })
+    if ('conflict' in result) {
+      if ('courseCharge' in result) return reply.status(409).send({ error: 'コース・飲み放題料金はこの操作では取消できません' })
+      return reply.status(409).send({ error: 'キャンセルできないステータスです' })
+    }
 
     const mapped = toOrderItem(result)
     // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
