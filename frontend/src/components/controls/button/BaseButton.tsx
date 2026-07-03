@@ -5,6 +5,7 @@ const VARIANT_CLASSES = {
   secondary: "border border-line bg-white text-dim",
   ghost: "bg-transparent border-none",
   danger: "bg-danger text-white border-none",
+  takeout: "bg-amber text-white border-none",
 } as const;
 
 type Variant = keyof typeof VARIANT_CLASSES;
