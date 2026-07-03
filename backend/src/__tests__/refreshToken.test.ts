@@ -37,7 +37,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
   },
 }))
 
-const { hashToken, rotateRefreshToken, issueRefreshToken, revokeTokenByRaw, revokeTokenById, listActiveSessions } =
+const { hashToken, rotateRefreshToken, verifyRefreshToken, issueRefreshToken, revokeTokenByRaw, revokeTokenById, listActiveSessions } =
   await import('../lib/refreshToken.js')
 
 const STAFF_ID = 'staff-1'
@@ -225,6 +225,43 @@ describe('rotateRefreshToken', () => {
 
     expect(result).toEqual({ status: 'reused', staffId: STAFF_ID })
     expect(mockFindUniqueToken).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('verifyRefreshToken', () => {
+  it('該当トークンが存在しない場合は invalid を返す', async () => {
+    mockFindUniqueToken.mockResolvedValue(null)
+    const result = await verifyRefreshToken('nonexistent')
+    expect(result).toEqual({ status: 'invalid' })
+  })
+
+  it('既に revoke 済みの場合は invalid を返す', async () => {
+    mockFindUniqueToken.mockResolvedValue({
+      id: 'row-1', staffId: STAFF_ID, revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    const result = await verifyRefreshToken('raw')
+    expect(result).toEqual({ status: 'invalid' })
+  })
+
+  it('期限切れの場合は expired を返す', async () => {
+    mockFindUniqueToken.mockResolvedValue({
+      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      expiresAt: new Date(Date.now() - 1000),
+    })
+    const result = await verifyRefreshToken('raw')
+    expect(result).toEqual({ status: 'expired' })
+  })
+
+  it('未失効・未失効期限内の場合は valid を返し、DBを書き換えない', async () => {
+    mockFindUniqueToken.mockResolvedValue({
+      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    const result = await verifyRefreshToken('raw')
+    expect(result).toEqual({ status: 'valid', staffId: STAFF_ID })
+    expect(mockUpdateManyToken).not.toHaveBeenCalled()
+    expect(mockCreateToken).not.toHaveBeenCalled()
   })
 })
 

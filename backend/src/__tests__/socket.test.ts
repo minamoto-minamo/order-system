@@ -14,7 +14,7 @@ type FakeOrderItem = {
 const mockOrderItemFindFirst = jest.fn<(...args: unknown[]) => Promise<FakeOrderItem | null>>()
 const mockOrderItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStaffFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
-const mockRotateRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockVerifyRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockResolveStoreContext = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
@@ -25,7 +25,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 }))
 
 jest.unstable_mockModule('../lib/refreshToken.js', () => ({
-  rotateRefreshToken: mockRotateRefreshToken,
+  verifyRefreshToken: mockVerifyRefreshToken,
 }))
 
 jest.unstable_mockModule('../lib/store.js', () => ({
@@ -84,7 +84,7 @@ describe('Socket.io — io.use 認証ミドルウェア（refresh_token によ�
     const err = await runMiddleware(app, socket)
     expect(err).toBeUndefined()
     expect(socket.data.authenticated).toBe(true)
-    expect(mockRotateRefreshToken).not.toHaveBeenCalled()
+    expect(mockVerifyRefreshToken).not.toHaveBeenCalled()
   })
 
   it('アクセストークンが失効しており refresh_token も無い場合は未認証のまま接続を許可する', async () => {
@@ -92,11 +92,11 @@ describe('Socket.io — io.use 認証ミドルウェア（refresh_token によ�
     const err = await runMiddleware(app, socket)
     expect(err).toBeUndefined()
     expect(socket.data.authenticated).toBe(false)
-    expect(mockRotateRefreshToken).not.toHaveBeenCalled()
+    expect(mockVerifyRefreshToken).not.toHaveBeenCalled()
   })
 
-  it('アクセストークン失効かつ refresh_token が rotated の場合は再認証する（再接続の取りこぼし対策）', async () => {
-    mockRotateRefreshToken.mockResolvedValue({ status: 'rotated', staffId: STAFF.id, token: { raw: 'x', id: 'c1', expiresAt: new Date() } })
+  it('アクセストークン失効かつ refresh_token が有効な場合は再認証する（再接続の取りこぼし対策）。トークンは消費（ローテーション）しない', async () => {
+    mockVerifyRefreshToken.mockResolvedValue({ status: 'valid', staffId: STAFF.id })
     mockStaffFindFirst.mockResolvedValue(STAFF)
     const socket = fakeAuthSocket({ host: 'store1.localhost', cookie: 'token=invalid-or-expired; refresh_token=old-raw-token' })
     const err = await runMiddleware(app, socket)
@@ -105,18 +105,10 @@ describe('Socket.io — io.use 認証ミドルウェア（refresh_token によ�
     expect(socket.data.expiresAt).toBeGreaterThan(Date.now())
   })
 
-  it('アクセストークン失効かつ refresh_token が reused（猶予期間内重複）の場合も再認証する', async () => {
-    mockRotateRefreshToken.mockResolvedValue({ status: 'reused', staffId: STAFF.id })
-    mockStaffFindFirst.mockResolvedValue(STAFF)
-    const socket = fakeAuthSocket({ host: 'store1.localhost', cookie: 'token=invalid-or-expired; refresh_token=old-raw-token' })
-    const err = await runMiddleware(app, socket)
-    expect(socket.data.authenticated).toBe(true)
-  })
-
-  it.each(['invalid', 'expired', 'reuse-detected'] as const)(
+  it.each(['invalid', 'expired'] as const)(
     'refresh_token が %s の場合は未認証のまま接続を許可する',
     async (status) => {
-      mockRotateRefreshToken.mockResolvedValue({ status, staffId: STAFF.id })
+      mockVerifyRefreshToken.mockResolvedValue({ status, staffId: STAFF.id })
       const socket = fakeAuthSocket({ host: 'store1.localhost', cookie: 'token=invalid-or-expired; refresh_token=bad-raw-token' })
       const err = await runMiddleware(app, socket)
       expect(err).toBeUndefined()

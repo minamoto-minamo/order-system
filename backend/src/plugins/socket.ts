@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
 import { corsOriginValidator, parseDurationSeconds } from '../lib/config.js'
 import { resolveStoreContext } from '../lib/store.js'
-import { rotateRefreshToken } from '../lib/refreshToken.js'
+import { verifyRefreshToken } from '../lib/refreshToken.js'
 import type { JwtPayload } from './auth.js'
 
 declare module 'fastify' {
@@ -69,16 +69,16 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     }
 
     // 直前に切断→再接続した際、ブラウザの token cookie がまだ更新されていないケースがあるため
-    // HTTP の preHandler と同様に refresh_token による透過的な再認証を試みる
+    // refresh_token による透過的な再認証を試みる。
+    // ここでローテーションすると新しいraw値をSet-Cookieできず（WebSocketハンドシェイクの制約）
+    // ブラウザ側cookieとDB状態がずれてしまうため、消費しない読み取り専用検証のみ行う。
+    // 実際のトークンローテーションはHTTPの /api/auth 系フローに委譲する
     const rawRefreshToken = cookies.get('refresh_token')
     if (!rawRefreshToken) return next()
 
     try {
-      const outcome = await rotateRefreshToken(context.storeId, rawRefreshToken, {
-        userAgent: socket.handshake.headers['user-agent'],
-        ipAddress: socket.handshake.address,
-      })
-      if (outcome.status !== 'rotated' && outcome.status !== 'reused') return next()
+      const outcome = await verifyRefreshToken(rawRefreshToken)
+      if (outcome.status !== 'valid') return next()
 
       const staff = await prisma.staff.findFirst({ where: { id: outcome.staffId, storeId: context.storeId } })
       if (!staff) return next()
@@ -90,7 +90,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       )
       next()
     } catch (e) {
-      fastify.log.error(e, 'socket refresh-token rotation error')
+      fastify.log.error(e, 'socket refresh-token verification error')
       next()
     }
   })

@@ -132,6 +132,21 @@ export async function rotateRefreshToken(storeId: number, rawToken: string, meta
   })
 }
 
+export type VerifyRefreshOutcome =
+  | { status: 'valid'; staffId: string }
+  | { status: 'invalid' }
+  | { status: 'expired' }
+
+// rotateRefreshToken と異なりトークンを消費・失効させない読み取り専用の検証。
+// Socket.io再接続時の透過認証など、実際のトークンローテーションはHTTPの
+// /api/auth系フローに委譲したい呼び出し元向け（ブラウザのcookieとDB状態がずれるのを防ぐ）
+export async function verifyRefreshToken(rawToken: string): Promise<VerifyRefreshOutcome> {
+  const row = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(rawToken) } })
+  if (!row || row.revokedAt !== null) return { status: 'invalid' }
+  if (row.expiresAt <= new Date()) return { status: 'expired' }
+  return { status: 'valid', staffId: row.staffId }
+}
+
 export async function revokeTokenByRaw(rawToken: string): Promise<void> {
   await prisma.refreshToken.updateMany({
     where: { tokenHash: hashToken(rawToken), revokedAt: null },
