@@ -1,4 +1,4 @@
-import { BaseButton, StatusBadge } from "@/components";
+import { BaseButton, IconButton, StatusBadge } from "@/components";
 import type { OrderItem } from "@order-system/shared";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,13 +59,13 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                   ? t('group.cookComplete')
                   : t('group.alreadyDone')}
             </BaseButton>
-            <BaseButton
-              variant="ghost"
-              className="text-lg text-dim px-1 py-0.5 leading-none"
+            <IconButton
+              className="w-8 h-8 flex items-center justify-center rounded-md text-lg text-dim"
               onClick={() => onCancelTap(item)}
+              aria-label={t('group.cancelOrder')}
             >
               ×
-            </BaseButton>
+            </IconButton>
           </div>
         ))}
       </OrderSection>
@@ -82,13 +82,13 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                 </div>
                 <div className="text-label text-muted mt-0.5">¥{item.price.toLocaleString()} · ¥{(item.price * item.qty).toLocaleString()}</div>
               </div>
-              <BaseButton
-                variant="ghost"
-                className="text-lg text-dim px-1 py-0.5 leading-none"
+              <IconButton
+                className="w-8 h-8 flex items-center justify-center rounded-md text-lg text-dim"
                 onClick={() => onCancelTap(item)}
+                aria-label={t('group.cancelOrder')}
               >
                 ×
-              </BaseButton>
+              </IconButton>
             </div>
           ))}
         </OrderSection>

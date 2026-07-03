@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { getSeatLabels } from "@/lib/utils";
+import { IconButton } from "@/components";
 import type { Group, Seat } from "@order-system/shared";
 import type { DisplayCat, DisplayOrder } from "./types";
 
@@ -30,7 +31,13 @@ export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onSer
             <div className="text-sub font-medium text-ink">{group.name}</div>
             <div className="text-label text-muted mt-0.5">{seatLabels}</div>
           </div>
-          <button onClick={onClose} className="bg-none border-none text-lg text-dim cursor-pointer">×</button>
+          <IconButton
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-md text-lg text-dim"
+            aria-label={t('common.close')}
+          >
+            ×
+          </IconButton>
         </div>
         <div className="flex-1 px-5 py-4 overflow-y-auto">
           {readyItems.length > 0 && (
