@@ -6,6 +6,7 @@ const mockCreateToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockFindFirstToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockFindManyToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockFindUniqueSetting = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockFindUniqueStaff = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 const txClient = {
   refreshToken: {
@@ -16,6 +17,9 @@ const txClient = {
   },
   setting: {
     findUnique: mockFindUniqueSetting,
+  },
+  staff: {
+    findUnique: mockFindUniqueStaff,
   },
 }
 
@@ -34,6 +38,9 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     setting: {
       findUnique: mockFindUniqueSetting,
     },
+    staff: {
+      findUnique: mockFindUniqueStaff,
+    },
   },
 }))
 
@@ -46,6 +53,7 @@ const STORE_ID = 1
 beforeEach(() => {
   jest.clearAllMocks()
   mockFindUniqueSetting.mockResolvedValue({ refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 1440 })
+  mockFindUniqueStaff.mockResolvedValue({ storeId: STORE_ID })
 })
 
 describe('hashToken', () => {
@@ -90,6 +98,27 @@ describe('rotateRefreshToken', () => {
   it('該当トークンが存在しない場合は invalid を返す', async () => {
     mockFindUniqueToken.mockResolvedValue(null)
     const result = await rotateRefreshToken(STORE_ID, 'nonexistent')
+    expect(result).toEqual({ status: 'invalid' })
+  })
+
+  it('トークンの所有 staff が別店舗に所属する場合は invalid を返す（storeId 不一致）', async () => {
+    mockFindUniqueToken.mockResolvedValue({
+      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+    })
+    mockFindUniqueStaff.mockResolvedValue({ storeId: STORE_ID + 1 })
+    const result = await rotateRefreshToken(STORE_ID, 'raw')
+    expect(result).toEqual({ status: 'invalid' })
+    expect(mockUpdateManyToken).not.toHaveBeenCalled()
+  })
+
+  it('トークンの所有 staff が既に存在しない場合は invalid を返す', async () => {
+    mockFindUniqueToken.mockResolvedValue({
+      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+    })
+    mockFindUniqueStaff.mockResolvedValue(null)
+    const result = await rotateRefreshToken(STORE_ID, 'raw')
     expect(result).toEqual({ status: 'invalid' })
   })
 

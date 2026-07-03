@@ -84,6 +84,11 @@ export async function rotateRefreshToken(storeId: number, rawToken: string, meta
     const row = await tx.refreshToken.findUnique({ where: { tokenHash: hash } })
     if (!row) return { status: 'invalid' }
 
+    // トークン自体はstoreIdを持たないため、呼び出し元のHost由来storeIdとstaffの所属storeIdが
+    // 一致するかをここで自己完結して検証する（呼び出し側の二重チェックに依存しない）
+    const staff = await tx.staff.findUnique({ where: { id: row.staffId }, select: { storeId: true } })
+    if (!staff || staff.storeId !== storeId) return { status: 'invalid' }
+
     if (row.revokedAt === null) {
       if (row.expiresAt <= now) return { status: 'expired' }
 
