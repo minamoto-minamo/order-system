@@ -215,11 +215,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       status?: string; name?: string; guestCount?: number; seatIds?: number[];
     }
 
-    const session = await prisma.session.findFirst({ where: { status: 'open', storeId: request.storeId } })
-    if (!session) return reply.status(409).send({ error: '営業中のセッションがありません' })
-
     const existingGroup = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!existingGroup) return reply.status(404).send({ error: 'グループが見つかりません' })
+
+    // 店舗内に他の open セッションがあるかではなく、対象グループ自身のセッションが営業中かを見る
+    const session = await prisma.session.findFirst({ where: { id: existingGroup.sessionId, storeId: request.storeId } })
+    if (!session || session.status !== 'open') return reply.status(409).send({ error: '営業中のセッションがありません' })
 
     if (body.seatIds !== undefined) {
       const ownedSeatCount = await prisma.seat.count({ where: { id: { in: body.seatIds }, storeId: request.storeId } })
@@ -243,12 +244,16 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const group = await prisma.$transaction(async (tx) => {
+        const currentGroup = await tx.group.findUnique({ where: { id } })
+        if (!currentGroup) throw new NotFoundError()
+
         if (body.status !== undefined) {
-          const currentGroup = await tx.group.findUnique({ where: { id } })
-          if (!currentGroup) throw new NotFoundError()
           const from = currentGroup.status
           const to = body.status!
           if (!validTransitions[from]?.includes(to)) throw new InvalidTransitionError(from, to)
+        } else if (currentGroup.status === 'closed') {
+          // 会計済みグループは status 変更以外の更新（人数・名前・席）を許可しない
+          throw new GroupStatusError()
         }
         if (body.seatIds !== undefined) {
           const conflict = await tx.groupSeat.findFirst({
@@ -281,6 +286,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       if (e instanceof NotFoundError) return reply.status(404).send({ error: 'グループが見つかりません' })
       if (e instanceof InvalidTransitionError) return reply.status(409).send({ error: `${e.from} から ${e.to} への遷移は許可されていません` })
       if (e instanceof SeatConflictError) return reply.status(409).send({ error: '選択した席はすでに使用中です' })
+      if (e instanceof GroupStatusError) return reply.status(409).send({ error: '会計済みのグループは変更できません' })
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
         return reply.status(409).send({ error: '選択した席はすでに使用中です' })
       }

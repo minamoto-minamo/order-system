@@ -10,7 +10,7 @@ type Group = { id: string; name: string; guestCount: number; status: string; ses
 const mockSessionFindFirst = jest.fn<() => Promise<{ id: number; status: string } | null>>()
 const mockSeatFindMany = jest.fn<() => Promise<{ id: number; label: string }[]>>()
 const mockSeatCount = jest.fn<() => Promise<number>>()
-const mockGroupFindFirst = jest.fn<() => Promise<{ id: string } | null>>()
+const mockGroupFindFirst = jest.fn<() => Promise<{ id: string; sessionId?: number } | null>>()
 const mockGroupSeatFindFirst = jest.fn<() => Promise<GroupSeat | null>>()
 const mockGroupCreate = jest.fn<() => Promise<Group>>()
 const mockGroupUpdate = jest.fn<() => Promise<Group>>()
@@ -142,7 +142,36 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSessionFindFirst.mockResolvedValue({ id: 1, status: 'open' })
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, sessionId: 1 })
+  })
+
+  it('対象グループのセッションが closed の場合 409 を返す（店舗内の他セッションが open でも通さない）', async () => {
+    mockSessionFindFirst.mockResolvedValue({ id: 1, status: 'closed' })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { name: 'テスト' },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '営業中のセッションがありません' })
+  })
+
+  it('closed グループへの status 以外の更新（name等）は 409 を返す', async () => {
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'closed' }), update: mockGroupUpdate },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { name: 'テスト' },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '会計済みのグループは変更できません' })
+    expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
   it('seatIds に競合席がある場合 409 を返す', async () => {
@@ -150,8 +179,8 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     mockSeatCount.mockResolvedValue(1)
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockGroupUpdate },
         groupSeat: { findFirst: () => Promise.resolve({ groupId: 'other', seatId: 2 }) },
-        group: { update: mockGroupUpdate },
       }
       return cb(tx)
     })
@@ -186,8 +215,8 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     mockSeatCount.mockResolvedValue(1)
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: () => Promise.resolve(updatedGroup) },
         groupSeat: { findFirst: () => Promise.resolve(null) },
-        group: { update: () => Promise.resolve(updatedGroup) },
       }
       return cb(tx)
     })
@@ -207,8 +236,8 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     const mockTxGroupUpdate = jest.fn<any>().mockResolvedValue(updatedGroup)
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockTxGroupUpdate },
         groupSeat: { findFirst: () => Promise.resolve(null) },
-        group: { update: mockTxGroupUpdate },
       }
       return cb(tx)
     })
