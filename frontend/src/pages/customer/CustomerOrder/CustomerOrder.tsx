@@ -41,7 +41,7 @@ export default function CustomerOrder() {
   const [errorMsg, setErrorMsg]             = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
+    const fetchAll = () => Promise.all([
       api.get<CustomerGroup>(EP.customerGroup(groupId)),
       api.get<CustomerMenusResponse>(EP.customerMenus(groupId)),
       api.get<OrderItem[]>(EP.customerGroupOrders(groupId)),
@@ -54,6 +54,9 @@ export default function CustomerOrder() {
     }).catch(() => {
       setNotFound(true);
     }).finally(() => setLoading(false));
+    fetchAll();
+    socket.on('connect', fetchAll);
+    return () => { socket.off('connect', fetchAll); };
   }, [groupId]);
 
   useEffect(() => {
