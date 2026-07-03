@@ -17,7 +17,8 @@ import type { DisplayCat, DisplayOrder } from "./components/types";
 import "./Kitchen.scss";
 
 // カテゴリ数が増えても色が足りなくなるのを防ぐため5色でローテーション
-const CAT_COLORS = ['#4a9eff', '#3ec97a', '#f59e0b', '#e53935', '#9c27b0'];
+const CAT_COLORS = ['var(--color-cat-1)', 'var(--color-cat-2)', 'var(--color-cat-3)', 'var(--color-cat-4)', 'var(--color-cat-5)'];
+const CAT_BG_COLORS = ['var(--color-cat-1-bg)', 'var(--color-cat-2-bg)', 'var(--color-cat-3-bg)', 'var(--color-cat-4-bg)', 'var(--color-cat-5-bg)'];
 
 function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: string) => string): DisplayOrder {
   const g = groups.find(x => x.id === o.groupId);
@@ -113,6 +114,7 @@ export default function Kitchen() {
         id: cat.id,
         label: cat.name,
         color: CAT_COLORS[i % CAT_COLORS.length],
+        bgColor: CAT_BG_COLORS[i % CAT_BG_COLORS.length],
         subs: subCategories
           .filter(s => s.categoryId === cat.id)
           .sort((a, b) => a.sort - b.sort)

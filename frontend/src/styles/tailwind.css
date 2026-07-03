@@ -65,6 +65,28 @@
   --color-success-bg: #e8f5e9;
   --color-success-fg: #388e3c;
 
+  /* ── Cat: キッチン画面のカテゴリローテーション色 ── */
+  --color-cat-1:    #4a9eff;
+  --color-cat-1-bg: #4a9eff18;
+  --color-cat-2:    #3ec97a;
+  --color-cat-2-bg: #3ec97a18;
+  --color-cat-3:    #f59e0b;
+  --color-cat-3-bg: #f59e0b18;
+  --color-cat-4:    #e53935;
+  --color-cat-4-bg: #e5393518;
+  --color-cat-5:    #9c27b0;
+  --color-cat-5-bg: #9c27b018;
+
+  /* ── Series: レポート画面の系列色 ── */
+  --color-series-1: #4a9eff;
+  --color-series-2: #3ec97a;
+  --color-series-3: #f59e0b;
+  --color-series-4: #a78bfa;
+  --color-series-5: #f87171;
+  --color-series-6: #34d399;
+  --color-series-7: #fb923c;
+  --color-series-8: #60a5fa;
+
   /* ── Z-index layers ── */
   --z-index-modal: 200;  /* ページ固定要素・標準モーダル */
   --z-index-sheet: 300;  /* オーバーレイ付きシート・サイドパネル */

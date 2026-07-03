@@ -1,4 +1,7 @@
-export const PALETTE = ['#4a9eff', '#3ec97a', '#f59e0b', '#a78bfa', '#f87171', '#34d399', '#fb923c', '#60a5fa'];
+export const PALETTE = [
+  'var(--color-series-1)', 'var(--color-series-2)', 'var(--color-series-3)', 'var(--color-series-4)',
+  'var(--color-series-5)', 'var(--color-series-6)', 'var(--color-series-7)', 'var(--color-series-8)',
+];
 
 export interface SessionInfo { id: number; status: string; openedAt: string; closedAt: string | null; }
 export interface HourlyEntry { hour: number; [cat: string]: number; }

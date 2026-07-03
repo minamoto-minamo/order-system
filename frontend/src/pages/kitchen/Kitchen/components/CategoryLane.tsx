@@ -40,7 +40,7 @@ export function CategoryLane({ cat, orders, onComplete, onTicketClick }: {
       <div className="px-4 py-2.5 border-b border-surface-deep flex items-center gap-2 bg-surface">
         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cat.color }}/>
         <span className="text-note font-medium text-ink">{cat.label}</span>
-        <span className="text-label px-2 py-px rounded-full" style={{ color: cat.color, background: `${cat.color}18` }}>
+        <span className="text-label px-2 py-px rounded-full" style={{ color: cat.color, background: cat.bgColor }}>
           {t('kitchen.pendingCount', { count: catOrders.length })}
         </span>
       </div>
