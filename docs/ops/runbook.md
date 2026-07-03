@@ -63,3 +63,9 @@ pnpm dev   # backend: http://localhost:3000
 # ヘルスチェック
 curl -f http://localhost:3000/api/health
 ```
+
+## ログ・エラートラッキング
+
+- 現状、ログは pino による stdout 出力のみで、Sentry 等の外部エラートラッキング・ログ集約サービスとの連携はない。
+- そのため本番で例外が発生しても、ユーザーからの申告や手動でのログ確認まで気づけない。障害調査は事後的にホスト上の stdout ログを遡る形になる。
+- TODO: Sentry 等を導入する場合は `backend/src/app.ts` の `setErrorHandler` から通知を送る形で連携する。導入時期・サービス選定は未定。
