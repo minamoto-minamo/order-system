@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import rateLimit from '@fastify/rate-limit'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
-import { setAccessCookie, setRefreshCookie, clearAuthCookies } from '../plugins/auth.js'
-import { issueRefreshToken, revokeTokenByRaw } from '../lib/refreshToken.js'
+import { setAccessCookie, setRefreshCookie, clearAuthCookies, type JwtPayload } from '../plugins/auth.js'
+import { issueRefreshToken, revokeTokenByRaw, verifyRefreshToken } from '../lib/refreshToken.js'
 
 const loginBodySchema = {
   type: 'object',
@@ -48,8 +48,24 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/logout', async (request, reply) => {
+    // 共有端末での操作継続を防ぐため、同一ユーザーの Socket.io 接続も強制切断する。
+    // アクセストークンが失効していても切断できるよう、refresh_token → access token の順で userId を解決する
+    let userId: string | undefined
     const rawRefreshToken = request.cookies.refresh_token
-    if (rawRefreshToken) await revokeTokenByRaw(rawRefreshToken)
+    if (rawRefreshToken) {
+      const outcome = await verifyRefreshToken(rawRefreshToken)
+      if (outcome.status === 'valid') userId = outcome.staffId
+      await revokeTokenByRaw(rawRefreshToken)
+    }
+    if (!userId && request.cookies.token) {
+      try {
+        const payload = fastify.jwt.verify<JwtPayload>(request.cookies.token)
+        if (payload.type === 'staff') userId = payload.userId
+      } catch {
+        // 期限切れ・改ざん等は無視（切断対象が特定できないだけで、cookie 削除自体は継続する）
+      }
+    }
+    if (userId) fastify.io.in(`user:${userId}`).disconnectSockets(true)
     clearAuthCookies(reply)
     return { ok: true }
   })

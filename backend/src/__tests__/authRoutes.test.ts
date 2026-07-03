@@ -10,6 +10,7 @@ process.env.ACCESS_TOKEN_EXPIRES_IN = '15m'
 const mockFindUniqueStaff = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockIssueRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockRevokeTokenByRaw = jest.fn<(...args: unknown[]) => Promise<void>>()
+const mockVerifyRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: { staff: { findUnique: mockFindUniqueStaff } },
@@ -18,6 +19,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 jest.unstable_mockModule('../lib/refreshToken.js', () => ({
   issueRefreshToken: mockIssueRefreshToken,
   revokeTokenByRaw: mockRevokeTokenByRaw,
+  verifyRefreshToken: mockVerifyRefreshToken,
   rotateRefreshToken: jest.fn(),
 }))
 
@@ -25,10 +27,17 @@ const { default: authRoutes } = await import('../routes/auth.js')
 
 const STORE_ID = 1
 
-async function buildTestApp() {
+function buildMockIo() {
+  const disconnectSockets = jest.fn()
+  const inFn = jest.fn((_room: string) => ({ disconnectSockets }))
+  return { inFn, disconnectSockets }
+}
+
+async function buildTestApp(io = buildMockIo()) {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
   app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.decorate('io', { in: io.inFn } as never)
   await app.register(cookie)
   await app.register(jwt, { secret: 'test-secret', cookie: { cookieName: 'token', signed: false } })
   await app.register(authRoutes, { prefix: '/api/auth' })
@@ -41,6 +50,7 @@ const STAFF = { id: 'staff-1', username: 'taro', role: 'staff', storeId: STORE_I
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockVerifyRefreshToken.mockResolvedValue({ status: 'invalid' })
 })
 
 describe('POST /api/auth/login', () => {
@@ -103,6 +113,52 @@ describe('POST /api/auth/logout', () => {
 
     expect(res.statusCode).toBe(200)
     expect(mockRevokeTokenByRaw).not.toHaveBeenCalled()
+    await app.close()
+  })
+
+  it('有効な refresh_token から staffId を特定できた場合、その user ルームの Socket.io 接続を強制切断する', async () => {
+    const io = buildMockIo()
+    const app = await buildTestApp(io)
+    mockVerifyRefreshToken.mockResolvedValue({ status: 'valid', staffId: 'staff-1' })
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/auth/logout',
+      headers: { cookie: 'refresh_token=raw-token-value' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).toHaveBeenCalledWith('user:staff-1')
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+    await app.close()
+  })
+
+  it('refresh_token が無効でもアクセストークンが有効なら、そこから staffId を特定して強制切断する', async () => {
+    const io = buildMockIo()
+    const app = await buildTestApp(io)
+    const accessApp = Fastify({ logger: false })
+    await accessApp.register(jwt, { secret: 'test-secret' })
+    const accessToken = accessApp.jwt.sign({ type: 'staff', userId: 'staff-2', username: 'taro', role: 'staff', storeId: STORE_ID })
+    await accessApp.close()
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/auth/logout',
+      headers: { cookie: `token=${accessToken}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).toHaveBeenCalledWith('user:staff-2')
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+    await app.close()
+  })
+
+  it('refresh_token・アクセストークンのいずれからも staffId を特定できない場合は強制切断しない', async () => {
+    const io = buildMockIo()
+    const app = await buildTestApp(io)
+
+    const res = await app.inject({ method: 'POST', url: '/api/auth/logout' })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
     await app.close()
   })
 })

@@ -98,3 +98,5 @@ src/
 | Client → Server | `group:join`                      | 客用ゲスト接続が自グループの更新を受信するための join |
 
 emit は各ルートハンドラ内で `fastify.io.to(room).emit(...)` を呼ぶ。認証済みスタッフは `store:${storeId}` ルームに自動 join するが、未認証の客用ゲスト接続は `group:join` で検証済みの `group:${groupId}` ルームにのみ join する。注文・グループ関連の emit は原則 `store` と `group` の両ルームへ配信する（`group:created` と `staff:called` は例外でスタッフのみ）。
+
+認証済みスタッフは `user:${userId}` ルームにも自動 join する。`POST /auth/logout` はこのルームに対して `fastify.io.in(\`user:${userId}\`).disconnectSockets(true)` を呼び、同一ユーザーの全 Socket.io 接続を強制切断する（共有端末でログアウト後も操作が継続できてしまう問題への対策）。

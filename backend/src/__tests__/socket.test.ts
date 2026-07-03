@@ -57,7 +57,7 @@ function runMiddleware(app: Awaited<ReturnType<typeof buildTestApp>>, socket: un
   })
 }
 
-function fakeSocket(data: { authenticated: boolean; storeId: number; expiresAt?: number }) {
+function fakeSocket(data: { authenticated: boolean; storeId: number; expiresAt?: number; userId?: string }) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>()
   return {
     id: 'test-socket',
@@ -87,6 +87,7 @@ describe('Socket.io — io.use 認証ミドルウェア（refresh_token によ�
     const err = await runMiddleware(app, socket)
     expect(err).toBeUndefined()
     expect(socket.data.authenticated).toBe(true)
+    expect(socket.data.userId).toBe(STAFF.id)
     expect(mockVerifyRefreshToken).not.toHaveBeenCalled()
   })
 
@@ -106,6 +107,7 @@ describe('Socket.io — io.use 認証ミドルウェア（refresh_token によ�
     expect(err).toBeUndefined()
     expect(socket.data.authenticated).toBe(true)
     expect(socket.data.expiresAt).toBeGreaterThan(Date.now())
+    expect(socket.data.userId).toBe(STAFF.id)
   })
 
   it.each(['invalid', 'expired'] as const)(
@@ -137,6 +139,20 @@ describe('Socket.io — 接続時の store ルーム join', () => {
     const [onConnection] = app.io.listeners('connection')
     onConnection(socket as never)
     expect(socket.join).toHaveBeenCalledWith('store:1')
+  })
+
+  it('認証済み（スタッフ）の接続では user ルームにも join する（ログアウト時の強制切断対象）', () => {
+    const socket = fakeSocket({ authenticated: true, storeId: 1, userId: 'staff-1' })
+    const [onConnection] = app.io.listeners('connection')
+    onConnection(socket as never)
+    expect(socket.join).toHaveBeenCalledWith('user:staff-1')
+  })
+
+  it('未認証（客用画面）の接続では user ルームに join しない', () => {
+    const socket = fakeSocket({ authenticated: false, storeId: 1 })
+    const [onConnection] = app.io.listeners('connection')
+    onConnection(socket as never)
+    expect(socket.join).not.toHaveBeenCalledWith(expect.stringMatching(/^user:/))
   })
 })
 

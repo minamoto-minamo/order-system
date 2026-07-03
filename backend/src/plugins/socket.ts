@@ -20,6 +20,7 @@ declare module 'socket.io' {
     authenticated: boolean
     storeId: number
     expiresAt?: number
+    userId?: string
   }
 }
 
@@ -52,8 +53,9 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     const applyAuth = (payload: JwtPayload, exp: number) => {
       // Host 由来の storeId と JWT 内の storeId が一致しない場合はトークン再生とみなし未認証扱いにする
       socket.data.authenticated = payload.type === 'staff' && payload.storeId === context.storeId
-      if (socket.data.authenticated) {
+      if (socket.data.authenticated && payload.type === 'staff') {
         socket.data.expiresAt = exp * 1000
+        socket.data.userId = payload.userId
       }
     }
 
@@ -99,8 +101,12 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     fastify.log.info(`client connected: ${socket.id}`)
     // スタッフ（認証済み）は店舗全体の可視性が必要なため store ルームに自動 join する。
     // 客用ゲスト接続は未認証のため、group:join で検証済みの自グループルームにのみ join させる
+    // user ルームはログアウト時に同一ユーザーの全接続を強制切断するために使う
     if (socket.data.authenticated) {
       socket.join(`store:${socket.data.storeId}`)
+      if (socket.data.userId) {
+        socket.join(`user:${socket.data.userId}`)
+      }
     }
 
     // アクセストークン失効後も接続を維持したまま認証済み扱いになり続けないよう、
