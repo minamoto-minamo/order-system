@@ -190,7 +190,7 @@ model DrinkPlanItem {
   menuItemId  Int
 
   drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id], onDelete: Cascade)
-  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
 
   @@id([drinkPlanId, menuItemId])
 }
@@ -219,7 +219,7 @@ model CourseFoodItem {
   qty        Int @default(1)
 
   course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
 
   @@id([courseId, menuItemId])
 }

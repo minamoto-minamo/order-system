@@ -160,15 +160,27 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         const activeOrderCount = await tx.orderItem.count({
           where: { menuItemId, status: { in: ['pending', 'ready'] } },
         })
-        if (activeOrderCount > 0) return null
+        if (activeOrderCount > 0) return 'active_order' as const
+
+        const courseCount = await tx.courseFoodItem.count({ where: { menuItemId } })
+        if (courseCount > 0) return 'referenced_course' as const
+        const drinkPlanCount = await tx.drinkPlanItem.count({ where: { menuItemId } })
+        if (drinkPlanCount > 0) return 'referenced_drink_plan' as const
+
         return tx.menuItem.delete({ where: { id: menuItemId } })
       })
-      if (deleted === null) return reply.status(409).send({ error: '処理中の注文があるため削除できません' })
+      if (deleted === 'active_order') return reply.status(409).send({ error: '処理中の注文があるため削除できません' })
+      if (deleted === 'referenced_course') return reply.status(409).send({ error: 'コースに含まれているメニューは削除できません' })
+      if (deleted === 'referenced_drink_plan') return reply.status(409).send({ error: '飲み放題プランに含まれているメニューは削除できません' })
       fastify.io.to(`store:${request.storeId}`).emit('menu:deleted', menuItemId)
       return reply.status(204).send()
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
         return reply.status(404).send({ error: 'メニューが見つかりません' })
+      }
+      // アプリ層チェックと書き込みが競合した場合の最終防衛線（FK制約 onDelete: Restrict）
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        return reply.status(409).send({ error: 'コースまたは飲み放題プランで使用されているため削除できません' })
       }
       throw e
     }
