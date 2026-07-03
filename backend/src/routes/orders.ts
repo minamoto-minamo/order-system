@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
 
@@ -152,32 +153,42 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const { qty } = request.body as { qty: number }
 
     // トランザクション内で throw するとロールバックが走るため、特殊値（null / {conflict}）で返す
-    const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.orderItem.findFirst({
-        where: { id, storeId: request.storeId },
-        include: { group: { include: { session: true } } },
-      })
-      if (!order) return null
-      if (order.status === 'cancelled') {
-        return { conflict: true }
-      }
-      // 会計済み（closed）のグループ・セッションの注文はキャンセルさせない
-      if (order.group.status === 'closed' || order.group.session.status === 'closed') {
-        return { conflict: true }
-      }
+    let result
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        const order = await tx.orderItem.findFirst({
+          where: { id, storeId: request.storeId },
+          include: { group: { include: { session: true } } },
+        })
+        if (!order) return null
+        if (order.status === 'cancelled') {
+          return { conflict: true }
+        }
+        // 会計済み（closed）のグループ・セッションの注文はキャンセルさせない
+        if (order.group.status === 'closed' || order.group.session.status === 'closed') {
+          return { conflict: true }
+        }
 
-      if (qty >= order.qty) {
-        return tx.orderItem.update({
-          where: { id },
-          data: { status: 'cancelled' },
-        })
-      } else {
-        return tx.orderItem.update({
-          where: { id },
-          data: { qty: order.qty - qty },
-        })
+        if (qty >= order.qty) {
+          return tx.orderItem.update({
+            where: { id },
+            data: { status: 'cancelled' },
+          })
+        } else {
+          return tx.orderItem.update({
+            where: { id },
+            data: { qty: order.qty - qty },
+          })
+        }
+        // Serializable にしないと、同一注文への同時キャンセルリクエストが両方とも
+        // 古い qty を読んだまま更新し合い、片方の減算が失われる（lost update）
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
+        return reply.status(409).send({ error: '他の操作と競合しました。もう一度お試しください' })
       }
-    })
+      throw e
+    }
 
     if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
     if ('conflict' in result) return reply.status(409).send({ error: 'キャンセルできないステータスです' })

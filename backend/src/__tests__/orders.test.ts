@@ -2,6 +2,7 @@ import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@je
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { Prisma } from '@prisma/client'
 
 type Group = { id: string; status: string; drinkPlanId: number | null }
 type MenuItem = { id: number; name: string; price: number; soldOut: boolean; takeout: string }
@@ -245,5 +246,20 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
 
     expect(res.statusCode).toBe(200)
     expect(updateFn).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'cancelled' } }))
+  })
+
+  it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す（同一注文への同時キャンセル対策）', async () => {
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', { code: 'P2034', clientVersion: '5.17.0' })
+    })
+
+    const res = await app.inject({
+      method: 'PUT', url: '/api/orders/item-1/cancel',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 1 },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: '他の操作と競合しました。もう一度お試しください' })
   })
 })
