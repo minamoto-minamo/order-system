@@ -4,7 +4,7 @@ import { EP } from '@/lib/endpoints'
 import { socket } from '@/lib/socket'
 import { SOCKET_EVENTS as SE } from '@/lib/events'
 import { useSessionStore } from '@/stores/session'
-import type { Setting } from '@order-system/shared'
+import type { PublicSetting } from '@order-system/shared'
 
 function checkOverTime(closingTime: string, openedAt: string): boolean {
   const [h, m] = closingTime.split(':').map(Number)
@@ -27,7 +27,7 @@ export function useOverTimeWarning(): boolean {
       .then(s => setClosingTime(s.closingTime))
       .catch(() => {})
 
-    const onSettingsUpdated = (s: Setting) => setClosingTime(s.closingTime)
+    const onSettingsUpdated = (s: PublicSetting) => setClosingTime(s.closingTime)
     socket.on(SE.settingsUpdated, onSettingsUpdated)
     return () => { socket.off(SE.settingsUpdated, onSettingsUpdated) }
   }, [])

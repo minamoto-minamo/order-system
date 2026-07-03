@@ -20,13 +20,15 @@ function decimal(n: number) {
   return { toNumber: () => n }
 }
 
+const mockEmit = jest.fn()
+
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
   app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
-  app.decorate('io', { to: () => ({ emit: jest.fn() }) } as never)
+  app.decorate('io', { to: () => ({ emit: mockEmit }) } as never)
   app.addHook('preHandler', async (request, reply) => {
     try {
       await request.jwtVerify()
@@ -111,6 +113,23 @@ describe('PUT /api/settings', () => {
     })
     expect(res.statusCode).toBe(403)
     expect(mockUpsert).not.toHaveBeenCalled()
+    await app.close()
+  })
+
+  it('settings:updated には内部設定値（税率・リフレッシュトークン設定）を含めず storeName/closingTime のみを配信する', async () => {
+    const app = await buildTestApp()
+    mockUpsert.mockResolvedValue({
+      storeName: 's', closingTime: '22:00',
+      taxRateInHouse: decimal(10), taxRateTakeout: decimal(8),
+      refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 120,
+    })
+    const res = await app.inject({
+      method: 'PUT', url: '/api/settings',
+      headers: { cookie: `token=${app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'a', role: 'admin', storeId: STORE_ID })}` },
+      payload: { closingTime: '22:00' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockEmit).toHaveBeenCalledWith('settings:updated', { storeName: 's', closingTime: '22:00' })
     await app.close()
   })
 })

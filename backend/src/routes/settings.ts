@@ -57,7 +57,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       refreshTokenAutoExtend: setting.refreshTokenAutoExtend,
       refreshTokenExpiresMinutes: setting.refreshTokenExpiresMinutes,
     }
-    fastify.io.to(`store:${request.storeId}`).emit('settings:updated', result)
+    fastify.io.to(`store:${request.storeId}`).emit('settings:updated', { storeName: result.storeName, closingTime: result.closingTime })
     return result
   })
 }

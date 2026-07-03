@@ -113,6 +113,9 @@ export interface Setting {
   refreshTokenExpiresMinutes: number
 }
 
+// settings:updated は未認証の客用ソケットにも配信されるため、内部設定値（税率・リフレッシュトークン設定）を含まない
+export type PublicSetting = Pick<Setting, 'storeName' | 'closingTime'>
+
 export interface ServerToClientEvents {
   'order:created':       (item: OrderItem) => void
   'order:updated':       (item: OrderItem) => void
@@ -127,7 +130,7 @@ export interface ServerToClientEvents {
   'menu:deleted':        (menuItemId: number) => void
   'seatLayout:updated':  (layout: SeatLayoutResponse) => void
   'session:updated':     (session: Session) => void
-  'settings:updated':    (setting: Setting) => void
+  'settings:updated':    (setting: PublicSetting) => void
   'staff:called':        (groupId: string, groupName: string) => void
   'error':               (payload: { message: string }) => void
 }

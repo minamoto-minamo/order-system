@@ -10,7 +10,7 @@ import { ROUTES } from "@/lib/routes";
 import { socket } from "@/lib/socket";
 import { isAdmin } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
-import type { Setting } from "@order-system/shared";
+import type { PublicSetting } from "@order-system/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -41,7 +41,7 @@ export default function Home() {
       .catch(() => { })
 
     // 初期フェッチと同じ useEffect にまとめて cleanup を一箇所に集約するため手動登録
-    const onSettingsUpdated = (s: Setting) => setStoreName(s.storeName)
+    const onSettingsUpdated = (s: PublicSetting) => setStoreName(s.storeName)
     socket.on(SE.settingsUpdated, onSettingsUpdated)
     return () => { socket.off(SE.settingsUpdated, onSettingsUpdated) }
   }, []);
