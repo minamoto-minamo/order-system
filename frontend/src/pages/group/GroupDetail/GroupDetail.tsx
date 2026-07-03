@@ -92,6 +92,12 @@ export default function GroupDetail() {
     [SE.menuCreated]: (item: MenuItem) => setMenus(prev => [...prev, item]),
     [SE.menuUpdated]: (item: MenuItem) => setMenus(prev => prev.map(m => m.id === item.id ? item : m)),
     [SE.menuDeleted]: (menuItemId: number) => setMenus(prev => prev.filter(m => m.id !== menuItemId)),
+    [SE.courseCreated]: (course: Course) => setCourses(prev => [...prev, course]),
+    [SE.courseUpdated]: (course: Course) => setCourses(prev => prev.map(c => c.id === course.id ? course : c)),
+    [SE.courseDeleted]: (courseId: number) => setCourses(prev => prev.filter(c => c.id !== courseId)),
+    [SE.drinkPlanCreated]: (drinkPlan: DrinkPlan) => setDrinkPlans(prev => [...prev, drinkPlan]),
+    [SE.drinkPlanUpdated]: (drinkPlan: DrinkPlan) => setDrinkPlans(prev => prev.map(p => p.id === drinkPlan.id ? drinkPlan : p)),
+    [SE.drinkPlanDeleted]: (drinkPlanId: number) => setDrinkPlans(prev => prev.filter(p => p.id !== drinkPlanId)),
   });
 
   const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;

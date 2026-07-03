@@ -76,7 +76,9 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       },
       include: { foodItems: true },
     })
-    return reply.status(201).send(toCourse(course))
+    const result = toCourse(course)
+    fastify.io.to(`store:${request.storeId}`).emit('course:created', result)
+    return reply.status(201).send(result)
   })
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
@@ -110,7 +112,9 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       data,
       include: { foodItems: true },
     })
-    return toCourse(course)
+    const result = toCourse(course)
+    fastify.io.to(`store:${request.storeId}`).emit('course:updated', result)
+    return result
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
@@ -123,6 +127,7 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
     })
     if (activeGroup) return reply.status(409).send({ error: '使用中のコースは削除できません' })
     await prisma.course.delete({ where: { id: courseId } })
+    fastify.io.to(`store:${request.storeId}`).emit('course:deleted', courseId)
     return reply.status(204).send()
   })
 }

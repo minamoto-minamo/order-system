@@ -51,7 +51,9 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
       },
       include: { items: true },
     })
-    return reply.status(201).send(toDrinkPlan(plan))
+    const result = toDrinkPlan(plan)
+    fastify.io.to(`store:${request.storeId}`).emit('drinkPlan:created', result)
+    return reply.status(201).send(result)
   })
 
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
@@ -77,7 +79,9 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
       data,
       include: { items: true },
     })
-    return toDrinkPlan(plan)
+    const result = toDrinkPlan(plan)
+    fastify.io.to(`store:${request.storeId}`).emit('drinkPlan:updated', result)
+    return result
   })
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
@@ -92,6 +96,7 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
     })
     if (activeGroup) return reply.status(409).send({ error: '使用中の飲み放題プランは削除できません' })
     await prisma.drinkPlan.delete({ where: { id: drinkPlanId } })
+    fastify.io.to(`store:${request.storeId}`).emit('drinkPlan:deleted', drinkPlanId)
     return reply.status(204).send()
   })
 }

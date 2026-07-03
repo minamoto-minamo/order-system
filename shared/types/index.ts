@@ -128,6 +128,12 @@ export interface ServerToClientEvents {
   'menu:created':        (item: MenuItem)  => void
   'menu:updated':        (item: MenuItem)  => void
   'menu:deleted':        (menuItemId: number) => void
+  'course:created':      (course: Course) => void
+  'course:updated':      (course: Course) => void
+  'course:deleted':      (courseId: number) => void
+  'drinkPlan:created':   (drinkPlan: DrinkPlan) => void
+  'drinkPlan:updated':   (drinkPlan: DrinkPlan) => void
+  'drinkPlan:deleted':   (drinkPlanId: number) => void
   'seatLayout:updated':  (layout: SeatLayoutResponse) => void
   'session:updated':     (session: Session) => void
   'settings:updated':    (setting: PublicSetting) => void

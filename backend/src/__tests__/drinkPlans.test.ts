@@ -26,6 +26,8 @@ const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const STORE_ID = 1
 
+const mockIoEmit = jest.fn()
+
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
@@ -39,6 +41,8 @@ async function buildTestApp() {
       reply.status(401).send({ error: '認証が必要です' })
     }
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorate('io', { to: () => ({ emit: mockIoEmit }), emit: mockIoEmit } as any)
   await app.register(drinkPlansRoutes, { prefix: '/api/drink-plans' })
   await app.ready()
   return app
@@ -108,6 +112,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(204)
     expect(mockDrinkPlanDelete).toHaveBeenCalledWith({ where: { id: 1 } })
+    expect(mockIoEmit).toHaveBeenCalledWith('drinkPlan:deleted', 1)
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
@@ -158,6 +163,7 @@ describe('POST /api/drink-plans — storeId 検証', () => {
     })
     expect(res.statusCode).toBe(201)
     expect(mockDrinkPlanCreate).toHaveBeenCalled()
+    expect(mockIoEmit).toHaveBeenCalledWith('drinkPlan:created', expect.objectContaining({ id: 1 }))
   })
 })
 
@@ -184,5 +190,18 @@ describe('PUT /api/drink-plans/:id — storeId 検証', () => {
     expect(res.statusCode).toBe(422)
     expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
     expect(mockDrinkPlanUpdate).not.toHaveBeenCalled()
+  })
+
+  it('更新に成功すると drinkPlan:updated を emit する', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
+    mockDrinkPlanUpdate.mockResolvedValue({ id: 1, name: '飲み放題B', price: 3500, items: [] })
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/drink-plans/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: '飲み放題B', price: 3500 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockIoEmit).toHaveBeenCalledWith('drinkPlan:updated', expect.objectContaining({ id: 1, name: '飲み放題B' }))
   })
 })

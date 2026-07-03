@@ -26,6 +26,8 @@ const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const STORE_ID = 1
 
+const mockIoEmit = jest.fn()
+
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
@@ -39,6 +41,8 @@ async function buildTestApp() {
       reply.status(401).send({ error: '認証が必要です' })
     }
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorate('io', { to: () => ({ emit: mockIoEmit }), emit: mockIoEmit } as any)
   await app.register(coursesRoutes, { prefix: '/api/courses' })
   await app.ready()
   return app
@@ -92,6 +96,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(204)
     expect(mockCourseDelete).toHaveBeenCalledWith({ where: { id: 1 } })
+    expect(mockIoEmit).toHaveBeenCalledWith('course:deleted', 1)
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
@@ -157,6 +162,7 @@ describe('POST /api/courses — storeId 検証', () => {
     })
     expect(res.statusCode).toBe(201)
     expect(mockCourseCreate).toHaveBeenCalled()
+    expect(mockIoEmit).toHaveBeenCalledWith('course:created', expect.objectContaining({ id: 1 }))
   })
 })
 
@@ -183,5 +189,18 @@ describe('PUT /api/courses/:id — storeId 検証', () => {
     expect(res.statusCode).toBe(422)
     expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
     expect(mockCourseUpdate).not.toHaveBeenCalled()
+  })
+
+  it('更新に成功すると course:updated を emit する', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1, storeId: STORE_ID })
+    mockCourseUpdate.mockResolvedValue({ id: 1, name: 'コースB', price: 3500, drinkPlanId: null, foodItems: [] })
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: 'コースB', price: 3500 },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockIoEmit).toHaveBeenCalledWith('course:updated', expect.objectContaining({ id: 1, name: 'コースB' }))
   })
 })
