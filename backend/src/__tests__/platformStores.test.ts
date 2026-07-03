@@ -4,6 +4,7 @@ import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
 const mockStoreFindUnique = jest.fn<(...args: unknown[]) => Promise<{ id: number; subdomain: string } | null>>()
+const mockStoreUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStoreDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockTransaction = jest.fn<(ops: Promise<unknown>[]) => Promise<unknown>>()
 
@@ -22,7 +23,7 @@ const mockSettingDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>(
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    store: { findUnique: mockStoreFindUnique, delete: mockStoreDelete },
+    store: { findUnique: mockStoreFindUnique, update: mockStoreUpdate, delete: mockStoreDelete },
     orderItem: { deleteMany: mockOrderItemDeleteMany },
     group: { deleteMany: mockGroupDeleteMany },
     session: { deleteMany: mockSessionDeleteMany },
@@ -74,6 +75,7 @@ describe('DELETE /api/platform/stores/:id', () => {
     ]) {
       mock.mockResolvedValue({ count: 0 })
     }
+    mockStoreUpdate.mockResolvedValue({ id: STORE_ID })
     mockStoreDelete.mockResolvedValue({ id: STORE_ID })
   })
 
@@ -110,6 +112,7 @@ describe('DELETE /api/platform/stores/:id', () => {
     })
 
     expect(res.statusCode).toBe(204)
+    expect(mockStoreUpdate).toHaveBeenCalledWith({ where: { id: STORE_ID }, data: { isActive: false } })
     expect(mockTransaction).toHaveBeenCalledTimes(1)
     expect(mockOrderItemDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockGroupDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })

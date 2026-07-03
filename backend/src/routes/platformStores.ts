@@ -91,6 +91,11 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = await prisma.store.findUnique({ where: { id: storeId } })
     if (!existing) return reply.status(404).send({ error: '店舗が見つかりません' })
 
+    // 削除トランザクション中の同時書き込みを防ぐため、先に非アクティブ化する。
+    // resolveStoreContext は isActive: false の店舗を unknown 扱いにするため、
+    // 以降のリクエストは Host 解決の時点で 404 になる。
+    await prisma.store.update({ where: { id: storeId }, data: { isActive: false } })
+
     // FK 依存の逆順で削除する（GroupSeat/CourseFoodItem/DrinkPlanItem/RefreshToken は onDelete: Cascade で自動削除される）
     await prisma.$transaction([
       prisma.orderItem.deleteMany({ where: { storeId } }),
