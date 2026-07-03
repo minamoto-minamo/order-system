@@ -109,7 +109,9 @@ export default function GroupDetail() {
       showToast(t('group.courseAppliedToast', { name: course.name }));
       setShowCourseConfirm(null);
       setTab('history');
-    } catch (e) { console.error(e); }
+    } catch {
+      showToast(t('group.courseApplyFailed'));
+    }
   };
 
   const handleCourseRemove = async () => {
@@ -118,7 +120,9 @@ export default function GroupDetail() {
       const updatedGroup = await api.delete<Group>(EP.groupCourse(group.id));
       setGroup(updatedGroup);
       showToast(t('group.courseRemovedToast'));
-    } catch (e) { console.error(e); }
+    } catch {
+      showToast(t('group.courseRemoveFailed'));
+    }
   };
 
   const handleCourseQtyChange = async (qty: number) => {
@@ -202,8 +206,13 @@ export default function GroupDetail() {
 
   const handleResetConfirm = async () => {
     if (!group) return;
-    const updated = await api.put<Group>(EP.group(group.id), { status: 'closed' }).catch(() => null);
-    if (updated) navigate(-1);
+    try {
+      await api.put<Group>(EP.group(group.id), { status: 'closed' });
+      navigate(-1);
+    } catch {
+      showToast(t('group.checkOutFailed'));
+    }
+    setShowResetConfirm(false);
   };
 
   if (loadError) return (
