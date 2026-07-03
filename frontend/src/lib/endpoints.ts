@@ -29,8 +29,6 @@ export const EP = {
   staffMember:       (id: string) => `/staff/${id}`,
   staffSessions:     (staffId: string) => `/staff/${staffId}/sessions`,
   staffSession:      (staffId: string, sessionId: string) => `/staff/${staffId}/sessions/${sessionId}`,
-  seatTables:        '/seat-tables',
-  seatTable:         (id: number) => `/seat-tables/${id}`,
   seatLayout:        '/seat-layout',
   customerGroup:       (id: string) => `/customer/groups/${id}`,
   customerMenus:       (id: string) => `/customer/groups/${id}/menus`,

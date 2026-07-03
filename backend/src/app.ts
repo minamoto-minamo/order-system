@@ -20,7 +20,6 @@ import drinkPlansRoutes from './routes/drinkPlans.js'
 import coursesRoutes from './routes/courses.js'
 import settingsRoutes from './routes/settings.js'
 import staffRoutes from './routes/staff.js'
-import seatTablesRoutes from './routes/seatTables.js'
 import seatLayoutRoutes from './routes/seatLayout.js'
 import customerRoutes from './routes/customer.js'
 import { prisma } from './lib/prisma.js'
@@ -53,7 +52,6 @@ export async function buildApp() {
   await app.register(coursesRoutes,     { prefix: '/api/courses' })
   await app.register(settingsRoutes,    { prefix: '/api/settings' })
   await app.register(staffRoutes,        { prefix: '/api/staff' })
-  await app.register(seatTablesRoutes,   { prefix: '/api/seat-tables' })
   await app.register(seatLayoutRoutes,   { prefix: '/api/seat-layout' })
   await app.register(customerRoutes,     { prefix: '/api/customer' })
 

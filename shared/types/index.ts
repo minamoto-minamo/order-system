@@ -281,15 +281,6 @@ export interface ApplyCourseRequest {
   qty: number
 }
 
-// --- SeatTables ---
-export interface UpsertSeatTableRequest {
-  label: string
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
 // --- Platform ---
 export interface PlatformAdmin {
   id: string
