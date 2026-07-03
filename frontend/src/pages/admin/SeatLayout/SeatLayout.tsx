@@ -205,7 +205,7 @@ export default function SeatLayout() {
     Object.assign(ghost.style, {
       position: "fixed", pointerEvents: "none", zIndex: "9999",
       width: "44px", height: "44px", borderRadius: "10px",
-      background: "white", border: "1.5px solid #c8c8c8",
+      background: "white", border: "1.5px solid var(--color-line)",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: "18px", opacity: "0.85",
       transform: "translate(-50%, -50%)",
