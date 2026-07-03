@@ -6,7 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BottomSheetModal, IconButton } from "@/components";
+import { BottomSheetModal, IconButton, MenuQtyStepper } from "@/components";
 import { CustomerOrderHistory } from "./CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
@@ -258,23 +258,7 @@ export default function CustomerOrder() {
                       <div className="text-sm text-ink mb-0.5">{item.name}</div>
                       <div className="text-xs text-muted">¥{item.price.toLocaleString()}</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {qty > 0 && (
-                        <>
-                          <button
-                            className="w-7.5 h-7.5 rounded-full border border-line bg-white text-base text-dim flex items-center justify-center"
-                            onClick={() => setQty(item.id, qty - 1)}
-                          >−</button>
-                          <span className="text-sub font-medium text-ink min-w-5 text-center">{qty}</span>
-                        </>
-                      )}
-                      <button
-                        className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
-                          qty > 0 ? 'border-ink bg-ink text-white' : 'border-line bg-white text-dim'
-                        }`}
-                        onClick={() => setQty(item.id, qty + 1)}
-                      >＋</button>
-                    </div>
+                    <MenuQtyStepper qty={qty} onChange={val => setQty(item.id, val)} />
                   </div>
                 );
               })}

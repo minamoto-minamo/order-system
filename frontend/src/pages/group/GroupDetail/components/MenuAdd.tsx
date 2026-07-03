@@ -1,4 +1,4 @@
-import { BaseButton } from "@/components";
+import { BaseButton, MenuQtyStepper } from "@/components";
 import type { Category, MenuItem, SubCategory } from "@order-system/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -130,19 +130,7 @@ export function MenuAdd({ menus, categories, subCategories, onAdd }: {
                   </div>
                   <div className="text-xs text-muted">¥{item.price.toLocaleString()}</div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {qty > 0 && (
-                    <>
-                      <BaseButton className="w-7.5 h-7.5 rounded-full border border-line bg-white text-base text-dim flex items-center justify-center" onClick={() => setQty(item.id, qty - 1)}>−</BaseButton>
-                      <span className="text-sub font-medium text-ink min-w-5 text-center">{qty}</span>
-                    </>
-                  )}
-                  <BaseButton
-                    className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${qty > 0 ? 'border-ink bg-ink text-white' : 'border-line bg-white text-dim'}`}
-                    onClick={() => setQty(item.id, qty + 1)}
-                    disabled={item.soldOut}
-                  >＋</BaseButton>
-                </div>
+                <MenuQtyStepper qty={qty} onChange={val => setQty(item.id, val)} disabled={item.soldOut} />
               </div>
             );
           })}
