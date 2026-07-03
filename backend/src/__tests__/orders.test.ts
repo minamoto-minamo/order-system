@@ -135,6 +135,27 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
   })
 })
 
+describe('POST /api/orders — Setting未取得時のフォールバック禁止', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
+    mockSettingFindUnique.mockResolvedValue(null)
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(500)
+  })
+})
+
 describe('POST /api/orders — テイクアウト可否チェック', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
   beforeAll(async () => { app = await buildTestApp() })

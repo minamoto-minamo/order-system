@@ -95,6 +95,19 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     expect(res.json()).toMatchObject({ error: 'コースが見つかりません' })
   })
 
+  it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
+    mockSettingFindUnique.mockResolvedValue(null)
+    const res = await app.inject({
+      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 2 },
+    })
+    expect(res.statusCode).toBe(500)
+    expect(mockTransaction).not.toHaveBeenCalled()
+  })
+
   it('food items なしのコースを適用すると group が更新され 200 を返す', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })

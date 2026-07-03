@@ -108,9 +108,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
-    if (!setting) fastify.log.warn('setting not found, using default tax rates')
-    const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
-    const taxRateTakeout = setting?.taxRateTakeout.toNumber() ?? 8
+    if (!setting) {
+      fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
+      return reply.status(500).send({ error: '店舗設定が見つかりません' })
+    }
+    const taxRateInHouse = setting.taxRateInHouse.toNumber()
+    const taxRateTakeout = setting.taxRateTakeout.toNumber()
 
     const created = await prisma.$transaction(async (tx) => {
       const currentGroup = await tx.group.findUnique({ where: { id: body.groupId } })
