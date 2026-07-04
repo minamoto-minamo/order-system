@@ -4,23 +4,14 @@ import { AppHeader, SubHeader } from "@/components";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import { CanvasTable } from "./components/CanvasTable";
-import { CanvasSeat } from "./components/CanvasSeat";
 import { Palette } from "./components/Palette";
 import { EditSheet } from "./components/EditSheet";
 import { StatsBar } from "./components/StatsBar";
+import { EditorCanvas } from "./components/EditorCanvas";
+import { snap, hitTest } from "./components/utils";
 import type { SeatLayoutResponse, SeatLayoutSaveRequest } from "@order-system/shared";
 import type { TableData, SeatData, SelectedItem, DragState } from "./components/types";
 import "./SeatLayout.scss";
-
-const snap = (v: number, g: number) => Math.round(v / g) * g;
-
-function hitTest(seat: { x: number; y: number }, table: TableData) {
-  return (
-    seat.x >= table.x && seat.x < table.x + table.w &&
-    seat.y >= table.y && seat.y < table.y + table.h
-  );
-}
 
 // ── メイン ───────────────────────────────────────────────────
 export default function SeatLayout() {
@@ -322,42 +313,19 @@ export default function SeatLayout() {
           />
 
           {/* キャンバスエリア */}
-          <div className="flex-1 overflow-auto pb-52">
-            <div
-              ref={canvasRef}
-              onClick={() => setSelected(null)}
-              className="relative m-5 rounded-lg border border-line bg-white"
-              style={{
-                width: gridSize * cols, height: gridSize * rows,
-                backgroundImage: `
-                  linear-gradient(to right, var(--color-surface-deep) 1px, transparent 1px),
-                  linear-gradient(to bottom, var(--color-surface-deep) 1px, transparent 1px)
-                `,
-                backgroundSize: `${gridSize}px ${gridSize}px`,
-              }}
-            >
-              {tables.map(table => (
-                <CanvasTable
-                  key={table.id}
-                  table={table}
-                  isSelected={selected?.kind === "table" && selected.id === table.id}
-                  onPointerDown={handlePointerDown}
-                  onClick={(kind, id) => setSelected({ kind, id })}
-                  onResizeStart={handleResizeStart}
-                />
-              ))}
-              {seats.map(seat => (
-                <CanvasSeat
-                  key={seat.id}
-                  seat={seat}
-                  isSelected={selected?.kind === "seat" && selected.id === seat.id}
-                  onPointerDown={handlePointerDown}
-                  onClick={(kind, id) => setSelected({ kind, id })}
-                  G={gridSize}
-                />
-              ))}
-            </div>
-          </div>
+          <EditorCanvas
+            canvasRef={canvasRef}
+            gridSize={gridSize}
+            cols={cols}
+            rows={rows}
+            tables={tables}
+            seats={seats}
+            selected={selected}
+            onPointerDown={handlePointerDown}
+            onResizeStart={handleResizeStart}
+            onSelect={setSelected}
+            onClearSelect={() => setSelected(null)}
+          />
         </div>
 
       {/* 編集モーダル */}
