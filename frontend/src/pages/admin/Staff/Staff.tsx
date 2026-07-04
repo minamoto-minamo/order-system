@@ -4,13 +4,12 @@ import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
-import { formatDate } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import type { StaffMember, StaffSession } from "@order-system/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RoleBadge } from "./components/RoleBadge";
 import { StaffFormModal } from "./components/StaffFormModal";
+import { StaffList } from "./components/StaffList";
 import { StaffSessionsModal } from "./components/StaffSessionsModal";
 
 type ModalMode = "add" | "edit" | null;
@@ -149,51 +148,13 @@ export default function Staff() {
         {staffList.length === 0 ? (
           <div className="py-12 text-center text-muted text-note">{t("staff.noStaff")}</div>
         ) : (
-          <div className="bg-white border border-divider rounded-xl overflow-hidden animate-[fadeIn_0.3s_ease_both]">
-            {staffList.map((s, i) => (
-              <div
-                key={s.id}
-                className={`flex items-center gap-3 px-5 py-3.5 ${i < staffList.length - 1 ? "border-b border-surface" : ""}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-medium text-ink truncate">{s.username}</span>
-                    {s.id === me?.id && (
-                      <span className="text-caption text-muted">{t("staff.selfLabel")}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RoleBadge role={s.role} />
-                    <span className="text-label text-muted">{formatDate(s.createdAt)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <BaseButton
-                    variant="secondary"
-                    className="rounded-md px-3 py-1 text-label"
-                    onClick={() => openSessions(s)}
-                  >
-                    {t("staff.devices.button")}
-                  </BaseButton>
-                  <BaseButton
-                    variant="secondary"
-                    className="rounded-md px-3 py-1 text-label"
-                    onClick={() => openEdit(s)}
-                  >
-                    {t("common.edit")}
-                  </BaseButton>
-                  <BaseButton
-                    variant="secondary"
-                    className="rounded-md px-3 py-1 text-label text-danger border-danger-border"
-                    onClick={() => setDeleteTarget(s)}
-                    disabled={s.id === me?.id}
-                  >
-                    {t("common.delete")}
-                  </BaseButton>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StaffList
+            staffList={staffList}
+            meId={me?.id}
+            onSessions={openSessions}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+          />
         )}
       </div>
 
