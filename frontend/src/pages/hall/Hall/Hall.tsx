@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, BottomSheetModal, LoadError, QuantityControl, SubHeader } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, LoadError, NoticeBanner, QuantityControl, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -182,11 +182,7 @@ export default function Hall() {
 
   return (
     <>
-      {toast && (
-        <div className="fixed top-4 left-4 right-4 bg-white border border-line rounded-xl px-4 py-3 text-sm text-ink text-center shadow-sm z-sheet animate-[fadeIn_0.2s_ease_both]">
-          {toast}
-        </div>
-      )}
+      {toast && <NoticeBanner>{toast}</NoticeBanner>}
       <AppHeader title={t('hall.title')} />
 
       <SubHeader

@@ -6,7 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper } from "@/components";
+import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper, NoticeBanner } from "@/components";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
@@ -270,17 +270,9 @@ export default function CustomerOrder() {
         <CustomerOrderHistory items={items} />
       )}
 
-      {successMsg && (
-        <div className="fixed top-4 left-4 right-4 bg-white border border-line rounded-xl px-4 py-3 text-sm text-ink text-center shadow-sm z-sheet animate-[fadeIn_0.2s_ease_both]">
-          {successMsg}
-        </div>
-      )}
+      {successMsg && <NoticeBanner>{successMsg}</NoticeBanner>}
 
-      {errorMsg && (
-        <div className="fixed top-4 left-4 right-4 bg-danger-bg border border-danger-border rounded-xl px-4 py-3 text-sm text-danger text-center z-sheet">
-          {errorMsg}
-        </div>
-      )}
+      {errorMsg && <NoticeBanner variant="danger">{errorMsg}</NoticeBanner>}
 
       {tab === 'menu' && orderItems.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-modal px-5 pt-3 pb-6 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">

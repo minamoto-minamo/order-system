@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { socket } from "@/lib/socket";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { useToast } from "@/hooks/useToast";
+import { NoticeBanner } from "../../display/NoticeBanner";
 
 export function PageLayout({ children }: { children: ReactNode }) {
   const { toast, showToast } = useToast();
@@ -15,11 +16,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="h-dvh bg-surface flex flex-col">
-      {toast && (
-        <div className="fixed top-4 left-4 right-4 bg-white border border-line rounded-xl px-4 py-3 text-sm text-ink text-center shadow-sm z-sheet animate-[fadeIn_0.2s_ease_both]">
-          {toast}
-        </div>
-      )}
+      {toast && <NoticeBanner>{toast}</NoticeBanner>}
       {children}
     </div>
   );

@@ -1,4 +1,5 @@
 export { LoadError } from './LoadError';
+export { NoticeBanner } from './NoticeBanner';
 export { OrderSection } from './OrderSection';
 export { StatusBadge } from './StatusBadge';
 export { TabNavigation } from './TabNavigation';
