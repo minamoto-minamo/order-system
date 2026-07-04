@@ -3,12 +3,12 @@ import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
-import { formatDate } from "@/lib/utils";
 import { usePlatformAuthStore } from "@/stores/platformAuth";
 import type { Store } from "@order-system/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StoreFormModal } from "./components/StoreFormModal";
+import { StoreRows } from "./components/StoreRows";
 
 type ModalMode = "add" | "edit" | null;
 
@@ -128,43 +128,7 @@ export default function StoreList() {
         {stores.length === 0 ? (
           <div className="py-12 text-center text-muted text-note">{t("platform.noStores")}</div>
         ) : (
-          <div className="bg-white border border-divider rounded-xl overflow-hidden animate-[fadeIn_0.3s_ease_both]">
-            {stores.map((s, i) => (
-              <div
-                key={s.id}
-                className={`flex items-center gap-3 px-5 py-3.5 ${i < stores.length - 1 ? "border-b border-surface" : ""}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-medium text-ink truncate">{s.name}</span>
-                    <span className={`text-caption px-1.5 py-px rounded-full border ${s.isActive ? "text-open-fg border-open-border" : "text-muted border-line"}`}>
-                      {s.isActive ? t("platform.active") : t("platform.inactive")}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-label text-muted">{s.subdomain}</span>
-                    <span className="text-label text-muted">{formatDate(s.createdAt)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <BaseButton
-                    variant="secondary"
-                    className="rounded-md px-3 py-1 text-label"
-                    onClick={() => openEdit(s)}
-                  >
-                    {t("common.edit")}
-                  </BaseButton>
-                  <BaseButton
-                    variant="secondary"
-                    className="rounded-md px-3 py-1 text-label"
-                    onClick={() => setToggleTarget(s)}
-                  >
-                    {s.isActive ? t("platform.deactivate") : t("platform.activate")}
-                  </BaseButton>
-                </div>
-              </div>
-            ))}
-          </div>
+          <StoreRows stores={stores} onEdit={openEdit} onToggle={setToggleTarget} />
         )}
       </div>
 
