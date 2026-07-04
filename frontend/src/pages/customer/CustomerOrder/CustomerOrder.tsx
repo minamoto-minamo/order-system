@@ -6,7 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper, NoticeBanner, SlideUpFooter } from "@/components";
+import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper, NoticeBanner, SlideUpFooter, SubCategorySidebar } from "@/components";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
@@ -230,25 +230,7 @@ export default function CustomerOrder() {
           </div>
 
           <div className="flex flex-1 overflow-hidden">
-            {catSubs.length > 0 && (
-              <div className="w-18 shrink-0 border-r border-divider bg-surface overflow-y-auto">
-                <button
-                  className={`w-full px-2 py-3 text-caption text-left border-none cursor-pointer border-b border-surface-deep ${safeSubId === null ? 'bg-white text-ink font-medium' : 'bg-transparent text-muted'}`}
-                  onClick={() => setActiveSubId(null)}
-                >
-                  {t('common.all')}
-                </button>
-                {catSubs.map(s => (
-                  <button
-                    key={s.id}
-                    className={`w-full px-2 py-3 text-caption text-left border-none cursor-pointer border-b border-surface-deep ${safeSubId === s.id ? 'bg-white text-ink font-medium' : 'bg-transparent text-muted'}`}
-                    onClick={() => setActiveSubId(s.id)}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
+            <SubCategorySidebar subs={catSubs} activeSubId={safeSubId} onSelect={setActiveSubId} />
 
             <div className="flex-1 overflow-y-auto" style={{ paddingBottom: orderItems.length > 0 ? 80 : 16 }}>
               {filteredItems.map(item => {

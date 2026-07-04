@@ -2,5 +2,6 @@ export { LoadError } from './LoadError';
 export { NoticeBanner } from './NoticeBanner';
 export { OrderSection } from './OrderSection';
 export { StatusBadge } from './StatusBadge';
+export { SubCategorySidebar } from './SubCategorySidebar';
 export { TabNavigation } from './TabNavigation';
 export { Toast } from './Toast/Toast';
