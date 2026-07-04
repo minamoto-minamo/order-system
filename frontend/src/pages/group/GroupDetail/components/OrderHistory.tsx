@@ -1,18 +1,7 @@
-import { BaseButton, IconButton, StatusBadge } from "@/components";
+import { BaseButton, IconButton, OrderSection, StatusBadge } from "@/components";
 import type { OrderItem } from "@order-system/shared";
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { partitionOrderItems } from "@/lib/partitionOrderItems";
-
-export function OrderSection({ title, children }: { title?: string; children: ReactNode }) {
-  if (title === undefined) return <>{children}</>;
-  return (
-    <div className="mt-1">
-      <div className="px-5 pt-2.5 pb-1.5 text-label text-muted tracking-[0.08em]">{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function StatusActionButton({ item, onChangeStatus }: { item: OrderItem; onChangeStatus: (id: string) => void }) {
   const { t } = useTranslation();
