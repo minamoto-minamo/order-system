@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/useToast";
 import { Section, SettingRow } from "./components/SettingRow";
+import { SettingHint } from "./components/SettingHint";
 
 function clamp(value: string, min: number, max: number): string {
   const n = parseInt(value, 10);
@@ -136,16 +137,14 @@ export default function Settings() {
             </div>
           </SettingRow>
 
-          <div className="px-5 pt-2.5 pb-3.5">
-            <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
-              {t('settings.closingTimeHint').split('\n').map((line, i) => (
-                <span key={i}>
-                  {i > 0 && <br />}
-                  {line}
-                </span>
-              ))}
-            </div>
-          </div>
+          <SettingHint>
+            {t('settings.closingTimeHint').split('\n').map((line, i) => (
+              <span key={i}>
+                {i > 0 && <br />}
+                {line}
+              </span>
+            ))}
+          </SettingHint>
         </Section>
 
         {/* 税率設定 */}
@@ -180,11 +179,7 @@ export default function Settings() {
               <span className="text-note text-dim">%</span>
             </div>
           </SettingRow>
-          <div className="px-5 pt-2.5 pb-3.5">
-            <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
-              {t('settings.taxHint')}
-            </div>
-          </div>
+          <SettingHint>{t('settings.taxHint')}</SettingHint>
         </Section>
 
         {/* セッション設定 */}
@@ -211,11 +206,7 @@ export default function Settings() {
               onBlur={e => setRefreshTokenExpiresMinutes(clamp(e.target.value, 5, 43200))}
             />
           </SettingRow>
-          <div className="px-5 pt-2.5 pb-3.5">
-            <div className="px-3.5 py-2.5 bg-surface border border-divider rounded-lg text-label text-muted leading-[1.7]">
-              {t('settings.sessionSettingsHint')}
-            </div>
-          </div>
+          <SettingHint>{t('settings.sessionSettingsHint')}</SettingHint>
         </Section>
 
       </div>
