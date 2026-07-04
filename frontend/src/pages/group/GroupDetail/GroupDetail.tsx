@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, IconButton, TabNavigation, Toast } from "@/components";
+import { AppHeader, IconButton, LoadError, TabNavigation, Toast } from "@/components";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
@@ -221,12 +221,7 @@ export default function GroupDetail() {
     setShowResetConfirm(false);
   };
 
-  if (loadError) return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
-      <p>{t('common.loadError')}</p>
-      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
-    </div>
-  );
+  if (loadError) return <LoadError />;
 
   return (
     <>

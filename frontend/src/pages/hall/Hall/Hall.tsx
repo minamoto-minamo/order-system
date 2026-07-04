@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, BottomSheetModal, QuantityControl, SubHeader } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, LoadError, QuantityControl, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -178,12 +178,7 @@ export default function Hall() {
   const canvasW = canvasCols * gridSize;
   const canvasH = canvasRows * gridSize;
 
-  if (loadError) return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
-      <p>{t('common.loadError')}</p>
-      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
-    </div>
-  );
+  if (loadError) return <LoadError />;
 
   return (
     <>

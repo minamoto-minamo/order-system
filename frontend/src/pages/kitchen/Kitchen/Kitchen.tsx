@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, SubHeader, ToggleButtonGroup } from "@/components";
+import { AppHeader, LoadError, SubHeader, ToggleButtonGroup } from "@/components";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import { ROUTES } from "@/lib/routes";
@@ -133,12 +133,7 @@ export default function Kitchen() {
   const pendingCount  = orders.filter(o => o.status === 'pending').length;
   const readyCount    = orders.filter(o => o.status === 'ready').length;
 
-  if (loadError) return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-secondary">
-      <p>{t('common.loadError')}</p>
-      <button className="px-4 py-2 rounded-lg bg-info text-white text-sm" onClick={() => window.location.reload()}>{t('common.retry')}</button>
-    </div>
-  );
+  if (loadError) return <LoadError />;
 
   return (
     <>
