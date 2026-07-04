@@ -6,8 +6,9 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BottomSheetModal, IconButton, MenuQtyStepper } from "@/components";
-import { CustomerOrderHistory } from "./CustomerOrderHistory";
+import { BaseButton, BottomSheetModal, IconButton, MenuQtyStepper } from "@/components";
+import { MenuConfirmModal } from "@/pages/group/GroupDetail/components/MenuConfirmModal";
+import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
 type CustomerGroup = { id: string; name: string; status: string };
@@ -32,6 +33,7 @@ export default function CustomerOrder() {
   const [activeCatId, setActiveCatId]       = useState<number | null>(null);
   const [activeSubId, setActiveSubId]       = useState<number | null>(null);
   const [qtys, setQtys]                     = useState<Record<number, number>>({});
+  const [confirmOpen, setConfirmOpen]       = useState(false);
   const [submitting, setSubmitting]         = useState(false);
   const [calling, setCalling]               = useState(false);
   const [billing, setBilling]               = useState(false);
@@ -99,22 +101,22 @@ export default function CustomerOrder() {
 
   const orderItems = Object.entries(qtys)
     .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ menuItemId: Number(id), qty }));
-
-  const total = orderItems.reduce((sum, { menuItemId, qty }) => {
-    const menu = menus.find(m => m.id === menuItemId);
-    return sum + (menu?.price ?? 0) * qty;
-  }, 0);
+    .map(([id, qty]) => ({ item: menus.find(m => m.id === Number(id))!, qty }))
+    .filter(x => x.item != null);
 
   const handleSubmit = async () => {
     if (submitting || orderItems.length === 0) return;
     setSubmitting(true);
     setErrorMsg(null);
     try {
-      const created = await api.post<OrderItem[]>(EP.customerOrders, { groupId, items: orderItems });
+      const created = await api.post<OrderItem[]>(EP.customerOrders, {
+        groupId,
+        items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty })),
+      });
       // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
       setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
       setQtys({});
+      setConfirmOpen(false);
       setSuccessMsg(t('customerOrder.orderSuccess'));
       setTimeout(() => setSuccessMsg(null), 3000);
       setTab('history');
@@ -249,7 +251,7 @@ export default function CustomerOrder() {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto" style={{ paddingBottom: orderItems.length > 0 ? 100 : 16 }}>
+            <div className="flex-1 overflow-y-auto" style={{ paddingBottom: orderItems.length > 0 ? 80 : 16 }}>
               {filteredItems.map(item => {
                 const qty = getQty(item.id);
                 return (
@@ -266,9 +268,7 @@ export default function CustomerOrder() {
           </div>
         </>
       ) : (
-        <div className="flex-1 overflow-y-auto pb-5">
-          <CustomerOrderHistory items={items} />
-        </div>
+        <CustomerOrderHistory items={items} />
       )}
 
       {successMsg && (
@@ -284,20 +284,25 @@ export default function CustomerOrder() {
       )}
 
       {tab === 'menu' && orderItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 pt-3 pb-6 bg-white border-t border-divider">
-          <div className="flex justify-between items-center mb-3 text-sm text-muted">
-            <span>{t('customerOrder.total')}</span>
-            <span className="text-ink font-medium">¥{total.toLocaleString()}</span>
-          </div>
-          <button
+        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 pt-3 pb-6 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+          <BaseButton
             className="w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white bg-ink disabled:opacity-50"
-            onClick={handleSubmit}
-            disabled={submitting || group?.status !== 'active'}
+            onClick={() => setConfirmOpen(true)}
+            disabled={group?.status !== 'active'}
           >
-            {t('customerOrder.orderSubmit')}
-          </button>
+            {t('group.reviewOrder')}
+          </BaseButton>
         </div>
       )}
+
+      <MenuConfirmModal
+        open={confirmOpen}
+        items={orderItems}
+        orderType="dine_in"
+        submitting={submitting}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleSubmit}
+      />
 
       <BottomSheetModal
         show={confirmCall}
