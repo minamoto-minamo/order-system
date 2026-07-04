@@ -2,7 +2,7 @@ import { BaseButton, IconButton, StatusBadge } from "@/components";
 import type { OrderItem } from "@order-system/shared";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { partitionOrderItems } from "./partitionOrderItems";
+import { partitionOrderItems } from "@/lib/partitionOrderItems";
 
 export function OrderSection({ title, children }: { title?: string; children: ReactNode }) {
   if (title === undefined) return <>{children}</>;

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { OrderItem } from "@order-system/shared";
 import { OrderSection } from "@/pages/group/GroupDetail/components/OrderHistory";
-import { partitionOrderItems } from "@/pages/group/GroupDetail/components/partitionOrderItems";
+import { partitionOrderItems } from "@/lib/partitionOrderItems";
 import { ActiveItemRow, ServedItemRow, type ItemGroup } from "./HistoryRows";
 import { HistoryCourseBlock } from "./HistoryCourseBlock";
 import { HistoryTotalsFooter } from "./HistoryTotalsFooter";

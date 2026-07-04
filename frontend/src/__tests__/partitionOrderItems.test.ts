@@ -1,4 +1,4 @@
-import { partitionOrderItems } from '../pages/group/GroupDetail/components/partitionOrderItems'
+import { partitionOrderItems } from '../lib/partitionOrderItems'
 import type { OrderItem, OrderItemStatus } from '@order-system/shared'
 
 function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
