@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
+import { formatDate } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import type { StaffMember, StaffSession } from "@order-system/shared";
 import { useEffect, useState } from "react";
@@ -121,11 +122,6 @@ export default function Staff() {
       showToast(t("common.deleteFailed"));
     }
     setRevokeSessionTarget(null);
-  };
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
   };
 
   const isSaveDisabled =

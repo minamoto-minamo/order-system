@@ -3,6 +3,7 @@ import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
+import { formatDate } from "@/lib/utils";
 import { usePlatformAuthStore } from "@/stores/platformAuth";
 import type { Store } from "@order-system/shared";
 import { useEffect, useState } from "react";
@@ -94,11 +95,6 @@ export default function StoreList() {
   const handleLogout = async () => {
     await api.post(EP.platformAuthLogout, {}).catch(() => {});
     setAdmin(null);
-  };
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
   };
 
   const isSaveDisabled = modalMode === "add"

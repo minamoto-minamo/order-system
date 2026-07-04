@@ -1,4 +1,4 @@
-import { getSeatLabels, isGroupActive, isAdmin } from '../lib/utils'
+import { getSeatLabels, isGroupActive, isAdmin, formatDate } from '../lib/utils'
 import type { Seat, Group, AuthUser } from '@order-system/shared'
 
 const seats: Seat[] = [
@@ -58,5 +58,15 @@ describe('isAdmin', () => {
 
   it('undefined は false', () => {
     expect(isAdmin(undefined)).toBe(false)
+  })
+})
+
+describe('formatDate', () => {
+  it('ISO文字列を YYYY/MM/DD 形式にする', () => {
+    expect(formatDate('2026-07-04T12:34:56.000Z')).toBe('2026/07/04')
+  })
+
+  it('月日を2桁にゼロ埋めする', () => {
+    expect(formatDate('2026-01-05T00:00:00')).toBe('2026/01/05')
   })
 })
