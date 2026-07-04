@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components";
+import { BottomSheetModal } from "../BottomSheetModal";
 import type { MenuItem } from "@order-system/shared";
 
 interface OrderItem {

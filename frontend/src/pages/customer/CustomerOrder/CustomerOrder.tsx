@@ -6,8 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuQtyStepper } from "@/components";
-import { MenuConfirmModal } from "@/pages/group/GroupDetail/components/MenuConfirmModal";
+import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper } from "@/components";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 

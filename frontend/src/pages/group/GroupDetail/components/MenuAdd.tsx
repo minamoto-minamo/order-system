@@ -1,8 +1,7 @@
-import { BaseButton, MenuQtyStepper } from "@/components";
+import { BaseButton, MenuConfirmModal, MenuQtyStepper } from "@/components";
 import type { Category, MenuItem, SubCategory } from "@order-system/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MenuConfirmModal } from "./MenuConfirmModal";
 
 export function MenuAdd({ menus, categories, subCategories, onAdd }: {
   menus: MenuItem[];
