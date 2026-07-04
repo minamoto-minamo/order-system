@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, BottomSheetModal, LoadError, NoticeBanner, QuantityControl, SlideUpFooter, SubHeader } from "@/components";
+import { AppHeader, LoadError, NoticeBanner, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -11,16 +11,10 @@ import type { Group, OrderItem, Seat, SeatLayoutResponse, SeatTable } from "@ord
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import type { SeatStatus } from "./components/FloorSeat";
+import { CreateGroupSheet } from "./components/CreateGroupSheet";
 import { FloorSeat } from "./components/FloorSeat";
 import { FloorTable } from "./components/FloorTable";
-
-function getSeatStatus(seat: Seat, groups: Group[]): SeatStatus {
-  const g = groups.find(gr => gr.seatIds.includes(seat.id) && isGroupActive(gr));
-  if (!g) return 'empty';
-  if (g.status === 'bill_requested') return 'bill';
-  return 'occupied';
-}
+import { buildGroupName, getSeatStatus } from "./components/hallUtils";
 
 export default function Hall() {
   const navigate = useNavigate();
@@ -130,27 +124,7 @@ export default function Hall() {
     !groups.some(g => g.seatIds.includes(id) && isGroupActive(g))
   );
 
-  // グループ名を席ラベルから自動生成。テーブル単位のラベルを先にまとめ、単独席を後ろに並べる
-  const groupName = (() => {
-    if (selectedEmptySeats.length === 0) return '';
-    const seenTableIds = new Set<number>();
-    const tableParts: string[] = [];
-    const standaloneParts: string[] = [];
-    for (const id of selectedEmptySeats) {
-      const seat = seats.find(s => s.id === id);
-      if (!seat) continue;
-      if (seat.tableId !== null) {
-        if (!seenTableIds.has(seat.tableId)) {
-          seenTableIds.add(seat.tableId);
-          const table = tables.find(t => t.id === seat.tableId);
-          if (table) tableParts.push(table.label);
-        }
-      } else {
-        standaloneParts.push(seat.label);
-      }
-    }
-    return [...tableParts, ...standaloneParts].join('・');
-  })();
+  const groupName = buildGroupName(selectedEmptySeats, seats, tables);
 
   const canCreate = selectedEmptySeats.length > 0;
 
@@ -236,38 +210,16 @@ export default function Hall() {
         </div>
       </div>
 
-      {canCreate && (
-        <SlideUpFooter className="px-5 py-3.5">
-          <div className="text-label text-muted mb-2 text-center">
-            {t('hall.seatsSelected', { seats: groupName })}
-          </div>
-          <BaseButton
-            variant="primary"
-            onClick={() => { setGuestCount(1); setShowCreateModal(true); }}
-            className="w-full rounded-[10px] p-3.5 text-sm font-medium tracking-[0.04em]"
-          >
-            {t('hall.createGroup')}
-          </BaseButton>
-        </SlideUpFooter>
-      )}
-
-      <BottomSheetModal
-        show={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        secondaryAction={{ label: t('common.cancel'), onClick: () => setShowCreateModal(false) }}
-        primaryAction={{ label: t('hall.createGroupAction', { count: guestCount }), onClick: () => { handleCreateGroup(); } }}
-      >
-        <div className="text-sub font-medium text-ink mb-1">
-          {t('hall.createGroup')}
-        </div>
-        <div className="text-xs text-muted mb-5">
-          {groupName}
-        </div>
-        <div className="mb-6">
-          <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-          <QuantityControl value={guestCount} onChange={setGuestCount} min={1} unit="名" />
-        </div>
-      </BottomSheetModal>
+      <CreateGroupSheet
+        canCreate={canCreate}
+        groupName={groupName}
+        guestCount={guestCount}
+        showModal={showCreateModal}
+        onOpenModal={() => { setGuestCount(1); setShowCreateModal(true); }}
+        onCloseModal={() => setShowCreateModal(false)}
+        onGuestCountChange={setGuestCount}
+        onCreate={handleCreateGroup}
+      />
 
     </>
   );
