@@ -1,4 +1,4 @@
-import { BaseButton, MenuConfirmModal, MenuQtyStepper } from "@/components";
+import { BaseButton, MenuConfirmModal, MenuQtyStepper, SlideUpFooter } from "@/components";
 import type { Category, MenuItem, SubCategory } from "@order-system/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -137,14 +137,14 @@ export function MenuAdd({ menus, categories, subCategories, onAdd }: {
       </div>
 
       {totalCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 pt-3 pb-6 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+        <SlideUpFooter>
           <BaseButton
             className={`w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white ${orderType === "takeout" ? 'bg-amber' : 'bg-ink'}`}
             onClick={() => setConfirmOpen(true)}
           >
             {t('group.reviewOrder')}
           </BaseButton>
-        </div>
+        </SlideUpFooter>
       )}
       <MenuConfirmModal
         open={confirmOpen}

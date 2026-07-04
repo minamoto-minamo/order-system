@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, BottomSheetModal, LoadError, NoticeBanner, QuantityControl, SubHeader } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, LoadError, NoticeBanner, QuantityControl, SlideUpFooter, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -237,7 +237,7 @@ export default function Hall() {
       </div>
 
       {canCreate && (
-        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 py-3.5 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+        <SlideUpFooter className="px-5 py-3.5">
           <div className="text-label text-muted mb-2 text-center">
             {t('hall.seatsSelected', { seats: groupName })}
           </div>
@@ -248,7 +248,7 @@ export default function Hall() {
           >
             {t('hall.createGroup')}
           </BaseButton>
-        </div>
+        </SlideUpFooter>
       )}
 
       <BottomSheetModal

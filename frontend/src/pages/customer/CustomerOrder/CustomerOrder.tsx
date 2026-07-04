@@ -6,7 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper, NoticeBanner } from "@/components";
+import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, MenuQtyStepper, NoticeBanner, SlideUpFooter } from "@/components";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
@@ -275,7 +275,7 @@ export default function CustomerOrder() {
       {errorMsg && <NoticeBanner variant="danger">{errorMsg}</NoticeBanner>}
 
       {tab === 'menu' && orderItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-modal px-5 pt-3 pb-6 bg-white border-t border-divider animate-[slideUp_0.2s_ease_both]">
+        <SlideUpFooter>
           <BaseButton
             className="w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white bg-ink disabled:opacity-50"
             onClick={() => setConfirmOpen(true)}
@@ -283,7 +283,7 @@ export default function CustomerOrder() {
           >
             {t('group.reviewOrder')}
           </BaseButton>
-        </div>
+        </SlideUpFooter>
       )}
 
       <MenuConfirmModal
