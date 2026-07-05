@@ -1,4 +1,4 @@
-import { resetDb, disconnect } from './helpers/db'
+import { resetDb, prisma, disconnect } from './helpers/db'
 import { loginAs } from './helpers/auth'
 import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
@@ -59,6 +59,28 @@ test('← 戻るで前の画面に遷移', async ({ page }) => {
   await page.goto(ROUTES.adminProducts)
   await page.getByRole('button', { name: `← ${ja.admin.menuTitle}` }).click()
   await expect(page).toHaveURL(ROUTES.admin)
+})
+
+// カテゴリ欄が画面高を超えたとき overflow-hidden でクリップされスクロール不能だったバグの回帰テスト
+test('カテゴリ欄が画面高を超えてもスクロールして操作できる', async ({ page }) => {
+  const storeId = getStore().id
+  await prisma.category.createMany({
+    data: Array.from({ length: 30 }, (_, i) => ({
+      name: `カテゴリ${String(i + 1).padStart(2, '0')}`,
+      sort: 100 + i,
+      storeId,
+    })),
+  })
+
+  await page.goto(ROUTES.adminProducts)
+  const addCategory = page.getByText(ja.productSettings.addCategory)
+  await expect(page.getByText('カテゴリ01', { exact: true })).toBeVisible()
+  await expect(addCategory).not.toBeInViewport()
+
+  // カテゴリ欄の上でホイールスクロールして最下部の「大分類追加」を表示する
+  await page.getByText('カテゴリ01', { exact: true }).hover()
+  await page.mouse.wheel(0, 3000)
+  await expect(addCategory).toBeInViewport()
 })
 
 test('品切れトグルを切り替えられる', async ({ page }) => {
