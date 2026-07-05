@@ -5,15 +5,17 @@ import { useTranslation } from "react-i18next";
 import { NavDrawer } from "@/components/layout/NavDrawer";
 import { IconButton } from "@/components/controls/button";
 import { useOverTimeWarning } from "@/hooks/useOverTimeWarning";
+import { BRAND } from "@/lib/brand";
 
 interface AppHeaderProps {
   title: ReactNode;
   sub?: ReactNode;
   breadcrumb?: { label: string; to?: string; onClick?: () => void };
   right?: ReactNode;
+  titleTruncate?: boolean;
 }
 
-export function AppHeader({ title, sub, breadcrumb, right }: AppHeaderProps) {
+export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true }: AppHeaderProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [showNav, setShowNav] = useState(false);
@@ -33,7 +35,10 @@ export function AppHeader({ title, sub, breadcrumb, right }: AppHeaderProps) {
             </IconButton>
           )}
           <div className="min-w-0">
-            <div className="text-sub font-medium text-ink truncate">{title}</div>
+            <div className="flex min-w-0 items-center gap-2">
+              <img src={BRAND.iconPath} alt="" className="h-4.5 w-4.5 shrink-0" />
+              <div className={`min-w-0 text-sub font-medium text-ink ${titleTruncate ? 'truncate' : ''}`}>{title}</div>
+            </div>
             {sub && <div className="text-label text-muted mt-px truncate">{sub}</div>}
           </div>
         </div>

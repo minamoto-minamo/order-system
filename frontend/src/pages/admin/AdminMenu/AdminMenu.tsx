@@ -10,7 +10,7 @@ export default function AdminMenu() {
 
   const menuItems = [
     { path: ROUTES.adminProducts, label: t('admin.products'), sub: t('admin.productsSub'), icon: ICONS.product },
-    { path: ROUTES.adminCourses,  label: t('admin.courses'),  sub: t('admin.coursesSub'),  icon: ICONS.product },
+    { path: ROUTES.adminCourses,  label: t('admin.courses'),  sub: t('admin.coursesSub'),  icon: ICONS.course  },
     { path: ROUTES.adminSeats,    label: t('admin.seats'),    sub: t('admin.seatsSub'),    icon: ICONS.layout  },
     { path: ROUTES.adminStaff,    label: t('admin.staff'),    sub: t('admin.staffSub'),    icon: ICONS.staff   },
     { path: ROUTES.adminReport,   label: t('admin.report'),   sub: t('admin.reportSub'),   icon: ICONS.report  },
@@ -21,18 +21,21 @@ export default function AdminMenu() {
     <>
       <AppHeader title={t('admin.menuTitle')} />
 
-      <div className="flex-1 flex flex-col items-center justify-center px-8">
-        <div className="w-full max-w-80 flex flex-col gap-2.5">
-          {menuItems.map((item, i) => (
-            <NavButton
-              key={item.path}
-              label={item.label}
-              subtitle={item.sub}
-              icon={item.icon}
-              animationDelay={i * 0.06}
-              onClick={() => navigate(item.path)}
-            />
-          ))}
+      <div className="flex-1 overflow-y-auto px-8">
+        <div className="min-h-full py-6 flex flex-col items-center" style={{ justifyContent: "safe center" }}>
+          <div className="w-full max-w-[41rem] flex flex-wrap gap-2.5">
+            {menuItems.map((item, i) => (
+              <NavButton
+                key={item.path}
+                label={item.label}
+                subtitle={item.sub}
+                icon={item.icon}
+                className={`min-[560px]:w-[calc(50%-0.3125rem)] ${menuItems.length % 2 === 1 && i === menuItems.length - 1 ? 'min-[560px]:mx-auto' : ''}`}
+                animationDelay={i * 0.06}
+                onClick={() => navigate(item.path)}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </>

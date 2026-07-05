@@ -151,6 +151,7 @@ export default function Hall() {
 
   const canvasW = canvasCols * gridSize;
   const canvasH = canvasRows * gridSize;
+  const bottomPadding = canCreate ? 152 : 24;
 
   if (loadError) return <LoadError />;
 
@@ -177,7 +178,7 @@ export default function Hall() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-4 animate-[fadeIn_0.3s_ease_both]">
+      <div className="flex-1 overflow-auto p-4 animate-[fadeIn_0.3s_ease_both]" style={{ paddingBottom: bottomPadding }}>
         <div
           className="relative bg-white border border-divider rounded-[10px]"
           style={{ width: canvasW, height: canvasH, minWidth: canvasW }}

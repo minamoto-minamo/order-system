@@ -77,7 +77,7 @@ export default function DailyReport() {
               <div className="flex flex-col gap-1.5">
                 {sessions.map(s => (
                   <button key={s.id}
-                    className={`cursor-pointer px-3.5 py-2.5 text-left rounded-lg text-note border ${selectedId === s.id ? 'border-ink bg-ink text-white font-medium' : 'border-line bg-white text-dim'}`}
+                    className={`cursor-pointer px-3.5 py-2.5 text-left rounded-lg text-note border ${selectedId === s.id ? 'border-brand bg-brand text-white font-medium' : 'border-line bg-white text-dim'}`}
                     onClick={() => setSelectedId(s.id)}>
                     {sessionLabel(s)}
                   </button>

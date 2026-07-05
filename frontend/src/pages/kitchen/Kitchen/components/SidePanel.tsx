@@ -42,7 +42,7 @@ export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onSer
         <div className="flex-1 px-5 py-4 overflow-y-auto">
           {readyItems.length > 0 && (
             <div className="mb-4">
-              <div className="text-label text-bill font-medium mb-2 tracking-[0.08em]">{`🍽 ${t('common.readyToServe')}`}</div>
+              <div className="text-label text-amber-fg font-medium mb-2 tracking-[0.08em]">{`🍽 ${t('common.readyToServe')}`}</div>
               {readyItems.map(o => (
                 <div key={o.id} className="px-2.5 py-2 mb-1 bg-amber-bg border border-amber-border rounded-lg flex items-center gap-2">
                   <span className="flex-1 text-note text-secondary">{o.item}</span>

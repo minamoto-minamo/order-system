@@ -8,6 +8,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-shell > .flex-1 {
+  min-height: 0;
+}
+
 @font-face {
   font-family: 'Noto Sans JP';
   src: url('../assets/fonts/NotoSansJP-Regular.woff2') format('woff2');
@@ -96,6 +107,6 @@ body {
 .input-field {
   &:focus {
     outline: none;
-    border-color: var(--color-ink) !important;
+    border-color: var(--color-brand) !important;
   }
 }

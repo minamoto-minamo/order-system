@@ -13,7 +13,7 @@ import type { OrderItem, Group, Seat, MenuItem, Category, SubCategory } from "@o
 import { CategoryLane } from "./components/CategoryLane";
 import { CardView } from "./components/CardView";
 import { SidePanel } from "./components/SidePanel";
-import { buildDisplay, CAT_COLORS, CAT_BG_COLORS } from "./components/utils";
+import { buildDisplay } from "./components/utils";
 import type { DisplayCat } from "./components/types";
 import "./Kitchen.scss";
 
@@ -90,11 +90,9 @@ export default function Kitchen() {
   const displayCats = useMemo<DisplayCat[]>(() =>
     categories
       .sort((a, b) => a.sort - b.sort)
-      .map((cat, i) => ({
+      .map((cat) => ({
         id: cat.id,
         label: cat.name,
-        color: CAT_COLORS[i % CAT_COLORS.length],
-        bgColor: CAT_BG_COLORS[i % CAT_BG_COLORS.length],
         subs: subCategories
           .filter(s => s.categoryId === cat.id)
           .sort((a, b) => a.sort - b.sort)
@@ -118,16 +116,21 @@ export default function Kitchen() {
   return (
     <>
       <AppHeader
+          titleTruncate={false}
           title={
-            <>
-              {t('kitchen.title')}
+            <div className="flex min-w-0 items-center gap-1.5 flex-wrap">
+              <span className="text-sub font-medium text-ink whitespace-nowrap">{t('kitchen.title')}</span>
               {pendingCount > 0 && (
-                <span className="ml-2 text-label bg-surface-deep border border-line text-secondary px-2 py-0.5 rounded-full">{t('kitchen.pendingCount', { count: pendingCount })}</span>
+                <span className="ml-2 inline-flex items-center rounded-full border border-line bg-surface px-2 py-0.5 text-label text-secondary whitespace-nowrap">
+                  {t('kitchen.pendingCount', { count: pendingCount })}
+                </span>
               )}
               {readyCount > 0 && (
-                <span className="ml-1.5 text-label bg-amber-bg text-bill border border-amber-border px-2 py-0.5 rounded-full">{`🍽 ${t('common.readyToServe')} ${t('kitchen.pendingCount', { count: readyCount })}`}</span>
+                <span className="ml-1.5 inline-flex items-center rounded-full border border-amber-border bg-amber-bg px-2 py-0.5 text-label text-amber-fg whitespace-nowrap">
+                  {t('common.readyToServe')} {t('kitchen.pendingCount', { count: readyCount })}
+                </span>
               )}
-            </>
+            </div>
           }
         />
         <SubHeader

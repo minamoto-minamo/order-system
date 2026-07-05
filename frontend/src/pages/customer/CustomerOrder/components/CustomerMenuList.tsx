@@ -21,7 +21,7 @@ export function CustomerMenuList({ categories, activeCatId, onSelectCategory, su
           <button
             key={c.id}
             className={`px-4 py-2.5 text-note border-none bg-none cursor-pointer whitespace-nowrap border-b-2 ${
-              activeCatId === c.id ? 'text-ink font-medium border-ink' : 'text-muted border-transparent'
+              activeCatId === c.id ? 'text-brand font-medium border-brand' : 'text-muted border-transparent'
             }`}
             onClick={() => onSelectCategory(c.id)}
           >

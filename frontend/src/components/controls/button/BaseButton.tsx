@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 const VARIANT_CLASSES = {
-  primary: "bg-ink text-white border-none",
+  primary: "bg-brand text-white border-none",
   secondary: "border border-line bg-white text-dim",
   ghost: "bg-transparent border-none",
   danger: "bg-danger text-white border-none",

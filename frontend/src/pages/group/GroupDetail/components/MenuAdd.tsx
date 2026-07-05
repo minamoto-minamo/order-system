@@ -70,7 +70,7 @@ export function MenuAdd({ menus, categories, subCategories, onAdd }: {
             <button
               key={c.id}
               className={`px-4 py-2.5 text-note border-none bg-none cursor-pointer whitespace-nowrap border-b-2 ${safeCatId === c.id
-                  ? `text-ink font-medium ${orderType === "takeout" ? 'border-amber' : 'border-ink'}`
+                  ? `font-medium ${orderType === "takeout" ? 'text-amber border-amber' : 'text-brand border-brand'}`
                   : 'text-muted border-transparent'
                 }`}
               onClick={() => handleCatChange(c.id)}
@@ -121,7 +121,7 @@ export function MenuAdd({ menus, categories, subCategories, onAdd }: {
       {totalCount > 0 && (
         <SlideUpFooter>
           <BaseButton
-            className={`w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white ${orderType === "takeout" ? 'bg-amber' : 'bg-ink'}`}
+            className={`w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white ${orderType === "takeout" ? 'bg-amber' : 'bg-brand'}`}
             onClick={() => setConfirmOpen(true)}
           >
             {t('group.reviewOrder')}

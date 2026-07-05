@@ -19,10 +19,6 @@ export const elapsedColor = (ts: string) => {
   return "var(--color-muted)";
 };
 
-// カテゴリ数が増えても色が足りなくなるのを防ぐため5色でローテーション
-export const CAT_COLORS = ['var(--color-cat-1)', 'var(--color-cat-2)', 'var(--color-cat-3)', 'var(--color-cat-4)', 'var(--color-cat-5)'];
-export const CAT_BG_COLORS = ['var(--color-cat-1-bg)', 'var(--color-cat-2-bg)', 'var(--color-cat-3-bg)', 'var(--color-cat-4-bg)', 'var(--color-cat-5-bg)'];
-
 export function buildDisplay(o: OrderItem, menus: MenuItem[], groups: Group[], seats: Seat[], getGroupName: (id: string) => string): DisplayOrder {
   const g = groups.find(x => x.id === o.groupId);
   const m = menus.find(x => x.id === o.menuItemId);

@@ -1,3 +1,4 @@
+import course  from "@/assets/icons/course.png";
 import hall    from "@/assets/icons/hall.png";
 import home    from "@/assets/icons/home.png";
 import kitchen from "@/assets/icons/kitchen.png";
@@ -8,4 +9,4 @@ import report  from "@/assets/icons/report.png";
 import setting from "@/assets/icons/setting.png";
 import staff   from "@/assets/icons/staff.png";
 
-export const ICONS = { hall, home, kitchen, layout, logout, product, report, setting, staff };
+export const ICONS = { course, hall, home, kitchen, layout, logout, product, report, setting, staff };

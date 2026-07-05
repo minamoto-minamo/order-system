@@ -3,7 +3,7 @@
 interface ToggleOption {
   key: string;
   label: string;
-  /** アクティブ時の Tailwind クラス。未指定は黒背景 + 白文字 */
+  /** アクティブ時の Tailwind クラス。未指定はブランド色背景 + 白文字 */
   activeClass?: string;
 }
 
@@ -21,7 +21,7 @@ export function ToggleButtonGroup({ options, value, onChange }: ToggleButtonGrou
           key={opt.key}
           className={`px-2.5 py-1 text-caption border-none cursor-pointer ${
             value === opt.key
-              ? (opt.activeClass ?? "bg-ink text-white")
+              ? (opt.activeClass ?? "bg-brand text-white")
               : "bg-white text-dim"
           }`}
           onClick={() => onChange(opt.key)}

@@ -41,7 +41,7 @@ export function FormSheetModal({ title, error, saveDisabled, onClose, onSave, ch
             {t("common.cancel")}
           </BaseButton>
           <BaseButton
-            className="flex-1 border-none rounded-lg py-2.5 text-sm font-medium bg-ink text-white disabled:opacity-40"
+            className="flex-1 border-none rounded-lg py-2.5 text-sm font-medium bg-brand text-white disabled:opacity-40"
             onClick={onSave}
             disabled={saveDisabled}
           >

@@ -52,8 +52,7 @@ export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, on
         </div>
       ) : (
         <BaseButton
-          className="w-full border-none rounded-[10px] py-3.5 text-sub font-medium text-white disabled:opacity-40"
-          style={{ background: 'var(--color-ink)' }}
+          className="w-full border-none rounded-[10px] py-3.5 text-sub font-medium text-white bg-brand disabled:opacity-40"
           onClick={onBillRequest}
           // 調理中・提供待ちの注文が残っている間は会計リクエストを送れない
           disabled={items.some(i => i.status === 'pending' || i.status === 'ready')}

@@ -3,33 +3,35 @@ import { elapsed, timeStr, elapsedColor } from "./utils";
 import "./TicketCard.scss";
 import type { DisplayOrder } from "./types";
 
-export function TicketCard({ order, accentColor, onComplete, onClick }: {
+export function TicketCard({ order, onComplete, onClick }: {
   order: DisplayOrder;
-  accentColor: string;
   onComplete: (id: string) => void;
   onClick: (groupId: string) => void;
 }) {
   const { t } = useTranslation();
   return (
     <div
-      className="ticket-card bg-white border border-divider rounded-b-lg px-3 py-2.5 w-37 shrink-0 shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
+      className="ticket-card bg-white border border-divider rounded-lg px-3 py-2.5 w-44 shrink-0 shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
       onClick={() => onClick(order.groupId)}
-      style={{ borderTop: `3px solid ${accentColor}` }}
     >
-      <div className="mb-1.5">
-        <div className="text-label font-medium text-secondary">{order.groupName}</div>
-        <div className="text-caption text-dim">{order.seats}</div>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-caption font-medium text-ink truncate">{order.groupName}</div>
+          <div className="text-caption text-dim truncate">{order.seats}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-xs font-medium leading-tight" style={{ color: elapsedColor(order.orderedAt) }}>
+            {elapsed(order.orderedAt)}
+          </div>
+          <div className="text-caption text-dim leading-tight">{timeStr(order.orderedAt)}</div>
+        </div>
       </div>
-      <div className="text-sm font-medium text-ink mb-px">{order.item}</div>
-      <div className="text-xs text-muted mb-2">×{order.qty}</div>
-      <div className="flex items-baseline gap-1.25 mb-2.25">
-        <span className="text-xs font-medium" style={{ color: elapsedColor(order.orderedAt) }}>
-          {elapsed(order.orderedAt)}
-        </span>
-        <span className="text-caption text-dim">{timeStr(order.orderedAt)}</span>
+      <div className="mb-2.5 flex items-start gap-2">
+        <div className="min-w-0 flex-1 truncate text-caption font-medium text-ink">{order.item}</div>
+        <div className="shrink-0 rounded-full bg-surface-deep px-2 py-0.5 text-caption text-secondary">×{order.qty}</div>
       </div>
       <button
-        className="complete-btn w-full bg-surface-deep border border-line rounded-[5px] py-2.5 text-label text-secondary"
+        className="complete-btn w-full bg-surface-deep border border-line rounded-md py-2.25 text-caption text-secondary"
         onClick={(e) => { e.stopPropagation(); onComplete(order.id); }}
       >
         {t('kitchen.complete')}

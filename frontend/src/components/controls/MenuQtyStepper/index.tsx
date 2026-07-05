@@ -25,7 +25,7 @@ export function MenuQtyStepper({ qty, onChange, disabled }: MenuQtyStepperProps)
       )}
       <BaseButton
         className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
-          qty > 0 ? "border-ink bg-ink text-white" : "border-line bg-white text-dim"
+          qty > 0 ? "border-brand bg-brand text-white" : "border-line bg-white text-dim"
         }`}
         onClick={() => onChange(qty + 1)}
         disabled={disabled}

@@ -17,10 +17,12 @@ export function NavButton({
   style,
   ...props
 }: NavButtonProps) {
-  const stateClass = disabled ? "bg-surface-deep border-line" : "bg-white border-divider";
+  const stateClass = disabled
+    ? "bg-surface-deep border-line border-l-faint"
+    : "bg-white border-brand-border border-l-brand";
   return (
     <button
-      className={["tappable rounded-[10px] px-5.5 py-5 text-left w-full border flex items-center gap-4", stateClass, className].filter(Boolean).join(" ")}
+      className={["tappable rounded-[10px] px-5.5 py-5 text-left w-full border border-l-4 flex items-center gap-4", stateClass, className].filter(Boolean).join(" ")}
       disabled={disabled}
       style={animationDelay !== undefined ? { animation: `fadeIn 0.4s ease ${animationDelay}s both`, ...style } : style}
       {...props}

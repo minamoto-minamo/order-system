@@ -15,7 +15,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="h-dvh bg-surface flex flex-col">
+    <div className="app-shell h-dvh bg-white flex flex-col overflow-hidden">
       {toast && <NoticeBanner>{toast}</NoticeBanner>}
       {children}
     </div>

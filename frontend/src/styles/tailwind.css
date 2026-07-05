@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Brand ── */
+  --color-brand:        #0f766e;
+  --color-brand-dark:   #115e59;
+  --color-brand-soft:   #e6f3f1;
+  --color-brand-border: #99d5ce;
+
   /* ── Neutral ── */
-  --color-ink:          #111;     /* primary text, action buttons */
+  --color-ink:          #111;     /* primary text */
   --color-secondary:    #333;     /* secondary labels, nav items */
   --color-dim:          #666;     /* captions, icons, dimmed text */
   --color-muted:        #767676;  /* muted labels (WCAG AA 4.5:1 on white) */
@@ -19,11 +25,11 @@
   --color-amber-fg:     #92400e;
 
   /* ── Bill: 会計リクエスト ── */
-  --color-bill:        #e8960a;
-  --color-bill-bg:     #fff9f0;
-  --color-bill-border: #f0c060;
-  --color-bill-glow:   #f0c06044;
-  --color-bill-fg:     #7a4a06;
+  --color-bill:        #8b5cf6;
+  --color-bill-bg:     #f5f0ff;
+  --color-bill-border: #c4b5fd;
+  --color-bill-glow:   #8b5cf644;
+  --color-bill-fg:     #6d28d9;
 
   /* ── Danger: error / delete ── */
   --color-danger:        #e53935;

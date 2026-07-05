@@ -1,8 +1,6 @@
 export interface DisplayCat {
   id: number;
   label: string;
-  color: string;
-  bgColor: string;
   subs: { id: number; label: string }[];
 }
 

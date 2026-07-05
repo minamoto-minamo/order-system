@@ -6,6 +6,7 @@ import { useSessionActions } from "@/hooks/useSessionActions";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { BRAND } from "@/lib/brand";
 import { ROUTES } from "@/lib/routes";
 import { socket } from "@/lib/socket";
 import { isAdmin } from "@/lib/utils";
@@ -64,79 +65,86 @@ export default function Home() {
     <>
       <AppHeader title={t('nav.home')} />
 
-      <div className="flex-1 flex flex-col items-center justify-center px-8">
-
-        {/* 営業状態バッジ＋営業日時 */}
-        <div className="mb-5 animate-[fadeIn_0.4s_ease_0.05s_both] flex flex-col items-center gap-2">
-          {storeName && (
-            <div className="text-sub font-medium text-ink">{storeName}</div>
-          )}
-          <div className={`inline-flex items-center gap-1.5 px-3.5 py-1.25 rounded-full border text-xs font-medium ${isOpen ? 'bg-green-50 border-open-border text-green-600' : 'bg-surface border-line text-muted'}`}>
-            <span className={`w-1.75 h-1.75 rounded-full inline-block ${isOpen ? 'bg-open' : 'bg-faint'}`} />
-            {isOpen ? t('session.open') : session ? t('session.closed') : t('session.noSession')}
+      <div className="flex-1 overflow-y-auto px-8">
+        <div className="min-h-full py-6 flex flex-col items-center" style={{ justifyContent: "safe center" }}>
+          <div className="mb-7 animate-[fadeIn_0.4s_ease_both] flex flex-col items-center text-center">
+            <img src={BRAND.iconPath} alt="" className="w-14 h-14" />
           </div>
-          <div className="text-label text-muted tracking-[0.04em]">
-            {isOpen && session ? t('home.sessionStart', { time: sessionStart }) : t('home.closedMessage')}
-          </div>
-        </div>
 
-        {/* モードボタン（締め済み時はグレーアウト・タップ不可） */}
-        <div className="w-full max-w-80 flex flex-col gap-2.5">
-          {modes.map((m, i) => {
-            const disabled = (m.gated && !isOpen) || (m.roleGated && !isAdmin(user));
-            const subText = m.roleGated && !isAdmin(user)
-              ? t('home.adminOnly')
-              : m.gated && !isOpen
-                ? t('home.openFirst')
-                : m.sub;
-            return (
-              <NavButton
-                key={m.path}
-                label={m.label}
-                subtitle={subText}
-                icon={m.icon}
-                animationDelay={0.1 + i * 0.08}
-                onClick={() => navigate(m.path)}
-                disabled={disabled}
-              />
-            );
-          })}
-        </div>
-
-        {/* 営業操作ボタン */}
-        <div className="mt-7 w-full max-w-80 animate-[fadeIn_0.4s_ease_0.28s_both]">
-          {isOpen
-            ? (
-              <BaseButton
-                variant="secondary"
-                className="w-full rounded-[10px] py-3 text-note"
-                onClick={() => setShowCloseConfirm(true)}
-              >
-                {t('session.closeAction')}
-              </BaseButton>
-            )
-            : (
-              <div className="flex flex-col gap-2">
-                {session && (
-                  <BaseButton
-                    variant="secondary"
-                    className="w-full rounded-[10px] py-3 text-note"
-                    onClick={() => setShowReopenConfirm(true)}
-                  >
-                    {t('session.reopenAction')}
-                  </BaseButton>
-                )}
-                <BaseButton
-                  variant="primary"
-                  className="w-full rounded-[10px] py-3 text-note font-medium"
-                  onClick={() => setShowNewConfirm(true)}
-                >
-                  {t('session.newSessionAction')}
-                </BaseButton>
-              </div>
+          {/* 営業状態バッジ＋営業日時 */}
+          <div className="mb-5 animate-[fadeIn_0.4s_ease_0.05s_both] flex flex-col items-center gap-2">
+            {storeName && (
+              <div className="text-sub font-medium text-ink">{storeName}</div>
             )}
-        </div>
+            <div className={`inline-flex items-center gap-1.5 px-3.5 py-1.25 rounded-full border text-xs font-medium ${isOpen ? 'bg-green-50 border-open-border text-green-600' : 'bg-surface border-line text-muted'}`}>
+              <span className={`w-1.75 h-1.75 rounded-full inline-block ${isOpen ? 'bg-open' : 'bg-faint'}`} />
+              {isOpen ? t('session.open') : session ? t('session.closed') : t('session.noSession')}
+            </div>
+            <div className="text-label text-muted tracking-[0.04em]">
+              {isOpen && session ? t('home.sessionStart', { time: sessionStart }) : t('home.closedMessage')}
+            </div>
+          </div>
 
+          {/* モードボタン（締め済み時はグレーアウト・タップ不可） */}
+          <div className="w-full max-w-[41rem] flex flex-wrap gap-2.5">
+            {modes.map((m, i) => {
+              const disabled = (m.gated && !isOpen) || (m.roleGated && !isAdmin(user));
+              const subText = m.roleGated && !isAdmin(user)
+                ? t('home.adminOnly')
+                : m.gated && !isOpen
+                  ? t('home.openFirst')
+                  : m.sub;
+              return (
+                <NavButton
+                  key={m.path}
+                  label={m.label}
+                  subtitle={subText}
+                  icon={m.icon}
+                  className={`min-[560px]:w-[calc(50%-0.3125rem)] ${modes.length % 2 === 1 && i === modes.length - 1 ? 'min-[560px]:mx-auto' : ''}`}
+                  animationDelay={0.1 + i * 0.08}
+                  onClick={() => navigate(m.path)}
+                  disabled={disabled}
+                />
+              );
+            })}
+          </div>
+
+          {/* 営業操作ボタン */}
+          <div className="mt-7 w-full max-w-80 animate-[fadeIn_0.4s_ease_0.28s_both]">
+            {isOpen
+              ? (
+                <BaseButton
+                  variant="secondary"
+                  className="w-full rounded-[10px] py-3 text-note"
+                  onClick={() => setShowCloseConfirm(true)}
+                >
+                  {t('session.closeAction')}
+                </BaseButton>
+              )
+              : (
+                <div className="flex flex-col gap-2">
+                  {session && (
+                    <BaseButton
+                      variant="secondary"
+                      className="w-full rounded-[10px] py-3 text-note"
+                      onClick={() => setShowReopenConfirm(true)}
+                    >
+                      {t('session.reopenAction')}
+                    </BaseButton>
+                  )}
+                  <BaseButton
+                    variant="primary"
+                    className="w-full rounded-[10px] py-3 text-note font-medium"
+                    onClick={() => setShowNewConfirm(true)}
+                  >
+                    {t('session.newSessionAction')}
+                  </BaseButton>
+                </div>
+              )}
+          </div>
+
+
+        </div>
 
         {/* 営業開始確認モーダル */}
         <BottomSheetModal

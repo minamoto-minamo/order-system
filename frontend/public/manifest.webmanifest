@@ -1,0 +1,17 @@
+{
+  "name": "宴卓オーダー",
+  "short_name": "宴卓",
+  "description": "居酒屋の注文と営業を、卓ごとに整える注文管理システム",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/brand-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -15,7 +15,7 @@ export function TabNavigation({ tabs, activeTab, onChange, className = "" }: Tab
         <button
           key={t.key}
           // アクティブタブは下線 + 太字、非アクティブはグレー
-          className={`flex-1 py-2.75 text-note border-none bg-transparent cursor-pointer border-b-2 ${activeTab === t.key ? "text-ink font-medium border-ink" : "text-muted border-transparent"}`}
+          className={`flex-1 py-2.75 text-note border-none bg-transparent cursor-pointer border-b-2 ${activeTab === t.key ? "text-brand font-medium border-brand" : "text-muted border-transparent"}`}
           onClick={() => onChange(t.key)}
         >
           {t.label}
