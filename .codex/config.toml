@@ -1,0 +1,20 @@
+# Project-scoped Codex configuration for order-system.
+# Keep personal preferences such as model choice in ~/.codex/config.toml.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+
+# AGENTS.md is the durable source for this repository's Codex workflow.
+project_doc_max_bytes = 32768
+project_doc_fallback_filenames = ["CLAUDE.md"]
+project_root_markers = [".git"]
+
+[features]
+hooks = true
+multi_agent = true
+shell_snapshot = true
+
+[sandbox_workspace_write]
+writable_roots = []
+network_access = false

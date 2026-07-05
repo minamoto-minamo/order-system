@@ -40,6 +40,17 @@ order-system/
 
 各ワークスペースの詳細は `frontend/CLAUDE.md` / `backend/CLAUDE.md` / `shared/CLAUDE.md` を参照。
 
+## Claude / Codex 分担
+
+- Claude: 設計、仕様整理、観点別レビュー、Codexへの実装ハンドオフ作成を担当する。
+- Codex: 実行担当。開発、調査、Lint、単体テスト、e2e、テスト追加・改修、型チェック・ビルド、検証失敗の原因調査と修正、結果報告を担当する。
+- 設計済みの変更をCodexへ渡す時は `.claude/skills/codex-execution` を使い、`codex@openai-codex` plugin の `/codex:rescue` へ委譲する。
+- レビュー結果の指摘を実装へ回す時は `.claude/skills/review-findings-to-codex` を使い、独立した指摘を複数の `/codex:rescue --background --fresh` job として並列に渡す。
+- レビューを通さない通常の開発要望をCodexへ渡す時は `.claude/skills/dev-request-to-codex` を使い、要望をhandoff形式に整理してから `/codex:rescue` へ渡す。
+- Codex側は `.agents/skills/implement-from-design` を使い、受け取ったhandoffを現行コードに照合してから最小差分で実行する。
+- 設計と現行コードが矛盾する場合は、Codexは実装を止めて差分を報告する。Claudeは設計を更新して再ハンドオフする。
+- 進捗確認は `/codex:status`、結果取得は `/codex:result <job-id>` を使う。
+
 ## 環境設定
 
 env ファイルは `env/` ディレクトリで管理。

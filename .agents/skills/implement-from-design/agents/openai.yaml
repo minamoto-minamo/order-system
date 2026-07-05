@@ -1,0 +1,6 @@
+interface:
+  display_name: "設計から実装"
+  short_description: "Claudeの設計を検証済み実装へ落とす"
+  default_prompt: "$implement-from-design を使って、この承認済み設計を最小差分と focused tests で実装してください。"
+policy:
+  allow_implicit_invocation: true
