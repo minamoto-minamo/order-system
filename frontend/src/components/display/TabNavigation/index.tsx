@@ -4,11 +4,13 @@ interface TabNavigationProps {
   tabs: { key: string; label: string }[];
   activeTab: string;
   onChange: (key: string) => void;
+  /** コンテナに追加するクラス（背景色の上書き等） */
+  className?: string;
 }
 
-export function TabNavigation({ tabs, activeTab, onChange }: TabNavigationProps) {
+export function TabNavigation({ tabs, activeTab, onChange, className = "" }: TabNavigationProps) {
   return (
-    <div className="flex border-b border-divider shrink-0">
+    <div className={`flex border-b border-divider shrink-0 ${className}`}>
       {tabs.map(t => (
         <button
           key={t.key}

@@ -6,7 +6,7 @@ import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, NoticeBanner, SlideUpFooter } from "@/components";
+import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, NoticeBanner, SlideUpFooter, TabNavigation } from "@/components";
 import { CustomerMenuList } from "./components/CustomerMenuList";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
@@ -199,20 +199,15 @@ export default function CustomerOrder() {
         </div>
       </div>
 
-      <div className="flex border-b border-divider bg-white shrink-0">
-        <button
-          className={`flex-1 py-2.5 text-note border-none bg-transparent cursor-pointer border-b-2 ${tab === 'menu' ? 'text-ink font-medium border-ink' : 'text-muted border-transparent'}`}
-          onClick={() => setTab('menu')}
-        >
-          {t('customerOrder.menuTab')}
-        </button>
-        <button
-          className={`flex-1 py-2.5 text-note border-none bg-transparent cursor-pointer border-b-2 ${tab === 'history' ? 'text-ink font-medium border-ink' : 'text-muted border-transparent'}`}
-          onClick={() => setTab('history')}
-        >
-          {t('customerOrder.historyTab')}
-        </button>
-      </div>
+      <TabNavigation
+        className="bg-white"
+        tabs={[
+          { key: 'menu', label: t('customerOrder.menuTab') },
+          { key: 'history', label: t('customerOrder.historyTab') },
+        ]}
+        activeTab={tab}
+        onChange={key => setTab(key as 'menu' | 'history')}
+      />
 
       {tab === 'menu' ? (
         <CustomerMenuList
