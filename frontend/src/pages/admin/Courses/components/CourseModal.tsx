@@ -36,7 +36,7 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
       show
       scrollable
       onClose={onClose}
-      secondaryAction={onDelete ? { label: t('common.delete'), onClick: onDelete } : undefined}
+      secondaryAction={onDelete ? { label: t('common.delete'), onClick: onDelete, variant: "danger" } : undefined}
       primaryAction={{
         label: t('common.save'),
         disabled: !valid,

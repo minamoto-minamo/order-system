@@ -38,7 +38,7 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
       show
       scrollable
       onClose={onClose}
-      secondaryAction={onDelete ? { label: t('common.delete'), onClick: onDelete } : undefined}
+      secondaryAction={onDelete ? { label: t('common.delete'), onClick: onDelete, variant: "danger" } : undefined}
       primaryAction={{
         label: t('common.save'),
         disabled: !name.trim() || !priceValid,

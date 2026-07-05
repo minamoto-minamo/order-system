@@ -16,7 +16,7 @@ interface BottomSheetModalProps {
     variant?: "default" | "danger" | "takeout";
     disabled?: boolean;
   };
-  secondaryAction?: { label: string; onClick: () => void };
+  secondaryAction?: { label: string; onClick: () => void; variant?: "default" | "danger" };
   children?: ReactNode;
 }
 
@@ -62,7 +62,7 @@ export function BottomSheetModal({
           {secondaryAction && (
             <BaseButton
               variant="secondary"
-              className="flex-1 py-3.25 rounded-[10px] text-sm"
+              className={`flex-1 py-3.25 rounded-[10px] text-sm${secondaryAction.variant === "danger" ? " text-danger" : ""}`}
               onClick={secondaryAction.onClick}
             >
               {secondaryAction.label}
