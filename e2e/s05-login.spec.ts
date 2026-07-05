@@ -1,4 +1,4 @@
-import { resetDb, disconnect } from './helpers/db'
+import { resetDb, prisma, disconnect } from './helpers/db'
 import { loginAs, CREDS } from './helpers/auth'
 import { testWithStore } from './helpers/testWithStore'
 import { ROUTES } from '../frontend/src/lib/routes'
@@ -73,6 +73,42 @@ test('staff ロールで /admin/products にアクセスすると / にリダイ
   await loginAs(page, 'staff')
   await page.goto(ROUTES.adminProducts)
   await expect(page).toHaveURL(ROUTES.root)
+})
+
+// ログイン前に確立した Socket.io 接続が未認証のまま使い回されるバグの回帰テスト。
+// リロードを挟むと再ハンドシェイクでバグが隠れるため、UI ログイン後は page.goto を使わない
+test('ログイン直後にリロードなしで調理完了ボタンが機能する', async ({ page }) => {
+  const storeId = getStore().id
+  const session = await prisma.session.create({ data: { status: 'open', storeId } })
+  const group = await prisma.group.create({
+    data: { name: 'テストグループ', guestCount: 2, sessionId: session.id, storeId },
+  })
+  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, storeId } })
+  if (!menu) test.skip()
+  await prisma.orderItem.create({
+    data: {
+      groupId: group.id,
+      menuItemId: menu!.id,
+      menuItemName: menu!.name,
+      price: menu!.price,
+      qty: 1,
+      status: 'pending',
+      taxRate: 10,
+      storeId,
+    },
+  })
+
+  await page.goto(ROUTES.login)
+  await page.getByPlaceholder(ja.login.usernamePlaceholder).fill(CREDS.staff.username)
+  await page.getByPlaceholder(ja.login.passwordPlaceholder).fill(CREDS.staff.password)
+  await page.getByRole('button', { name: ja.login.submit }).click()
+  await expect(page).toHaveURL(ROUTES.root)
+
+  await page.getByRole('button', { name: ja.mode.kitchen }).click()
+  await expect(page).toHaveURL(ROUTES.kitchen)
+
+  await page.getByRole('button', { name: ja.kitchen.complete }).first().click()
+  await expect(page.getByText(ja.common.readyToServe)).toBeVisible()
 })
 
 test('営業開始→ログアウト→ログイン画面リロード→再ログインでも営業中と表示される', async ({ page }) => {
