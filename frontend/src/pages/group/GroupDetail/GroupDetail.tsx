@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import { AppHeader, IconButton, LoadError, TabNavigation, Toast } from "@/components";
-import { ConfirmModal } from "./components/ConfirmModal";
-import { api } from "@/lib/api";
-import { socket } from "@/lib/socket";
-import { EP } from "@/lib/endpoints";
-import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
+import { api } from "@/lib/api";
+import { EP } from "@/lib/endpoints";
+import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { socket } from "@/lib/socket";
 import { getSeatLabels } from "@/lib/utils";
-import type { Group, OrderItem, MenuItem, Category, SubCategory, Course, DrinkPlan, Seat } from "@order-system/shared";
-import { CancelModal } from "./components/CancelModal";
-import { OrderHistory } from "./components/OrderHistory";
-import { MenuAdd } from "./components/MenuAdd";
+import type { Category, Course, DrinkPlan, Group, MenuItem, OrderItem, Seat, SubCategory } from "@order-system/shared";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate, useParams } from "react-router-dom";
 import { BillFooter } from "./components/BillFooter";
-import { CourseTab } from "./components/CourseTab";
-import { CourseConfirmModal } from "./components/CourseConfirmModal";
+import { CancelModal } from "./components/CancelModal";
 import { ChangeSeatModal } from "./components/ChangeSeatModal";
+import { ConfirmModal } from "./components/ConfirmModal";
+import { CourseConfirmModal } from "./components/CourseConfirmModal";
+import { CourseTab } from "./components/CourseTab";
+import { MenuAdd } from "./components/MenuAdd";
+import { OrderHistory } from "./components/OrderHistory";
 import { QrModal } from "./components/QrModal";
 
 // ── メイン ───────────────────────────────────────────────────
@@ -27,23 +27,23 @@ export default function GroupDetail() {
   const navigate = useNavigate();
   const { id: groupId = '' } = useParams<{ id: string }>();
 
-  const [group, setGroup]           = useState<Group | null>(null);
-  const [items, setItems]           = useState<OrderItem[]>([]);
-  const [menus, setMenus]               = useState<MenuItem[]>([]);
-  const [categories, setCategories]     = useState<Category[]>([]);
+  const [group, setGroup] = useState<Group | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
-  const [courses, setCourses]       = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [drinkPlans, setDrinkPlans] = useState<DrinkPlan[]>([]);
-  const [seats, setSeats]           = useState<Seat[]>([]);
+  const [seats, setSeats] = useState<Seat[]>([]);
 
 
-  const [tab, setTab]                       = useState("menu");
-  const [showSeatModal, setShowSeatModal]   = useState(false);
-  const [showQr, setShowQr]                 = useState(false);
+  const [tab, setTab] = useState("menu");
+  const [showSeatModal, setShowSeatModal] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [showCourseConfirm, setShowCourseConfirm] = useState<Course | null>(null);
   const [courseQty, setCourseQty] = useState(1);
-  const [cancelTarget, setCancelTarget]     = useState<OrderItem | null>(null);
-  const [showBillConfirm, setShowBillConfirm]   = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<OrderItem | null>(null);
+  const [showBillConfirm, setShowBillConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { toast: addedToast, showToast } = useToast();
   const [loadError, setLoadError] = useState(false);
@@ -61,6 +61,7 @@ export default function GroupDetail() {
     ]).then(([g, o, m, c, sc, cr, dp, s]) => {
       setLoadError(false);
       setGroup(g);
+      setTab(g.status === 'active' ? 'menu' : 'history');
       setItems(o);
       setMenus(m);
       setCategories(c);
@@ -100,7 +101,7 @@ export default function GroupDetail() {
     [SE.drinkPlanDeleted]: (drinkPlanId: number) => setDrinkPlans(prev => prev.filter(p => p.id !== drinkPlanId)),
   });
 
-  const appliedCourse   = courses.find(c => c.id === group?.courseId) ?? null;
+  const appliedCourse = courses.find(c => c.id === group?.courseId) ?? null;
   const activeDrinkPlan = drinkPlans.find(p => p.id === group?.drinkPlanId) ?? null;
   const appliedCourseChargeItem = items.find(i => i.isCourseCharge && !i.isDrinkPlanCharge && i.courseId === group?.courseId);
   const appliedCourseQty = appliedCourseChargeItem?.qty ?? null;
@@ -226,133 +227,133 @@ export default function GroupDetail() {
   return (
     <>
       <AppHeader
-          title={group?.name ?? '...'}
-          sub={seatLabels || undefined}
-          breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
-          right={group?.status === 'active' ? (
-            <div className="flex items-center gap-2">
-              <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
-                onClick={() => setShowQr(true)}
-                aria-label={t('group.showQr')}
-              >
-                ▣
-              </IconButton>
-              <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
-                onClick={() => setShowSeatModal(true)}
-                aria-label={t('group.changeSeat')}
-              >
-                ✎
-              </IconButton>
-            </div>
-          ) : undefined}
-        />
-
-        {/* bill_requested / closed 状態ではメニュー追加・コース操作を禁止するためタブを history のみに制限 */}
-        <TabNavigation
-          tabs={group?.status === 'active'
-            ? [
-                { key: "menu",    label: t('group.menuTab') },
-                { key: "history", label: t('group.orderHistory') },
-                { key: "course",  label: t('group.courseTab') },
-              ]
-            : [{ key: "history", label: t('group.orderHistory') }]
-          }
-          activeTab={group?.status === 'active' ? tab : 'history'}
-          onChange={setTab}
-        />
-
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {tab === "history" ? (
-            <>
-              <OrderHistory
-                items={items}
-                onChangeStatus={handleChangeStatus}
-                onCancelTap={setCancelTarget}
-              />
-              <BillFooter
-                items={items}
-                groupStatus={group?.status}
-                onBillRequest={() => setShowBillConfirm(true)}
-                onBillCancel={handleBillCancel}
-                onCheckOut={() => setShowResetConfirm(true)}
-              />
-            </>
-          ) : tab === "menu" ? (
-            <MenuAdd menus={menus} categories={categories} subCategories={subCategories} onAdd={handleAdd} />
-          ) : (
-            <CourseTab
-              courses={courses}
-              drinkPlans={drinkPlans}
-              menus={menus}
-              appliedCourse={appliedCourse}
-              appliedCourseQty={appliedCourseQty}
-              activeDrinkPlan={activeDrinkPlan}
-              groupGuestCount={group?.guestCount ?? 1}
-              onApply={(course) => { setShowCourseConfirm(course); setCourseQty(group?.guestCount ?? 1); }}
-              onRemove={handleCourseRemove}
-              onChangeQty={handleCourseQtyChange}
-            />
-          )}
-        </div>
-
-        {cancelTarget && (
-          <CancelModal
-            item={cancelTarget}
-            onConfirm={handleCancelConfirm}
-            onClose={() => setCancelTarget(null)}
-          />
-        )}
-
-        <Toast message={addedToast} />
-
-        <ConfirmModal
-          show={showBillConfirm}
-          title={t('group.billConfirmTitle')}
-          description={t('group.billConfirmDesc')}
-          cancelLabel={t('common.back')}
-          confirmLabel={t('group.billConfirmAction')}
-          onConfirm={handleBillConfirm}
-          onClose={() => setShowBillConfirm(false)}
-        />
-
-        <ConfirmModal
-          show={showResetConfirm}
-          cancelLabel={t('common.back')}
-          confirmLabel={t('group.checkOutAction')}
-          variant="danger"
-          onConfirm={handleResetConfirm}
-          onClose={() => setShowResetConfirm(false)}
-        >
-          <div className="mb-5 text-center">
-            <div className="text-3xl mb-3">🚪</div>
-            <div className="text-sub font-semibold text-ink mb-2">{t('group.checkOutConfirmTitle')}</div>
-            <div className="text-xs text-danger font-medium">{t('group.checkOutConfirmDesc')}</div>
+        title={group?.name ?? '...'}
+        sub={seatLabels || undefined}
+        breadcrumb={{ label: t('common.back'), onClick: () => navigate(-1) }}
+        right={group?.status === 'active' ? (
+          <div className="flex items-center gap-2">
+            <IconButton
+              className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+              onClick={() => setShowQr(true)}
+              aria-label={t('group.showQr')}
+            >
+              ▣
+            </IconButton>
+            <IconButton
+              className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+              onClick={() => setShowSeatModal(true)}
+              aria-label={t('group.changeSeat')}
+            >
+              ✎
+            </IconButton>
           </div>
-        </ConfirmModal>
+        ) : undefined}
+      />
 
-        {showCourseConfirm && (
-          <CourseConfirmModal
-            course={showCourseConfirm}
-            courseQty={courseQty}
-            setCourseQty={setCourseQty}
+      {/* bill_requested / closed 状態ではメニュー追加・コース操作を禁止するためタブを history のみに制限 */}
+      <TabNavigation
+        tabs={group?.status === 'active'
+          ? [
+            { key: "menu", label: t('group.menuTab') },
+            { key: "history", label: t('group.orderHistory') },
+            { key: "course", label: t('group.courseTab') },
+          ]
+          : [{ key: "history", label: t('group.orderHistory') }]
+        }
+        activeTab={group?.status === 'active' ? tab : 'history'}
+        onChange={setTab}
+      />
+
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {tab === "history" ? (
+          <>
+            <OrderHistory
+              items={items}
+              onChangeStatus={handleChangeStatus}
+              onCancelTap={setCancelTarget}
+            />
+            <BillFooter
+              items={items}
+              groupStatus={group?.status}
+              onBillRequest={() => setShowBillConfirm(true)}
+              onBillCancel={handleBillCancel}
+              onCheckOut={() => setShowResetConfirm(true)}
+            />
+          </>
+        ) : tab === "menu" ? (
+          <MenuAdd menus={menus} categories={categories} subCategories={subCategories} onAdd={handleAdd} />
+        ) : (
+          <CourseTab
+            courses={courses}
             drinkPlans={drinkPlans}
             menus={menus}
-            onConfirm={() => handleCourseOrder(showCourseConfirm, courseQty)}
-            onClose={() => setShowCourseConfirm(null)}
+            appliedCourse={appliedCourse}
+            appliedCourseQty={appliedCourseQty}
+            activeDrinkPlan={activeDrinkPlan}
+            groupGuestCount={group?.guestCount ?? 1}
+            onApply={(course) => { setShowCourseConfirm(course); setCourseQty(group?.guestCount ?? 1); }}
+            onRemove={handleCourseRemove}
+            onChangeQty={handleCourseQtyChange}
           />
         )}
+      </div>
 
-        <ChangeSeatModal
-          show={showSeatModal}
-          currentGroupId={groupId}
-          currentSeatIds={group?.seatIds ?? []}
-          onConfirm={handleSeatChange}
-          onClose={() => setShowSeatModal(false)}
+      {cancelTarget && (
+        <CancelModal
+          item={cancelTarget}
+          onConfirm={handleCancelConfirm}
+          onClose={() => setCancelTarget(null)}
         />
+      )}
 
-        <QrModal show={showQr} groupId={groupId} onClose={() => setShowQr(false)} />
+      <Toast message={addedToast} />
+
+      <ConfirmModal
+        show={showBillConfirm}
+        title={t('group.billConfirmTitle')}
+        description={t('group.billConfirmDesc')}
+        cancelLabel={t('common.back')}
+        confirmLabel={t('group.billConfirmAction')}
+        onConfirm={handleBillConfirm}
+        onClose={() => setShowBillConfirm(false)}
+      />
+
+      <ConfirmModal
+        show={showResetConfirm}
+        cancelLabel={t('common.back')}
+        confirmLabel={t('group.checkOutAction')}
+        variant="danger"
+        onConfirm={handleResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+      >
+        <div className="mb-5 text-center">
+          <div className="text-3xl mb-3">🚪</div>
+          <div className="text-sub font-semibold text-ink mb-2">{t('group.checkOutConfirmTitle')}</div>
+          <div className="text-xs text-danger font-medium">{t('group.checkOutConfirmDesc')}</div>
+        </div>
+      </ConfirmModal>
+
+      {showCourseConfirm && (
+        <CourseConfirmModal
+          course={showCourseConfirm}
+          courseQty={courseQty}
+          setCourseQty={setCourseQty}
+          drinkPlans={drinkPlans}
+          menus={menus}
+          onConfirm={() => handleCourseOrder(showCourseConfirm, courseQty)}
+          onClose={() => setShowCourseConfirm(null)}
+        />
+      )}
+
+      <ChangeSeatModal
+        show={showSeatModal}
+        currentGroupId={groupId}
+        currentSeatIds={group?.seatIds ?? []}
+        onConfirm={handleSeatChange}
+        onClose={() => setShowSeatModal(false)}
+      />
+
+      <QrModal show={showQr} groupId={groupId} onClose={() => setShowQr(false)} />
 
     </>
   );

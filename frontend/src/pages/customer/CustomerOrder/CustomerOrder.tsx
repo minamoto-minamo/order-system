@@ -154,7 +154,7 @@ export default function CustomerOrder() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-surface">
+      <div className="flex items-center justify-center h-dvh bg-white">
         <span className="text-muted text-sub">{t('customerOrder.loading')}</span>
       </div>
     );
@@ -162,22 +162,26 @@ export default function CustomerOrder() {
 
   if (notFound || !group) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-surface">
+      <div className="flex items-center justify-center h-dvh bg-white">
         <span className="text-muted text-sub">{t('customerOrder.groupNotFound')}</span>
       </div>
     );
   }
 
+  // 会計リクエスト後（bill_requested）は会計ボタンを消し、タブを注文履歴のみに制限して追加注文を止める
+  const orderable = group.status === 'active';
+  const activeTab = orderable ? tab : 'history';
+
   if (group.status !== 'active' && group.status !== 'bill_requested') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-surface">
+      <div className="flex items-center justify-center h-dvh bg-white">
         <span className="text-muted text-sub">{t('customerOrder.orderNotAccepted')}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-surface">
+    <div className="app-shell flex flex-col h-dvh bg-white overflow-hidden">
       <div className="bg-white border-b border-divider px-4 py-3 shrink-0 flex items-center justify-between">
         <div className="text-sub font-medium text-ink">{group.name}</div>
         <div className="flex items-center gap-1">
@@ -188,28 +192,32 @@ export default function CustomerOrder() {
           >
             🔔
           </IconButton>
-          <IconButton
-            className={`w-8 h-8 flex items-center justify-center rounded-md text-base ${group.status === 'bill_requested' ? 'text-amber-fg' : 'text-dim'}`}
-            onClick={() => setConfirmBill(true)}
-            disabled={group.status !== 'active'}
-            aria-label={t('customerOrder.requestBill')}
-          >
-            ¥
-          </IconButton>
+          {orderable && (
+            <IconButton
+              className="w-8 h-8 flex items-center justify-center rounded-md text-base text-dim"
+              onClick={() => setConfirmBill(true)}
+              aria-label={t('customerOrder.requestBill')}
+            >
+              ¥
+            </IconButton>
+          )}
         </div>
       </div>
 
       <TabNavigation
         className="bg-white"
-        tabs={[
-          { key: 'menu', label: t('customerOrder.menuTab') },
-          { key: 'history', label: t('customerOrder.historyTab') },
-        ]}
-        activeTab={tab}
+        tabs={orderable
+          ? [
+            { key: 'menu', label: t('customerOrder.menuTab') },
+            { key: 'history', label: t('customerOrder.historyTab') },
+          ]
+          : [{ key: 'history', label: t('customerOrder.historyTab') }]
+        }
+        activeTab={activeTab}
         onChange={key => setTab(key as 'menu' | 'history')}
       />
 
-      {tab === 'menu' ? (
+      {activeTab === 'menu' ? (
         <CustomerMenuList
           categories={activeCats}
           activeCatId={safeCatId}
@@ -230,12 +238,11 @@ export default function CustomerOrder() {
 
       {errorMsg && <NoticeBanner variant="danger">{errorMsg}</NoticeBanner>}
 
-      {tab === 'menu' && orderItems.length > 0 && (
+      {activeTab === 'menu' && orderItems.length > 0 && (
         <SlideUpFooter>
           <BaseButton
-            className="w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white bg-ink disabled:opacity-50"
+            className="w-full border-none rounded-[10px] p-3.5 text-sm font-medium text-white bg-brand"
             onClick={() => setConfirmOpen(true)}
-            disabled={group?.status !== 'active'}
           >
             {t('group.reviewOrder')}
           </BaseButton>
