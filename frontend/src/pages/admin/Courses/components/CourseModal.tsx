@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton } from "@/components";
+import { BaseButton, MenuQtyStepper } from "@/components";
 import type { Course, DrinkPlan, MenuItem, Category } from "@order-system/shared";
 
 export function CourseModal({ course, drinkPlans, menus, categories, onSave, onDelete, onClose }: {
@@ -90,18 +90,7 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
                     return (
                       <div key={item.id} className="flex items-center gap-3 py-2 border-b border-surface">
                         <span className={`flex-1 text-note ${qty > 0 ? 'text-ink' : 'text-muted'}`}>{item.name}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <BaseButton
-                            className="w-6 h-6 flex items-center justify-center rounded border border-line text-muted text-note leading-none disabled:opacity-30"
-                            disabled={qty === 0}
-                            onClick={() => setQty(item.id, qty - 1)}
-                          >−</BaseButton>
-                          <span className={`w-5 text-center text-note ${qty > 0 ? 'text-ink font-medium' : 'text-muted'}`}>{qty}</span>
-                          <BaseButton
-                            className="w-6 h-6 flex items-center justify-center rounded border border-line text-muted text-note leading-none"
-                            onClick={() => setQty(item.id, qty + 1)}
-                          >＋</BaseButton>
-                        </div>
+                        <MenuQtyStepper qty={qty} onChange={val => setQty(item.id, val)} />
                       </div>
                     );
                   })}
