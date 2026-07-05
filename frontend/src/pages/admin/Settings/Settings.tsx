@@ -5,6 +5,7 @@ import { ROUTES } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/useToast";
+import { apiErrorMessage } from "@/lib/apiError";
 import { Section, SettingRow } from "./components/SettingRow";
 import { SettingHint } from "./components/SettingHint";
 
@@ -58,7 +59,7 @@ export default function Settings() {
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       })
-      .catch(() => { showToast(t('common.saveFailed')) })
+      .catch((e) => { showToast(apiErrorMessage(e, t('common.saveFailed'))) })
   };
 
   // 時刻フォーマット（25:00 = 翌1:00 表記）
@@ -78,7 +79,7 @@ export default function Settings() {
       <SubHeader
         right={
           <BaseButton
-            className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${saved ? 'bg-success-bg text-success-fg' : 'bg-ink text-white'}`}
+            className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${saved ? 'bg-success-bg text-success-fg' : 'bg-brand text-white'}`}
             onClick={handleSave}
           >
             {saved ? t('common.saved') : t('common.save')}

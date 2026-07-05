@@ -1,4 +1,5 @@
 import { AppHeader, BaseButton, BottomSheetModal, SubHeader, Toast } from "@/components";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -76,12 +77,7 @@ export default function Staff() {
       }
       closeModal();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("409")) {
-        setFormError(t("staff.errorDuplicate"));
-      } else {
-        setFormError(msg);
-      }
+      setFormError(apiErrorMessage(e, t("common.saveFailed")));
     }
   };
 
@@ -91,8 +87,7 @@ export default function Staff() {
       await api.delete(EP.staffMember(deleteTarget.id));
       setStaffList(prev => prev.filter(s => s.id !== deleteTarget.id));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("422")) alert(t("staff.errorSelf"));
+      showToast(apiErrorMessage(e, t("common.deleteFailed")));
     }
     setDeleteTarget(null);
   };
@@ -102,7 +97,7 @@ export default function Staff() {
     setSessionsLoading(true);
     api.get<StaffSession[]>(EP.staffSessions(s.id))
       .then(setSessions)
-      .catch(() => showToast(t("common.saveFailed")))
+      .catch((e) => showToast(apiErrorMessage(e, t("common.saveFailed"))))
       .finally(() => setSessionsLoading(false));
   };
 
@@ -117,8 +112,8 @@ export default function Staff() {
       await api.delete(EP.staffSession(sessionsTarget.id, revokeSessionTarget.id));
       setSessions(prev => prev.filter(s => s.id !== revokeSessionTarget.id));
       showToast(t("staff.devices.revoked"));
-    } catch {
-      showToast(t("common.deleteFailed"));
+    } catch (e) {
+      showToast(apiErrorMessage(e, t("common.deleteFailed")));
     }
     setRevokeSessionTarget(null);
   };
@@ -136,7 +131,7 @@ export default function Staff() {
       <SubHeader
         right={
           <BaseButton
-            className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-ink text-white"
+            className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-brand text-white"
             onClick={openAdd}
           >
             {t("staff.addStaff")}

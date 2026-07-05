@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppHeader, Toast } from "@/components";
+import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
@@ -53,7 +54,7 @@ export default function Courses() {
         setDrinkPlans(prev => prev.map(p => p.id === updated.id ? updated : p));
       }
       setDpModal(null);
-    } catch { showToast(t('common.saveFailed')); }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))); }
   };
 
   const deleteDrinkPlan = async () => {
@@ -62,7 +63,7 @@ export default function Courses() {
       await api.delete(EP.drinkPlan(dpModal.id));
       setDrinkPlans(prev => prev.filter(p => p.id !== (dpModal as DrinkPlan).id));
       setDpModal(null);
-    } catch { showToast(t('common.deleteFailed')); }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))); }
   };
 
   // ── Course CRUD ────────────────────────────────────────────
@@ -76,7 +77,7 @@ export default function Courses() {
         setCourses(prev => prev.map(c => c.id === updated.id ? updated : c));
       }
       setCModal(null);
-    } catch { showToast(t('common.saveFailed')); }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))); }
   };
 
   const deleteCourse = async () => {
@@ -85,7 +86,7 @@ export default function Courses() {
       await api.delete(EP.course((courseModal as Course).id));
       setCourses(prev => prev.filter(c => c.id !== (courseModal as Course).id));
       setCModal(null);
-    } catch { showToast(t('common.deleteFailed')); }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))); }
   };
 
   return (

@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, SubHeader } from "@/components";
+import { AppHeader, SubHeader, Toast } from "@/components";
 import { api } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
+import { useToast } from "@/hooks/useToast";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { Palette } from "./components/Palette";
@@ -16,6 +18,7 @@ import "./SeatLayout.scss";
 // ── メイン ───────────────────────────────────────────────────
 export default function SeatLayout() {
   const { t } = useTranslation();
+  const { toast, showToast } = useToast();
   const [tables, setTables] = useState<TableData[]>([]);
   const [seats,  setSeats]  = useState<SeatData[]>([]);
   const [cols, setCols] = useState(16);
@@ -94,7 +97,9 @@ export default function SeatLayout() {
       nextTableIdRef.current = -1
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch {}
+    } catch (e) {
+      showToast(apiErrorMessage(e, t('common.saveFailed')))
+    }
   };
 
   // ── 汎用ドラッグ開始 ─────────────────────────────────────
@@ -281,7 +286,7 @@ export default function SeatLayout() {
             <button
               onClick={handleSave}
               disabled={hasOutOfBounds}
-              className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${hasOutOfBounds ? 'bg-surface text-faint cursor-not-allowed' : saved ? 'bg-success-bg text-success-fg cursor-pointer' : 'bg-ink text-white cursor-pointer'}`}
+              className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${hasOutOfBounds ? 'bg-surface text-faint cursor-not-allowed' : saved ? 'bg-success-bg text-success-fg cursor-pointer' : 'bg-brand text-white cursor-pointer'}`}
             >
               {saved ? t('common.saved') : t('common.save')}
             </button>
@@ -347,6 +352,8 @@ export default function SeatLayout() {
           counterSeatCount={counterSeats.length}
           totalSeatCount={seats.length}
         />
+
+      <Toast message={toast} />
     </>
   );
 }

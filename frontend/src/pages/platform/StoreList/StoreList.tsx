@@ -1,4 +1,5 @@
 import { BaseButton, BottomSheetModal, SubHeader, Toast } from "@/components";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
@@ -70,14 +71,7 @@ export default function StoreList() {
       }
       closeModal();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("409")) {
-        setFormError(t("platform.errorDuplicateSubdomain"));
-      } else if (msg.includes("422")) {
-        setFormError(t("platform.errorReservedSubdomain"));
-      } else {
-        setFormError(msg);
-      }
+      setFormError(apiErrorMessage(e, t("common.saveFailed")));
     }
   };
 
@@ -86,8 +80,8 @@ export default function StoreList() {
     try {
       const updated = await api.put<Store>(EP.platformStore(toggleTarget.id), { isActive: !toggleTarget.isActive });
       setStores(prev => prev.map(s => s.id === updated.id ? updated : s));
-    } catch {
-      showToast(t("common.saveFailed"));
+    } catch (e) {
+      showToast(apiErrorMessage(e, t("common.saveFailed")));
     }
     setToggleTarget(null);
   };
@@ -102,7 +96,7 @@ export default function StoreList() {
     : !form.name.trim();
 
   return (
-    <div className="h-dvh bg-surface flex flex-col">
+    <div className="app-shell h-dvh bg-white flex flex-col overflow-hidden">
       <div className="bg-white border-b border-divider px-4 py-3 flex items-center justify-between shrink-0">
         <div className="text-sub font-medium text-ink">{t("platform.storesTitle")}</div>
         <BaseButton
@@ -116,7 +110,7 @@ export default function StoreList() {
       <SubHeader
         right={
           <BaseButton
-            className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-ink text-white"
+            className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-brand text-white"
             onClick={openAdd}
           >
             {t("platform.addStore")}

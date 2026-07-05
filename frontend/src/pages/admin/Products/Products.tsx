@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppHeader, InputModal, Toast } from "@/components";
+import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
@@ -56,7 +57,7 @@ export default function Products() {
       setCats(prev => [...prev, { id: cat.id, label: cat.name, subs: [] }])
       setExpandedCats(prev => ({ ...prev, [cat.id]: true }))
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const editCat = async (catId: number, label: string) => {
@@ -64,7 +65,7 @@ export default function Products() {
       await api.put(EP.category(catId), { name: label })
       setCats(prev => prev.map(c => c.id === catId ? { ...c, label } : c))
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const deleteCat = async (catId: number) => {
@@ -75,7 +76,7 @@ export default function Products() {
       if (selectedSubId && cats.find(c => c.id === catId)?.subs.some(s => s.id === selectedSubId)) {
         setSelectedSubId(null)
       }
-    } catch { showToast(t('common.deleteFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))) }
   };
 
   const addSub = async (catId: number, label: string) => {
@@ -83,7 +84,7 @@ export default function Products() {
       const sub = await api.post<SubCategory>(EP.subcategories, { name: label, categoryId: catId })
       setCats(prev => prev.map(c => c.id === catId ? { ...c, subs: [...c.subs, { id: sub.id, label: sub.name }] } : c))
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const editSub = async (catId: number, subId: number, label: string) => {
@@ -94,7 +95,7 @@ export default function Products() {
         : c
       ))
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const deleteSub = async (catId: number, subId: number) => {
@@ -106,7 +107,7 @@ export default function Products() {
       ))
       setProducts(prev => prev.filter(p => p.subId !== subId))
       if (selectedSubId === subId) setSelectedSubId(null)
-    } catch { showToast(t('common.deleteFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))) }
   };
 
   // ── 商品操作 ───────────────────────────────────────────────
@@ -124,7 +125,7 @@ export default function Products() {
         sort: item.sort,
       }])
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const editProduct = async (id: number, { name, price, subId, takeout }: ProductFormData) => {
@@ -134,14 +135,14 @@ export default function Products() {
       await api.put(EP.menu(id), { name, price, categoryId: cat.id, subCategoryId: subId, takeout })
       setProducts(prev => prev.map(p => p.id === id ? { ...p, name, price, catId: cat.id, subId, takeout } : p))
       setModal(null)
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   const deleteProduct = async (id: number) => {
     try {
       await api.delete(EP.menu(id))
       setProducts(prev => prev.filter(p => p.id !== id))
-    } catch { showToast(t('common.deleteFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))) }
   };
 
   const reorderProducts = async (ids: number[]) => {
@@ -151,7 +152,7 @@ export default function Products() {
     }))
     try {
       await api.patch(EP.menuSort, { ids })
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   }
 
   const toggleSoldOut = async (id: number) => {
@@ -161,7 +162,7 @@ export default function Products() {
     try {
       await api.put(EP.menu(id), { soldOut: newSoldOut })
       setProducts(prev => prev.map(p => p.id === id ? { ...p, soldOut: newSoldOut } : p))
-    } catch { showToast(t('common.saveFailed')) }
+    } catch (e) { showToast(apiErrorMessage(e, t('common.saveFailed'))) }
   };
 
   // ── 表示フィルタ ───────────────────────────────────────────
