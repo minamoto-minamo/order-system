@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 import { toDrinkPlan } from '../lib/mappers.js'
 
 const createBodySchema = {
@@ -40,7 +41,7 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const body = request.body as { name: string; price: number; menuItemIds: number[] }
     if (!(await ownsMenuItems(request.storeId, body.menuItemIds))) {
-      return reply.status(422).send({ error: 'メニューが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.DrinkPlans.MenuNotFound, 'メニューが見つかりません')
     }
     const plan = await prisma.drinkPlan.create({
       data: {
@@ -60,9 +61,9 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ name: string; price: number; menuItemIds: number[] }>
     const existing = await prisma.drinkPlan.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.DrinkPlans.NotFound, '飲み放題プランが見つかりません')
     if (body.menuItemIds !== undefined && !(await ownsMenuItems(request.storeId, body.menuItemIds))) {
-      return reply.status(422).send({ error: 'メニューが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.DrinkPlans.MenuNotFound, 'メニューが見つかりません')
     }
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
@@ -88,13 +89,13 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const drinkPlanId = Number(id)
     const existing = await prisma.drinkPlan.findFirst({ where: { id: drinkPlanId, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: '飲み放題プランが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.DrinkPlans.NotFound, '飲み放題プランが見つかりません')
     const referencedCourse = await prisma.course.findFirst({ where: { drinkPlanId } })
-    if (referencedCourse) return reply.status(409).send({ error: 'コースから参照されているため削除できません' })
+    if (referencedCourse) return sendError(reply, 409, ErrorCodes.DrinkPlans.ReferencedCourse, 'コースから参照されているため削除できません')
     const activeGroup = await prisma.group.findFirst({
       where: { drinkPlanId, status: { in: ['active', 'bill_requested'] } },
     })
-    if (activeGroup) return reply.status(409).send({ error: '使用中の飲み放題プランは削除できません' })
+    if (activeGroup) return sendError(reply, 409, ErrorCodes.DrinkPlans.InUse, '使用中の飲み放題プランは削除できません')
     await prisma.drinkPlan.delete({ where: { id: drinkPlanId } })
     fastify.io.to(`store:${request.storeId}`).emit('drinkPlan:deleted', drinkPlanId)
     return reply.status(204).send()

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
 import { setAccessCookie, setRefreshCookie, clearAuthCookies, type JwtPayload } from '../plugins/auth.js'
 import { issueRefreshToken, revokeTokenByRaw, verifyRefreshToken } from '../lib/refreshToken.js'
+import { ErrorCodes, errorBody, sendError } from '../lib/errors.js'
 
 const loginBodySchema = {
   type: 'object',
@@ -25,14 +26,14 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         max: process.env.NODE_ENV === 'production' ? 5 : 1000,
         timeWindow: '1 minute',
         keyGenerator: (req) => req.ip,
-        errorResponseBuilder: () => ({ error: 'ログイン試行回数が多すぎます。1分後に再試行してください。' }),
+        errorResponseBuilder: () => errorBody(ErrorCodes.Auth.RateLimited, 'ログイン試行回数が多すぎます。1分後に再試行してください。'),
       },
     },
   }, async (request, reply) => {
     const { username, password } = request.body as { username: string; password: string }
     const user = await prisma.staff.findUnique({ where: { storeId_username: { storeId: request.storeId, username } } })
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      return reply.status(401).send({ error: '認証情報が正しくありません' })
+      return sendError(reply, 401, ErrorCodes.Auth.InvalidCredentials, '認証情報が正しくありません')
     }
     const token = fastify.jwt.sign(
       { type: 'staff', userId: user.id, username: user.username, role: user.role, storeId: user.storeId },
@@ -71,7 +72,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/me', async (request, reply) => {
-    if (request.user.type !== 'staff') return reply.status(401).send({ error: '認証が必要です' })
+    if (request.user.type !== 'staff') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     return { id: request.user.userId, username: request.user.username, role: request.user.role }
   })
 }

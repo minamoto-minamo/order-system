@@ -75,5 +75,5 @@ Request body（全フィールド省略可）:
 ## DELETE /api/courses/:id
 
 Response 204: No Content
-Response 404: `{ "error": "コースが見つかりません" }`
-Response 409: `{ "error": "使用中のコースは削除できません" }` — `active` または `bill_requested` のグループが使用中の場合
+Response 404: `courses.detail.not_found`
+Response 409: `courses.delete.in_use` — `active` または `bill_requested` のグループが使用中の場合

@@ -40,7 +40,7 @@ async function buildTestApp() {
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try { await request.jwtVerify() }
-    catch { reply.status(401).send({ error: '認証が必要です' }) }
+    catch { reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } }) }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockIo: any = { emit: jest.fn() }
@@ -173,7 +173,7 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
     })
 
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'テイクアウト設定に合わない商品が含まれています' })
+    expect(res.json()).toMatchObject({ error: { message: 'テイクアウト設定に合わない商品が含まれています' } })
   })
 
   it('店内専用商品をテイクアウト注文すると 422 を返す', async () => {
@@ -187,7 +187,7 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
     })
 
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'テイクアウト設定に合わない商品が含まれています' })
+    expect(res.json()).toMatchObject({ error: { message: 'テイクアウト設定に合わない商品が含まれています' } })
   })
 
   it('テイクアウト専用商品をテイクアウト注文すれば通る', async () => {
@@ -237,7 +237,7 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
     })
 
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'キャンセルできないステータスです' })
+    expect(res.json()).toMatchObject({ error: { message: 'キャンセルできないステータスです' } })
   })
 
   it('セッションが closed の注文はキャンセルできない', async () => {
@@ -250,7 +250,7 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
     })
 
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'キャンセルできないステータスです' })
+    expect(res.json()).toMatchObject({ error: { message: 'キャンセルできないステータスです' } })
   })
 
   it('active なグループ・open なセッションの注文はキャンセルできる', async () => {
@@ -282,7 +282,7 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
     })
 
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'コース・飲み放題料金はこの操作では取消できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コース・飲み放題料金はこの操作では取消できません' } })
     expect(updateFn).not.toHaveBeenCalled()
   })
 
@@ -298,6 +298,6 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
     })
 
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '他の操作と競合しました。もう一度お試しください' })
+    expect(res.json()).toMatchObject({ error: { message: '他の操作と競合しました。もう一度お試しください' } })
   })
 })

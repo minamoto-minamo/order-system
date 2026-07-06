@@ -76,7 +76,7 @@ Socket emit: `seat:updated`（Seat 全体）
 ### DELETE /api/seats/:id — 席削除
 
 Response 204: No Content
-Response 409: `{ "error": "使用中の席は削除できません" }`（active/bill_requested グループが使用中）
+Response 409: `seats.delete.in_use`（active/bill_requested グループが使用中）
 
 ## SeatTables
 
@@ -130,7 +130,7 @@ Request body（全フィールド省略可）:
 ```
 
 Response 200: 更新後の SeatTable オブジェクト
-Response 404: `{ "error": "テーブルが見つかりません" }`
+Response 404: `customer.group.not_found`
 
 ### DELETE /api/seat-tables/:id — テーブル枠削除
 

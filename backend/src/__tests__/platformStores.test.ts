@@ -98,7 +98,7 @@ describe('DELETE /api/platform/stores/:id', () => {
       headers: { cookie: platformCookie() },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: '店舗が見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: '店舗が見つかりません' } })
     expect(mockTransaction).not.toHaveBeenCalled()
   })
 

@@ -44,7 +44,7 @@ async function buildTestApp() {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: '認証が必要です' })
+      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
     }
   })
   await app.register(staffRoutes, { prefix: '/api/staff' })
@@ -78,7 +78,7 @@ describe('DELETE /api/staff/:id — 自己削除ガード', () => {
       headers: { cookie: `token=${token(ADMIN_ID)}` },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: '自分自身は削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '自分自身は削除できません' } })
     expect(mockFindFirst).not.toHaveBeenCalled()
   })
 

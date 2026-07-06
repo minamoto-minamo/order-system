@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toGroup, toOrderItem } from '../lib/mappers.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 class SeatConflictError extends Error {}
 class SoldOutError extends Error {}
@@ -124,7 +125,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       // ?status=active,bill_requested（カンマ区切り）と ?status=active&status=bill_requested（配列）を両方受け付ける
       const statuses = Array.isArray(status) ? status : status.split(',')
       if (!statuses.every(s => VALID_GROUP_STATUSES.has(s))) {
-        return reply.status(400).send({ error: '無効なステータス値です' })
+        return sendError(reply, 400, ErrorCodes.Groups.InvalidStatus, '無効なステータス値です')
       }
       where.status = statuses.length === 1 ? statuses[0] : { in: statuses }
     }
@@ -142,7 +143,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       where: { id, storeId: request.storeId },
       include: { seats: true },
     })
-    if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
+    if (!group) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
     return toGroup(group)
   })
 
@@ -151,7 +152,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const ownedSeats = await prisma.seat.findMany({ where: { id: { in: body.seatIds }, storeId: request.storeId } })
     if (ownedSeats.length !== body.seatIds.length) {
-      return reply.status(422).send({ error: '無効な席が含まれています' })
+      return sendError(reply, 422, ErrorCodes.Groups.InvalidSeats, '無効な席が含まれています')
     }
 
     let name = body.name
@@ -190,13 +191,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
-        return reply.status(409).send({ error: '選択した席はすでに使用中です' })
+        return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
       }
       throw e
     }
     if ('err' in txResult) {
-      if (txResult.err === 'no_session') return reply.status(409).send({ error: '営業中のセッションがありません' })
-      return reply.status(409).send({ error: '選択した席はすでに使用中です' })
+      if (txResult.err === 'no_session') return sendError(reply, 409, ErrorCodes.Groups.NoOpenSession, '営業中のセッションがありません')
+      return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
     }
 
     const { group } = txResult
@@ -218,16 +219,16 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const existingGroup = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existingGroup) return reply.status(404).send({ error: 'グループが見つかりません' })
+    if (!existingGroup) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
 
     // 店舗内に他の open セッションがあるかではなく、対象グループ自身のセッションが営業中かを見る
     const session = await prisma.session.findFirst({ where: { id: existingGroup.sessionId, storeId: request.storeId } })
-    if (!session || session.status !== 'open') return reply.status(409).send({ error: '営業中のセッションがありません' })
+    if (!session || session.status !== 'open') return sendError(reply, 409, ErrorCodes.Groups.NoOpenSession, '営業中のセッションがありません')
 
     if (body.seatIds !== undefined) {
       const ownedSeatCount = await prisma.seat.count({ where: { id: { in: body.seatIds }, storeId: request.storeId } })
       if (ownedSeatCount !== body.seatIds.length) {
-        return reply.status(422).send({ error: '無効な席が含まれています' })
+        return sendError(reply, 422, ErrorCodes.Groups.InvalidSeats, '無効な席が含まれています')
       }
     }
 
@@ -285,12 +286,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
       return result
     } catch (e) {
-      if (e instanceof NotFoundError) return reply.status(404).send({ error: 'グループが見つかりません' })
-      if (e instanceof InvalidTransitionError) return reply.status(409).send({ error: `${e.from} から ${e.to} への遷移は許可されていません` })
-      if (e instanceof SeatConflictError) return reply.status(409).send({ error: '選択した席はすでに使用中です' })
-      if (e instanceof GroupStatusError) return reply.status(409).send({ error: '会計済み・会計待ちのグループは変更できません' })
+      if (e instanceof NotFoundError) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
+      if (e instanceof InvalidTransitionError) return sendError(reply, 409, ErrorCodes.Groups.InvalidTransition, `${e.from} から ${e.to} への遷移は許可されていません`, { from: e.from, to: e.to })
+      if (e instanceof SeatConflictError) return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
+      if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.ClosedOrBillRequested, '会計済み・会計待ちのグループは変更できません')
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
-        return reply.status(409).send({ error: '選択した席はすでに使用中です' })
+        return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
       }
       throw e
     }
@@ -301,11 +302,11 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const { courseId, qty } = request.body as { courseId: number; qty: number }
 
     const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
-    if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
-    if (group.status !== 'active') return reply.status(409).send({ error: 'このグループにはコースを適用できません' })
+    if (!group) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
+    if (group.status !== 'active') return sendError(reply, 409, ErrorCodes.Groups.CourseNotApplicable, 'このグループにはコースを適用できません')
 
     const course = await prisma.course.findFirst({ where: { id: courseId, storeId: request.storeId }, include: { foodItems: true } })
-    if (!course) return reply.status(404).send({ error: 'コースが見つかりません' })
+    if (!course) return sendError(reply, 404, ErrorCodes.Groups.CourseNotFound, 'コースが見つかりません')
 
     const drinkPlan = course.drinkPlanId != null
       ? await prisma.drinkPlan.findFirst({ where: { id: course.drinkPlanId, storeId: request.storeId } })
@@ -314,7 +315,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) {
       fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
-      return reply.status(500).send({ error: '店舗設定が見つかりません' })
+      return sendError(reply, 500, ErrorCodes.Groups.SettingNotFound, '店舗設定が見つかりません')
     }
     const taxRateInHouse = setting.taxRateInHouse.toNumber()
 
@@ -435,8 +436,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       throw e
     })
 
-    if (txResult instanceof GroupStatusError) return reply.status(409).send({ error: 'このグループにはコースを適用できません' })
-    if (txResult instanceof SoldOutError) return reply.status(409).send({ error: 'コース内に品切れの商品が含まれています' })
+    if (txResult instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseNotApplicable, 'このグループにはコースを適用できません')
+    if (txResult instanceof SoldOutError) return sendError(reply, 409, ErrorCodes.Groups.CourseSoldOut, 'コース内に品切れの商品が含まれています')
 
     const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
     const groupResult = toGroup(updatedGroup)
@@ -455,9 +456,9 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const { qty } = request.body as { qty: number }
 
     const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId }, include: { seats: true } })
-    if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
-    if (group.status !== 'active') return reply.status(409).send({ error: 'このグループのコース人数は変更できません' })
-    if (group.courseId == null) return reply.status(409).send({ error: 'コースが適用されていません' })
+    if (!group) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
+    if (group.status !== 'active') return sendError(reply, 409, ErrorCodes.Groups.CourseQtyNotEditable, 'このグループのコース人数は変更できません')
+    if (group.courseId == null) return sendError(reply, 409, ErrorCodes.Groups.CourseNotApplied, 'コースが適用されていません')
 
     const course = await prisma.course.findFirst({ where: { id: group.courseId, storeId: request.storeId }, include: { foodItems: true } })
     const foodItemQtyByMenuItemId = new Map((course?.foodItems ?? []).map(fi => [fi.menuItemId, fi.qty]))
@@ -513,8 +514,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id/course', async (request, reply) => {
     const { id } = request.params as { id: string }
     const existing = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'グループが見つかりません' })
-    if (existing.status !== 'active') return reply.status(409).send({ error: 'このグループのコースは解除できません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
+    if (existing.status !== 'active') return sendError(reply, 409, ErrorCodes.Groups.CourseRemovalNotAllowed, 'このグループのコースは解除できません')
 
     const txResult = await prisma.$transaction(async (tx) => {
       const currentGroup = await tx.group.findUnique({ where: { id } })
@@ -538,7 +539,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       throw e
     })
 
-    if (txResult instanceof GroupStatusError) return reply.status(409).send({ error: 'このグループのコースは解除できません' })
+    if (txResult instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseRemovalNotAllowed, 'このグループのコースは解除できません')
 
     const { group, restoredItems, cancelledItems } = txResult
     const result = toGroup(group)

@@ -107,7 +107,7 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     })
 
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'ドリンクプランに含まれていない商品が選択されています' })
+    expect(res.json()).toMatchObject({ error: { message: 'ドリンクプランに含まれていない商品が選択されています' } })
   })
 
   it('テイクアウト専用商品を注文すると 422 を返す', async () => {
@@ -120,6 +120,6 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     })
 
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'テイクアウト専用の商品は店内でご注文いただけません' })
+    expect(res.json()).toMatchObject({ error: { message: 'テイクアウト専用の商品は店内でご注文いただけません' } })
   })
 })

@@ -42,7 +42,7 @@ async function buildTestApp() {
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try { await request.jwtVerify() }
-    catch { reply.status(401).send({ error: '認証が必要です' }) }
+    catch { reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } }) }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockIo: any = { emit: jest.fn() }
@@ -79,7 +79,7 @@ describe('POST /api/groups — グループ作成', () => {
       payload: { guestCount: 2, seatIds: [1] },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '営業中のセッションがありません' })
+    expect(res.json()).toMatchObject({ error: { message: '営業中のセッションがありません' } })
   })
 
   it('競合席がある場合 409 を返す', async () => {
@@ -98,7 +98,7 @@ describe('POST /api/groups — グループ作成', () => {
       payload: { guestCount: 2, seatIds: [1] },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+    expect(res.json()).toMatchObject({ error: { message: '選択した席はすでに使用中です' } })
     expect(mockGroupCreate).not.toHaveBeenCalled()
   })
 
@@ -113,7 +113,7 @@ describe('POST /api/groups — グループ作成', () => {
       payload: { guestCount: 2, seatIds: [1] },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+    expect(res.json()).toMatchObject({ error: { message: '選択した席はすでに使用中です' } })
   })
 
   it('競合席がない場合グループを作成して 201 を返す', async () => {
@@ -155,7 +155,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { name: 'テスト' },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '営業中のセッションがありません' })
+    expect(res.json()).toMatchObject({ error: { message: '営業中のセッションがありません' } })
   })
 
   it('closed グループへの status 以外の更新（name等）は 409 を返す', async () => {
@@ -172,7 +172,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { name: 'テスト' },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '会計済み・会計待ちのグループは変更できません' })
+    expect(res.json()).toMatchObject({ error: { message: '会計済み・会計待ちのグループは変更できません' } })
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
@@ -190,7 +190,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { guestCount: 5 },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '会計済み・会計待ちのグループは変更できません' })
+    expect(res.json()).toMatchObject({ error: { message: '会計済み・会計待ちのグループは変更できません' } })
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
@@ -210,7 +210,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { seatIds: [2] },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+    expect(res.json()).toMatchObject({ error: { message: '選択した席はすでに使用中です' } })
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
@@ -226,7 +226,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
       payload: { seatIds: [2] },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '選択した席はすでに使用中です' })
+    expect(res.json()).toMatchObject({ error: { message: '選択した席はすでに使用中です' } })
   })
 
   it('seatIds に競合席がない場合グループを更新して 200 を返す', async () => {

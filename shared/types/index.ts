@@ -22,6 +22,12 @@ export interface Seat {
   tableId: number | null
 }
 
+export interface ApiErrorPayload {
+  code: string
+  message: string
+  details: unknown | null
+}
+
 export type GroupStatus = 'active' | 'bill_requested' | 'closed'
 
 export interface Group {
@@ -138,7 +144,7 @@ export interface ServerToClientEvents {
   'session:updated':     (session: Session) => void
   'settings:updated':    (setting: PublicSetting) => void
   'staff:called':        (groupId: string, groupName: string) => void
-  'error':               (payload: { message: string }) => void
+  'error':               (payload: ApiErrorPayload) => void
 }
 
 export interface ClientToServerEvents {

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const updateBodySchema = {
   type: 'object',
@@ -55,7 +56,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       if (existing) return null
       return tx.session.create({ data: { status: 'open', storeId } })
     })
-    if (!session) return reply.status(409).send({ error: '既に営業中のセッションがあります' })
+    if (!session) return sendError(reply, 409, ErrorCodes.Sessions.AlreadyOpen, '既に営業中のセッションがあります')
     const result = {
       id: session.id,
       status: session.status,
@@ -71,7 +72,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const sessionId = Number(id)
 
     const session = await prisma.session.findFirst({ where: { id: sessionId, storeId: request.storeId } })
-    if (!session) return reply.status(404).send({ error: 'セッションが見つかりません' })
+    if (!session) return sendError(reply, 404, ErrorCodes.Sessions.NotFound, 'セッションが見つかりません')
 
     const groups = await prisma.group.findMany({
       where: { sessionId },
@@ -161,7 +162,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const sessionId = Number(id)
 
     const existing = await prisma.session.findFirst({ where: { id: sessionId, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'セッションが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Sessions.NotFound, 'セッションが見つかりません')
 
     try {
       const session = await prisma.$transaction(async (tx) => {
@@ -195,7 +196,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       return result
     } catch (e) {
       if (e instanceof Error && e.message === 'active_groups_exist') {
-        return reply.status(409).send({ error: 'active_groups_exist', count: (e as any).count })
+        return sendError(reply, 409, ErrorCodes.Sessions.ActiveGroupsExist, 'active_groups_exist', { count: (e as any).count })
       }
       throw e
     }

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const createBodySchema = {
   type: 'object',
@@ -35,7 +36,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const seat = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!seat) return reply.status(404).send({ error: '席が見つかりません' })
+    if (!seat) return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
     return seat
   })
 
@@ -59,7 +60,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ label: string; type: 'counter' | 'table'; x: number; y: number; tableId: number | null }>
     const existing = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: '席が見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
     const seat = await prisma.seat.update({
       where: { id: Number(id) },
       data: { label: body.label, type: body.type, x: body.x, y: body.y, tableId: body.tableId },
@@ -71,7 +72,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const existing = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: '席が見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
     // bill_requested も会計完了前は席を占有しているため削除不可とする
     const inUse = await prisma.groupSeat.findFirst({
       where: {
@@ -79,7 +80,7 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
         group: { status: { in: ['active', 'bill_requested'] } },
       },
     })
-    if (inUse) return reply.status(409).send({ error: '使用中の席は削除できません' })
+    if (inUse) return sendError(reply, 409, ErrorCodes.Seats.InUse, '使用中の席は削除できません')
     await prisma.seat.delete({ where: { id: Number(id) } })
     return reply.status(204).send()
   })

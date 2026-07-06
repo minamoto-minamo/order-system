@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 import { toCourse } from '../lib/mappers.js'
 
 const foodItemSchema = {
@@ -61,10 +62,10 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       drinkPlanId?: number | null;
     }
     if (!(await ownsMenuItems(request.storeId, body.foodItems.map(f => f.menuItemId)))) {
-      return reply.status(422).send({ error: 'メニューが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.Courses.MenuNotFound, 'メニューが見つかりません')
     }
     if (body.drinkPlanId != null && !(await ownsDrinkPlan(request.storeId, body.drinkPlanId))) {
-      return reply.status(422).send({ error: '飲み放題プランが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.Courses.DrinkPlanNotFound, '飲み放題プランが見つかりません')
     }
     const course = await prisma.course.create({
       data: {
@@ -89,12 +90,12 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
       drinkPlanId: number | null;
     }>
     const existing = await prisma.course.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'コースが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Courses.NotFound, 'コースが見つかりません')
     if (body.drinkPlanId != null && !(await ownsDrinkPlan(request.storeId, body.drinkPlanId))) {
-      return reply.status(422).send({ error: '飲み放題プランが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.Courses.DrinkPlanNotFound, '飲み放題プランが見つかりません')
     }
     if (body.foodItems !== undefined && !(await ownsMenuItems(request.storeId, body.foodItems.map(f => f.menuItemId)))) {
-      return reply.status(422).send({ error: 'メニューが見つかりません' })
+      return sendError(reply, 422, ErrorCodes.Courses.MenuNotFound, 'メニューが見つかりません')
     }
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = body.name
@@ -121,11 +122,11 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const courseId = Number(id)
     const existing = await prisma.course.findFirst({ where: { id: courseId, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'コースが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Courses.NotFound, 'コースが見つかりません')
     const activeGroup = await prisma.group.findFirst({
       where: { courseId, status: { in: ['active', 'bill_requested'] } },
     })
-    if (activeGroup) return reply.status(409).send({ error: '使用中のコースは削除できません' })
+    if (activeGroup) return sendError(reply, 409, ErrorCodes.Courses.InUse, '使用中のコースは削除できません')
     await prisma.course.delete({ where: { id: courseId } })
     fastify.io.to(`store:${request.storeId}`).emit('course:deleted', courseId)
     return reply.status(204).send()

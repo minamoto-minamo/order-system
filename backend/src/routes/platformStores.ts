@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
 import { requirePlatformAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const RESERVED_SUBDOMAINS = new Set(['admin'])
 
@@ -46,7 +47,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const store = await prisma.store.findUnique({ where: { id: Number(id) }, select })
-    if (!store) return reply.status(404).send({ error: '店舗が見つかりません' })
+    if (!store) return sendError(reply, 404, ErrorCodes.PlatformStores.NotFound, '店舗が見つかりません')
     return store
   })
 
@@ -56,11 +57,11 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     if (RESERVED_SUBDOMAINS.has(subdomain)) {
-      return reply.status(422).send({ error: 'このサブドメインは予約されているため使用できません' })
+      return sendError(reply, 422, ErrorCodes.PlatformStores.ReservedSubdomain, 'このサブドメインは予約されているため使用できません')
     }
 
     const existing = await prisma.store.findUnique({ where: { subdomain } })
-    if (existing) return reply.status(409).send({ error: 'そのサブドメインは既に使用されています' })
+    if (existing) return sendError(reply, 409, ErrorCodes.PlatformStores.DuplicateSubdomain, 'そのサブドメインは既に使用されています')
 
     const passwordHash = await bcrypt.hash(adminPassword, 12)
 
@@ -80,7 +81,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as { name?: string; isActive?: boolean }
     const existing = await prisma.store.findUnique({ where: { id: Number(id) } })
-    if (!existing) return reply.status(404).send({ error: '店舗が見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.PlatformStores.NotFound, '店舗が見つかりません')
     const store = await prisma.store.update({ where: { id: Number(id) }, data: body, select })
     return store
   })
@@ -89,7 +90,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const storeId = Number(id)
     const existing = await prisma.store.findUnique({ where: { id: storeId } })
-    if (!existing) return reply.status(404).send({ error: '店舗が見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.PlatformStores.NotFound, '店舗が見つかりません')
 
     // 削除トランザクション中の同時書き込みを防ぐため、先に非アクティブ化する。
     // resolveStoreContext は isActive: false の店舗を unknown 扱いにするため、

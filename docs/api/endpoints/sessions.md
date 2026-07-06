@@ -72,7 +72,13 @@ Response 201:
 Response 409 — 既に open なセッションがある場合:
 
 ```json
-{ "error": "既に営業中のセッションがあります" }
+{
+  "error": {
+    "code": "sessions.create.already_open",
+    "message": "既に営業中のセッションがあります",
+    "details": null
+  }
+}
 ```
 
 Socket emit: `session:updated`（作成した Session オブジェクト）。既存 open セッションチェックはトランザクション内で行うため、同時リクエストによる二重作成を防止する。
@@ -90,13 +96,25 @@ Response 200: 更新後の Session オブジェクト
 Response 409 — `closed` への遷移でアクティブなグループが残っている場合:
 
 ```json
-{ "error": "active_groups_exist", "count": 3 }
+{
+  "error": {
+    "code": "sessions.close.active_groups_exist",
+    "message": "active_groups_exist",
+    "details": { "count": 3 }
+  }
+}
 ```
 
 Response 404:
 
 ```json
-{ "error": "セッションが見つかりません" }
+{
+  "error": {
+    "code": "sessions.detail.not_found",
+    "message": "セッションが見つかりません",
+    "details": null
+  }
+}
 ```
 
 Socket emit: `session:updated`（更新後の Session オブジェクト）。グループ数チェックとセッション更新はトランザクション内で行う。

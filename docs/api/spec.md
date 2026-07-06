@@ -7,10 +7,34 @@ tags: [api, rest, contract, versioning]
 
 本 API のバージョンは v1。すべてのエンドポイントは `/api` を基点とする。認証は Bearer token (JWT) による。
 
-エラーは次の形式で返す。
+エラーは HTTP status と次の JSON body で返す。
 
 ```json
 { "error": { "code": "string", "message": "string", "details": null } }
+```
+
+`error.code` は HTTP status ではなく、発生箇所と原因を表す複合 ID とする。形式は原則 `domain.action.reason`。フロントエンドは通常 `message` を表示し、画面分岐やログ集計が必要な場合だけ `code` を参照する。追加情報がある場合は `details` に object として格納し、ない場合は `null` を返す。
+
+例:
+
+```json
+{
+  "error": {
+    "code": "groups.save.seat_conflict",
+    "message": "選択した席はすでに使用中です",
+    "details": null
+  }
+}
+```
+
+```json
+{
+  "error": {
+    "code": "sessions.close.active_groups_exist",
+    "message": "active_groups_exist",
+    "details": { "count": 3 }
+  }
+}
 ```
 
 ## 共通規約
@@ -19,12 +43,15 @@ tags: [api, rest, contract, versioning]
 
 ページネーションはクエリ `?page=1&perPage=50` で指定し、レスポンスに `meta: { total, page, perPage }` を含める。
 
-## エラーコード
+## HTTP ステータス
 
 - `400` — validation error
 - `401` — unauthorized
 - `403` — forbidden
 - `404` — not found
+- `409` — conflict
+- `422` — semantic validation error
+- `429` — rate limited
 - `500` — internal server error
 
 ## バージョニング

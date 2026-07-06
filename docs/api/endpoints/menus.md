@@ -69,7 +69,7 @@ Request body（`name`, `price`, `categoryId`, `subCategoryId` は必須）:
 ```
 
 Response 201: 作成した MenuItem オブジェクト
-Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合
+Response 422: `menus.save.subcategory_mismatch` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合
 Socket emit: `menu:created`（作成した MenuItem オブジェクト）
 
 ### PUT /api/menus/:id — メニュー更新
@@ -85,15 +85,15 @@ Request body（全フィールド省略可）:
 ```
 
 Response 200: 更新後の MenuItem オブジェクト
-Response 422: `{ "error": "サブカテゴリがカテゴリと一致しません" }` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合
+Response 422: `menus.save.subcategory_mismatch` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合
 Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）
 Socket emit: `menu:updated`（常に、更新後の MenuItem オブジェクト）
 
 ### DELETE /api/menus/:id — メニュー削除
 
 Response 204: No Content
-Response 404: `{ "error": "メニューが見つかりません" }`
-Response 409: `{ "error": "処理中の注文があるため削除できません" }` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。
+Response 404: `menus.detail.not_found`
+Response 409: `menus.delete.active_order_exists` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。
 Socket emit: `menu:deleted`（削除した `menuItemId: number`）
 
 ## Categories
@@ -140,13 +140,13 @@ Request body（全フィールド省略可）:
 ```
 
 Response 200: 更新後の Category オブジェクト
-Response 404: `{ "error": "カテゴリが見つかりません" }`
+Response 404: `categories.detail.not_found`
 
 ### DELETE /api/categories/:id — カテゴリ削除
 
 Response 204: No Content
-Response 404: `{ "error": "カテゴリが見つかりません" }`
-Response 409: `{ "error": "使用中のカテゴリは削除できません" }`
+Response 404: `categories.detail.not_found`
+Response 409: `categories.delete.in_use`
 
 ## SubCategories
 
@@ -202,10 +202,10 @@ Request body（全フィールド省略可）:
 ```
 
 Response 200: 更新後の SubCategory オブジェクト
-Response 404: `{ "error": "サブカテゴリが見つかりません" }`
+Response 404: `subcategories.detail.not_found`
 
 ### DELETE /api/subcategories/:id — サブカテゴリ削除
 
 Response 204: No Content
-Response 404: `{ "error": "サブカテゴリが見つかりません" }`
-Response 409: `{ "error": "使用中のサブカテゴリは削除できません" }`
+Response 404: `subcategories.detail.not_found`
+Response 409: `subcategories.delete.in_use`

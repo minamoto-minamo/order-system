@@ -43,7 +43,7 @@ async function buildTestApp() {
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try { await request.jwtVerify() }
-    catch { reply.status(401).send({ error: '認証が必要です' }) }
+    catch { reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } }) }
   })
   await app.register(sessionsRoutes, { prefix: '/api/sessions' })
   await app.ready()

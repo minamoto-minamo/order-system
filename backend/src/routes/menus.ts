@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const createBodySchema = {
   type: 'object',
@@ -57,7 +58,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const item = await prisma.menuItem.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!item) return reply.status(404).send({ error: 'メニューが見つかりません' })
+    if (!item) return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
     return item
   })
 
@@ -82,9 +83,9 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       soldOut?: boolean; takeout?: string; sort?: number;
     }
     const subCat = await prisma.subCategory.findFirst({ where: { id: body.subCategoryId, storeId: request.storeId } })
-    if (!subCat) return reply.status(422).send({ error: 'サブカテゴリが見つかりません' })
+    if (!subCat) return sendError(reply, 422, ErrorCodes.Menus.SubCategoryNotFound, 'サブカテゴリが見つかりません')
     if (subCat.categoryId !== body.categoryId) {
-      return reply.status(422).send({ error: 'サブカテゴリがカテゴリと一致しません' })
+      return sendError(reply, 422, ErrorCodes.Menus.SubCategoryMismatch, 'サブカテゴリがカテゴリと一致しません')
     }
     const item = await prisma.menuItem.create({
       data: {
@@ -111,14 +112,14 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       const current = await prisma.menuItem.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-      if (!current) return reply.status(404).send({ error: 'メニューが見つかりません' })
+      if (!current) return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
 
       const targetCategoryId = body.categoryId ?? current.categoryId
       if (body.subCategoryId !== undefined) {
         const subCat = await prisma.subCategory.findFirst({ where: { id: body.subCategoryId, storeId: request.storeId } })
-        if (!subCat) return reply.status(422).send({ error: 'サブカテゴリが見つかりません' })
+        if (!subCat) return sendError(reply, 422, ErrorCodes.Menus.SubCategoryNotFound, 'サブカテゴリが見つかりません')
         if (subCat.categoryId !== targetCategoryId) {
-          return reply.status(422).send({ error: 'サブカテゴリがカテゴリと一致しません' })
+          return sendError(reply, 422, ErrorCodes.Menus.SubCategoryMismatch, 'サブカテゴリがカテゴリと一致しません')
         }
       }
 
@@ -142,7 +143,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       return item
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'メニューが見つかりません' })
+        return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
       }
       throw e
     }
@@ -153,7 +154,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     const menuItemId = Number(id)
 
     const existing = await prisma.menuItem.findFirst({ where: { id: menuItemId, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'メニューが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
 
     try {
       const deleted = await prisma.$transaction(async (tx) => {
@@ -169,18 +170,18 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
 
         return tx.menuItem.delete({ where: { id: menuItemId } })
       })
-      if (deleted === 'active_order') return reply.status(409).send({ error: '処理中の注文があるため削除できません' })
-      if (deleted === 'referenced_course') return reply.status(409).send({ error: 'コースに含まれているメニューは削除できません' })
-      if (deleted === 'referenced_drink_plan') return reply.status(409).send({ error: '飲み放題プランに含まれているメニューは削除できません' })
+      if (deleted === 'active_order') return sendError(reply, 409, ErrorCodes.Menus.ActiveOrderExists, '処理中の注文があるため削除できません')
+      if (deleted === 'referenced_course') return sendError(reply, 409, ErrorCodes.Menus.ReferencedCourse, 'コースに含まれているメニューは削除できません')
+      if (deleted === 'referenced_drink_plan') return sendError(reply, 409, ErrorCodes.Menus.ReferencedDrinkPlan, '飲み放題プランに含まれているメニューは削除できません')
       fastify.io.to(`store:${request.storeId}`).emit('menu:deleted', menuItemId)
       return reply.status(204).send()
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return reply.status(404).send({ error: 'メニューが見つかりません' })
+        return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
       }
       // アプリ層チェックと書き込みが競合した場合の最終防衛線（FK制約 onDelete: Restrict）
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
-        return reply.status(409).send({ error: 'コースまたは飲み放題プランで使用されているため削除できません' })
+        return sendError(reply, 409, ErrorCodes.Menus.ReferencedByPlanOrCourse, 'コースまたは飲み放題プランで使用されているため削除できません')
       }
       throw e
     }

@@ -5,6 +5,7 @@ import type { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { parseDurationSeconds } from '../lib/config.js'
 import { rotateRefreshToken } from '../lib/refreshToken.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 export type JwtPayload =
   | { type: 'staff'; userId: string; username: string; role: string; storeId: number }
@@ -18,21 +19,21 @@ declare module '@fastify/jwt' {
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
-  if (!request.user || request.user.type !== 'staff') return reply.status(401).send({ error: '認証が必要です' })
+  if (!request.user || request.user.type !== 'staff') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
   if (request.user.role !== 'admin') {
-    return reply.status(403).send({ error: '権限がありません' })
+    return sendError(reply, 403, ErrorCodes.Auth.Forbidden, '権限がありません')
   }
 }
 
 export async function requirePlatformAdmin(request: FastifyRequest, reply: FastifyReply) {
   const token = request.cookies.platform_token
-  if (!token) return reply.status(401).send({ error: '認証が必要です' })
+  if (!token) return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
   try {
     const payload = request.server.jwt.verify<JwtPayload>(token)
-    if (payload.type !== 'platform') return reply.status(401).send({ error: '認証が必要です' })
+    if (payload.type !== 'platform') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     request.user = payload
   } catch {
-    return reply.status(401).send({ error: '認証が必要です' })
+    return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
   }
 }
 
@@ -100,7 +101,7 @@ export default fp(async (fastify) => {
       // JWT 内の storeId が一致しない場合はトークン再生・誤用とみなす
       if (request.user.type !== 'staff' || request.user.storeId !== request.storeId) {
         clearAuthCookies(reply)
-        return reply.status(401).send({ error: '認証が必要です' })
+        return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
       }
       return
     } catch {
@@ -110,7 +111,7 @@ export default fp(async (fastify) => {
     const rawRefreshToken = request.cookies.refresh_token
     if (!rawRefreshToken) {
       clearAuthCookies(reply)
-      return reply.status(401).send({ error: '認証が必要です' })
+      return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     }
 
     const outcome = await rotateRefreshToken(request.storeId, rawRefreshToken, {
@@ -120,13 +121,13 @@ export default fp(async (fastify) => {
 
     if (outcome.status !== 'rotated' && outcome.status !== 'reused') {
       clearAuthCookies(reply)
-      return reply.status(401).send({ error: '認証が必要です' })
+      return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     }
 
     const staff = await prisma.staff.findFirst({ where: { id: outcome.staffId, storeId: request.storeId } })
     if (!staff) {
       clearAuthCookies(reply)
-      return reply.status(401).send({ error: '認証が必要です' })
+      return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     }
 
     const payload: JwtPayload = { type: 'staff', userId: staff.id, username: staff.username, role: staff.role, storeId: staff.storeId }

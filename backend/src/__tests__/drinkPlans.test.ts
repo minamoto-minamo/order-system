@@ -38,7 +38,7 @@ async function buildTestApp() {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: '認証が必要です' })
+      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +69,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '使用中の飲み放題プランは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '使用中の飲み放題プランは削除できません' } })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 
@@ -83,7 +83,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '使用中の飲み放題プランは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '使用中の飲み放題プランは削除できません' } })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 
@@ -96,7 +96,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'コースから参照されているため削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースから参照されているため削除できません' } })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 
@@ -123,7 +123,7 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: '飲み放題プランが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: '飲み放題プランが見つかりません' } })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 })
@@ -148,7 +148,7 @@ describe('POST /api/drink-plans — storeId 検証', () => {
       payload: { name: '飲み放題A', price: 3000, menuItemIds: [1, 2] },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'メニューが見つかりません' } })
     expect(mockDrinkPlanCreate).not.toHaveBeenCalled()
   })
 
@@ -188,7 +188,7 @@ describe('PUT /api/drink-plans/:id — storeId 検証', () => {
       payload: { menuItemIds: [99] },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'メニューが見つかりません' } })
     expect(mockDrinkPlanUpdate).not.toHaveBeenCalled()
   })
 

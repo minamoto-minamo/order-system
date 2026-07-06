@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 import type { SeatLayoutResponse } from '@order-system/shared'
 
 const putBodySchema = {
@@ -93,13 +94,13 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
     const gsMin = setting?.gridSizeMin ?? 32
     const gsMax = setting?.gridSizeMax ?? 80
     if (canvasCols < colsMin || canvasCols > colsMax) {
-      return reply.status(400).send({ error: `canvasCols は ${colsMin}〜${colsMax} の範囲で指定してください` })
+      return sendError(reply, 400, ErrorCodes.SeatLayout.CanvasColsOutOfRange, `canvasCols は ${colsMin}〜${colsMax} の範囲で指定してください`, { min: colsMin, max: colsMax })
     }
     if (canvasRows < rowsMin || canvasRows > rowsMax) {
-      return reply.status(400).send({ error: `canvasRows は ${rowsMin}〜${rowsMax} の範囲で指定してください` })
+      return sendError(reply, 400, ErrorCodes.SeatLayout.CanvasRowsOutOfRange, `canvasRows は ${rowsMin}〜${rowsMax} の範囲で指定してください`, { min: rowsMin, max: rowsMax })
     }
     if (gridSize < gsMin || gridSize > gsMax) {
-      return reply.status(400).send({ error: `gridSize は ${gsMin}〜${gsMax} の範囲で指定してください` })
+      return sendError(reply, 400, ErrorCodes.SeatLayout.GridSizeOutOfRange, `gridSize は ${gsMin}〜${gsMax} の範囲で指定してください`, { min: gsMin, max: gsMax })
     }
 
     // 自店舗が所有する ID のみを対象にする（他店舗 ID の注入防止）
@@ -121,8 +122,7 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
         select: { seatId: true },
       })
       if (busySeats.length > 0) {
-        return reply.status(409).send({
-          error: '使用中の席が含まれています',
+        return sendError(reply, 409, ErrorCodes.SeatLayout.BusySeatsIncluded, '使用中の席が含まれています', {
           seatIds: busySeats.map(gs => gs.seatId),
         })
       }

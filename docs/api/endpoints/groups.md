@@ -73,13 +73,25 @@ Response 200: group object（POST と同形式）
 Response 409 — 営業セッションが closed の場合:
 
 ```json
-{ "error": "営業中のセッションがありません" }
+{
+  "error": {
+    "code": "groups.save.no_open_session",
+    "message": "営業中のセッションがありません",
+    "details": null
+  }
+}
 ```
 
 Response 409 — 無効な状態遷移の場合:
 
 ```json
-{ "error": "active から closed への遷移は許可されていません" }
+{
+  "error": {
+    "code": "groups.update.invalid_transition",
+    "message": "active から closed への遷移は許可されていません",
+    "details": { "from": "active", "to": "closed" }
+  }
+}
 ```
 
 有効な状態遷移:

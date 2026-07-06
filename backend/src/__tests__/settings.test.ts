@@ -33,7 +33,7 @@ async function buildTestApp() {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: '認証が必要です' })
+      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
     }
   })
   await app.register(settingsRoutes, { prefix: '/api/settings' })

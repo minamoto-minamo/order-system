@@ -39,7 +39,7 @@ async function buildTestApp() {
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try { await request.jwtVerify() }
-    catch { reply.status(401).send({ error: '認証が必要です' }) }
+    catch { reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } }) }
   })
   // io.emit のスタブ（型チェックを回避するため any でキャスト）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +69,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       payload: { courseId: 1, qty: 2 },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'グループが見つかりません' } })
   })
 
   it('グループが active でない場合 409 を返す', async () => {
@@ -80,7 +80,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       payload: { courseId: 1, qty: 2 },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'このグループにはコースを適用できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'このグループにはコースを適用できません' } })
   })
 
   it('コースが存在しない場合 404 を返す', async () => {
@@ -92,7 +92,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       payload: { courseId: 999, qty: 2 },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: 'コースが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースが見つかりません' } })
   })
 
   it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
@@ -445,7 +445,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
     })
     expect(res.statusCode).toBe(404)
     expect(mockTransaction).not.toHaveBeenCalled()
-    expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'グループが見つかりません' } })
   })
 
   it('グループが active でない場合 409 を返す（会計後のコース解除を防ぐ）', async () => {
@@ -456,7 +456,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
     })
     expect(res.statusCode).toBe(409)
     expect(mockTransaction).not.toHaveBeenCalled()
-    expect(res.json()).toMatchObject({ error: 'このグループのコースは解除できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'このグループのコースは解除できません' } })
   })
 
   it('事前チェック後・トランザクション内で active でなくなっていた場合も 409 を返す', async () => {
@@ -473,7 +473,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       headers: { cookie: `token=${token(app)}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'このグループのコースは解除できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'このグループのコースは解除できません' } })
   })
 
   it('飲み放題プランを解除すると対象商品の価格が originalPrice（注文時点の価格スナップショット）に復元される', async () => {
@@ -551,7 +551,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
       payload: { qty: 3 },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: 'グループが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'グループが見つかりません' } })
   })
 
   it('グループが active でない場合 409 を返す', async () => {
@@ -562,7 +562,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
       payload: { qty: 3 },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'このグループのコース人数は変更できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'このグループのコース人数は変更できません' } })
   })
 
   it('コースが適用されていない場合 409 を返す', async () => {
@@ -573,7 +573,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
       payload: { qty: 3 },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'コースが適用されていません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースが適用されていません' } })
   })
 
   it('コース料金明細が存在する場合 qty を更新して返す', async () => {

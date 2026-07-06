@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 import { listActiveSessions, revokeTokenById } from '../lib/refreshToken.js'
 import { toStaffSession } from '../lib/mappers.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const createBodySchema = {
   type: 'object',
@@ -38,7 +39,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { username, password, role } = request.body as { username: string; password: string; role: StaffRole }
     const existing = await prisma.staff.findUnique({ where: { storeId_username: { storeId: request.storeId, username } } })
-    if (existing) return reply.status(409).send({ error: 'そのユーザー名は既に使用されています' })
+    if (existing) return sendError(reply, 409, ErrorCodes.Staff.DuplicateUsername, 'そのユーザー名は既に使用されています')
     const passwordHash = await bcrypt.hash(password, 12)
     const member = await prisma.staff.create({ data: { username, passwordHash, role, storeId: request.storeId }, select })
     return reply.status(201).send(member)
@@ -48,11 +49,11 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as { username?: string; password?: string; role?: StaffRole }
     const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Staff.NotFound, 'スタッフが見つかりません')
     const data: Record<string, unknown> = {}
     if (body.username !== undefined) {
       const dup = await prisma.staff.findFirst({ where: { username: body.username, storeId: request.storeId, NOT: { id } } })
-      if (dup) return reply.status(409).send({ error: 'そのユーザー名は既に使用されています' })
+      if (dup) return sendError(reply, 409, ErrorCodes.Staff.DuplicateUsername, 'そのユーザー名は既に使用されています')
       data.username = body.username
     }
     if (body.password) data.passwordHash = await bcrypt.hash(body.password, 12)
@@ -63,10 +64,10 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     if (request.user.type === 'staff' && id === request.user.userId) {
-      return reply.status(422).send({ error: '自分自身は削除できません' })
+      return sendError(reply, 422, ErrorCodes.Staff.CannotDeleteSelf, '自分自身は削除できません')
     }
     const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Staff.NotFound, 'スタッフが見つかりません')
     await prisma.staff.delete({ where: { id } })
     return reply.status(204).send()
   })
@@ -74,7 +75,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/:id/sessions', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Staff.NotFound, 'スタッフが見つかりません')
     const sessions = await listActiveSessions(id)
     return sessions.map(toStaffSession)
   })
@@ -82,9 +83,9 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id/sessions/:sessionId', { preHandler: requireAdmin }, async (request, reply) => {
     const { id, sessionId } = request.params as { id: string; sessionId: string }
     const existing = await prisma.staff.findFirst({ where: { id, storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'スタッフが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Staff.NotFound, 'スタッフが見つかりません')
     const revoked = await revokeTokenById(id, sessionId)
-    if (!revoked) return reply.status(404).send({ error: 'セッションが見つかりません' })
+    if (!revoked) return sendError(reply, 404, ErrorCodes.Staff.SessionNotFound, 'セッションが見つかりません')
     return reply.status(204).send()
   })
 }

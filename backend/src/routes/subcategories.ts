@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 const createBodySchema = {
   type: 'object',
@@ -44,7 +45,7 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{ name: string; categoryId: number; sort: number }>
     const existing = await prisma.subCategory.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Subcategories.NotFound, 'サブカテゴリが見つかりません')
     return prisma.subCategory.update({
       where: { id: Number(id) },
       data: { name: body.name, categoryId: body.categoryId, sort: body.sort },
@@ -54,12 +55,12 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const existing = await prisma.subCategory.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return reply.status(404).send({ error: 'サブカテゴリが見つかりません' })
+    if (!existing) return sendError(reply, 404, ErrorCodes.Subcategories.NotFound, 'サブカテゴリが見つかりません')
     try {
       await prisma.subCategory.delete({ where: { id: Number(id) } })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
-        return reply.status(409).send({ error: '使用中のサブカテゴリは削除できません' })
+        return sendError(reply, 409, ErrorCodes.Subcategories.InUse, '使用中のサブカテゴリは削除できません')
       }
       throw e
     }

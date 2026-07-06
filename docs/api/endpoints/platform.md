@@ -56,7 +56,13 @@ Response 200 — `platform_token` cookie（httpOnly, 有効期限 8 時間固定
 Response 401:
 
 ```json
-{ "error": "認証情報が正しくありません" }
+{
+  "error": {
+    "code": "auth.login.invalid_credentials",
+    "message": "認証情報が正しくありません",
+    "details": null
+  }
+}
 ```
 
 ログイン試行はレート制限あり（本番: 1分あたり5回、開発: 1000回）。

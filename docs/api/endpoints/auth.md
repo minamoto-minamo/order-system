@@ -46,10 +46,16 @@ Response 200 — アクセストークンを httpOnly cookie `token`、リフレ
 Response 401:
 
 ```json
-{ "error": "認証情報が正しくありません" }
+{
+  "error": {
+    "code": "auth.login.invalid_credentials",
+    "message": "認証情報が正しくありません",
+    "details": null
+  }
+}
 ```
 
-ログイン試行はレート制限あり（本番: 1分あたり5回、開発: 1000回）。超過時は 429 で `{ "error": "ログイン試行回数が多すぎます。1分後に再試行してください。" }` を返す。
+ログイン試行はレート制限あり（本番: 1分あたり5回、開発: 1000回）。超過時は 429 で `auth.login.rate_limited` を返す。
 
 ログイン成功で 200 を返し、アクセストークン（`token`）とリフレッシュトークン（`refresh_token`）を httpOnly cookie にセットし、`{ id, username, role }` を返す。認証失敗では 401 を返す。
 

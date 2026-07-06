@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem } from '../lib/mappers.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 class GroupStatusError extends Error {}
 
@@ -48,7 +49,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     if (status) {
       const statuses = Array.isArray(status) ? status : status.split(',')
       if (!statuses.every(s => VALID_ORDER_STATUSES.has(s))) {
-        return reply.status(400).send({ error: '無効なステータス値です' })
+        return sendError(reply, 400, ErrorCodes.Orders.InvalidStatus, '無効なステータス値です')
       }
       where.status = statuses.length === 1 ? statuses[0] : { in: statuses }
     }
@@ -67,8 +68,8 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const group = await prisma.group.findFirst({ where: { id: body.groupId, storeId: request.storeId } })
-    if (!group) return reply.status(404).send({ error: 'グループが見つかりません' })
-    if (group.status !== 'active') return reply.status(409).send({ error: 'このグループには注文を追加できません' })
+    if (!group) return sendError(reply, 404, ErrorCodes.Orders.GroupNotFound, 'グループが見つかりません')
+    if (group.status !== 'active') return sendError(reply, 409, ErrorCodes.Orders.GroupNotAccepting, 'このグループには注文を追加できません')
 
     const menuItemIds = body.items.map(i => i.menuItemId)
     const menuItems = await prisma.menuItem.findMany({ where: { id: { in: menuItemIds }, storeId: request.storeId } })
@@ -76,12 +77,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const missing = menuItemIds.filter(id => !menuItemMap.has(id))
     if (missing.length > 0) {
-      return reply.status(422).send({ error: `menuItem ${missing.join(',')} が見つかりません` })
+      return sendError(reply, 422, ErrorCodes.Orders.MenuItemsNotFound, `menuItem ${missing.join(',')} が見つかりません`, { menuItemIds: missing })
     }
 
     const soldOut = body.items.filter(i => menuItemMap.get(i.menuItemId)?.soldOut)
     if (soldOut.length > 0) {
-      return reply.status(409).send({ error: '品切れの商品が含まれています' })
+      return sendError(reply, 409, ErrorCodes.Orders.SoldOut, '品切れの商品が含まれています')
     }
 
     const invalidTakeout = body.items.filter(i => {
@@ -90,12 +91,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       return (isTakeout && takeoutType === 'dine_in') || (!isTakeout && takeoutType === 'takeout')
     })
     if (invalidTakeout.length > 0) {
-      return reply.status(422).send({ error: 'テイクアウト設定に合わない商品が含まれています' })
+      return sendError(reply, 422, ErrorCodes.Orders.TakeoutMismatch, 'テイクアウト設定に合わない商品が含まれています')
     }
 
     if (body.courseId != null) {
       const course = await prisma.course.findFirst({ where: { id: body.courseId, storeId: request.storeId } })
-      if (!course) return reply.status(422).send({ error: `course ${body.courseId} が見つかりません` })
+      if (!course) return sendError(reply, 422, ErrorCodes.Orders.CourseNotFound, `course ${body.courseId} が見つかりません`, { courseId: body.courseId })
     }
 
     let planMenuItemIds: Set<number> | null = null
@@ -110,7 +111,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) {
       fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
-      return reply.status(500).send({ error: '店舗設定が見つかりません' })
+      return sendError(reply, 500, ErrorCodes.Orders.SettingNotFound, '店舗設定が見つかりません')
     }
     const taxRateInHouse = setting.taxRateInHouse.toNumber()
     const taxRateTakeout = setting.taxRateTakeout.toNumber()
@@ -144,7 +145,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       if (e instanceof GroupStatusError) return null
       throw e
     })
-    if (!created) return reply.status(409).send({ error: 'このグループには注文を追加できません' })
+    if (!created) return sendError(reply, 409, ErrorCodes.Orders.GroupNotAccepting, 'このグループには注文を追加できません')
 
     const results = created.map(toOrderItem)
     for (const result of results) {
@@ -195,15 +196,15 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
-        return reply.status(409).send({ error: '他の操作と競合しました。もう一度お試しください' })
+        return sendError(reply, 409, ErrorCodes.Orders.Conflict, '他の操作と競合しました。もう一度お試しください')
       }
       throw e
     }
 
-    if (result === null) return reply.status(404).send({ error: '注文が見つかりません' })
+    if (result === null) return sendError(reply, 404, ErrorCodes.Orders.NotFound, '注文が見つかりません')
     if ('conflict' in result) {
-      if ('courseCharge' in result) return reply.status(409).send({ error: 'コース・飲み放題料金はこの操作では取消できません' })
-      return reply.status(409).send({ error: 'キャンセルできないステータスです' })
+      if ('courseCharge' in result) return sendError(reply, 409, ErrorCodes.Orders.CourseChargeNotCancellable, 'コース・飲み放題料金はこの操作では取消できません')
+      return sendError(reply, 409, ErrorCodes.Orders.InvalidCancelStatus, 'キャンセルできないステータスです')
     }
 
     const mapped = toOrderItem(result)

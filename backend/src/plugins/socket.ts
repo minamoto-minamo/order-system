@@ -8,6 +8,7 @@ import { corsOriginValidator, parseDurationSeconds } from '../lib/config.js'
 import { resolveStoreContext } from '../lib/store.js'
 import { verifyRefreshToken } from '../lib/refreshToken.js'
 import type { JwtPayload } from './auth.js'
+import { ErrorCodes, errorBody } from '../lib/errors.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -147,7 +148,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:complete error')
-        socket.emit('error', { message: '注文完了の処理に失敗しました' })
+        socket.emit('error', errorBody(ErrorCodes.Socket.OrderCompleteFailed, '注文完了の処理に失敗しました').error)
       }
     })
 
@@ -169,7 +170,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error(e, 'order:serve error')
-        socket.emit('error', { message: '提供完了の処理に失敗しました' })
+        socket.emit('error', errorBody(ErrorCodes.Socket.OrderServeFailed, '提供完了の処理に失敗しました').error)
       }
     })
 

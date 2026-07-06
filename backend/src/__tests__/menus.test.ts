@@ -38,7 +38,7 @@ async function buildTestApp() {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: '認証が必要です' })
+      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,7 +81,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '処理中の注文があるため削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '処理中の注文があるため削除できません' } })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -94,7 +94,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '処理中の注文があるため削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '処理中の注文があるため削除できません' } })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -119,7 +119,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'メニューが見つかりません' } })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -133,7 +133,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'コースに含まれているメニューは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースに含まれているメニューは削除できません' } })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -147,7 +147,7 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '飲み放題プランに含まれているメニューは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '飲み放題プランに含まれているメニューは削除できません' } })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -163,6 +163,6 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: 'コースまたは飲み放題プランで使用されているため削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースまたは飲み放題プランで使用されているため削除できません' } })
   })
 })

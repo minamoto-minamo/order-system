@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma.js'
 import { setPlatformAccessCookie, clearPlatformAuthCookie, requirePlatformAdmin } from '../plugins/auth.js'
+import { ErrorCodes, errorBody, sendError } from '../lib/errors.js'
 
 const loginBodySchema = {
   type: 'object',
@@ -24,14 +25,14 @@ const platformAuthRoutes: FastifyPluginAsync = async (fastify) => {
         max: process.env.NODE_ENV === 'production' ? 5 : 1000,
         timeWindow: '1 minute',
         keyGenerator: (req) => req.ip,
-        errorResponseBuilder: () => ({ error: 'ログイン試行回数が多すぎます。1分後に再試行してください。' }),
+        errorResponseBuilder: () => errorBody(ErrorCodes.Auth.RateLimited, 'ログイン試行回数が多すぎます。1分後に再試行してください。'),
       },
     },
   }, async (request, reply) => {
     const { username, password } = request.body as { username: string; password: string }
     const admin = await prisma.platformAdmin.findUnique({ where: { username } })
     if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
-      return reply.status(401).send({ error: '認証情報が正しくありません' })
+      return sendError(reply, 401, ErrorCodes.Auth.InvalidCredentials, '認証情報が正しくありません')
     }
     const token = fastify.jwt.sign(
       { type: 'platform', adminId: admin.id, username: admin.username },
@@ -47,7 +48,7 @@ const platformAuthRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.get('/me', { preHandler: requirePlatformAdmin }, async (request, reply) => {
-    if (request.user.type !== 'platform') return reply.status(401).send({ error: '認証が必要です' })
+    if (request.user.type !== 'platform') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     return { id: request.user.adminId, username: request.user.username }
   })
 }

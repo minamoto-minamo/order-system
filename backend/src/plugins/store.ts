@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin'
 import { resolveStoreContext } from '../lib/store.js'
+import { ErrorCodes, sendError } from '../lib/errors.js'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -19,12 +20,12 @@ export default fp(async (fastify) => {
 
     if (context.kind === 'apex') {
       if (request.url === '/api/health') return
-      return reply.status(404).send({ error: 'Not Found' })
+      return sendError(reply, 404, ErrorCodes.Common.UnknownStore, 'Not Found')
     }
 
     if (context.kind === 'platform') {
       if (!request.url.startsWith('/api/platform/')) {
-        return reply.status(404).send({ error: 'Not Found' })
+        return sendError(reply, 404, ErrorCodes.Common.UnknownStore, 'Not Found')
       }
       request.isPlatformAdmin = true
       return
@@ -32,12 +33,12 @@ export default fp(async (fastify) => {
 
     if (context.kind === 'store') {
       if (request.url.startsWith('/api/platform/')) {
-        return reply.status(404).send({ error: 'Not Found' })
+        return sendError(reply, 404, ErrorCodes.Common.UnknownStore, 'Not Found')
       }
       request.storeId = context.storeId
       return
     }
 
-    return reply.status(404).send({ error: 'Not Found' })
+    return sendError(reply, 404, ErrorCodes.Common.UnknownStore, 'Not Found')
   })
 })

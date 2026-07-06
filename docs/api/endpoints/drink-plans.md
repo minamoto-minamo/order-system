@@ -64,6 +64,6 @@ Request body（全フィールド省略可）:
 ## DELETE /api/drink-plans/:id
 
 Response 204: No Content
-Response 404: `{ "error": "飲み放題プランが見つかりません" }`
-Response 409: `{ "error": "コースから参照されているため削除できません" }` — いずれかのコース（[Courses](./courses.md) を参照）がこのプランを参照している場合
-Response 409: `{ "error": "使用中の飲み放題プランは削除できません" }` — `active` または `bill_requested` のグループが使用中の場合
+Response 404: `drink_plans.detail.not_found`
+Response 409: `drink_plans.delete.referenced_course` — いずれかのコース（[Courses](./courses.md) を参照）がこのプランを参照している場合
+Response 409: `drink_plans.delete.in_use` — `active` または `bill_requested` のグループが使用中の場合

@@ -38,7 +38,7 @@ async function buildTestApp() {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: '認証が必要です' })
+      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,7 +68,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '使用中のコースは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '使用中のコースは削除できません' } })
     expect(mockCourseDelete).not.toHaveBeenCalled()
   })
 
@@ -81,7 +81,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: '使用中のコースは削除できません' })
+    expect(res.json()).toMatchObject({ error: { message: '使用中のコースは削除できません' } })
     expect(mockCourseDelete).not.toHaveBeenCalled()
   })
 
@@ -107,7 +107,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(404)
-    expect(res.json()).toMatchObject({ error: 'コースが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'コースが見つかりません' } })
     expect(mockCourseDelete).not.toHaveBeenCalled()
   })
 })
@@ -132,7 +132,7 @@ describe('POST /api/courses — storeId 検証', () => {
       payload: { name: 'コースA', price: 3000, foodItems: [{ menuItemId: 1, qty: 1 }, { menuItemId: 2, qty: 1 }] },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'メニューが見つかりません' } })
     expect(mockCourseCreate).not.toHaveBeenCalled()
   })
 
@@ -146,7 +146,7 @@ describe('POST /api/courses — storeId 検証', () => {
       payload: { name: 'コースA', price: 3000, drinkPlanId: 99, foodItems: [{ menuItemId: 1, qty: 1 }] },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: '飲み放題プランが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: '飲み放題プランが見つかりません' } })
     expect(mockCourseCreate).not.toHaveBeenCalled()
   })
 
@@ -187,7 +187,7 @@ describe('PUT /api/courses/:id — storeId 検証', () => {
       payload: { foodItems: [{ menuItemId: 99, qty: 1 }] },
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: 'メニューが見つかりません' })
+    expect(res.json()).toMatchObject({ error: { message: 'メニューが見つかりません' } })
     expect(mockCourseUpdate).not.toHaveBeenCalled()
   })
 
