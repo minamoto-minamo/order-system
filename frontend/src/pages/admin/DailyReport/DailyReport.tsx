@@ -1,4 +1,4 @@
-import { AppHeader } from "@/components";
+import { AppHeader, LoadError } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
@@ -17,9 +17,10 @@ export default function DailyReport() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [data, setData] = useState<ReportData | null>(null);
-  const [catColorMap, setCatColorMap] = useState<Record<string, string>>({});
-  const [subColorMap, setSubColorMap] = useState<Record<string, string>>({});
-  const [catNames, setCatNames] = useState<string[]>([]);
+	  const [catColorMap, setCatColorMap] = useState<Record<string, string>>({});
+	  const [subColorMap, setSubColorMap] = useState<Record<string, string>>({});
+	  const [catNames, setCatNames] = useState<string[]>([]);
+	  const [loadError, setLoadError] = useState(false);
 
   const sessionLabel = (s: SessionInfo): string => {
     const fmt = (iso: string) => {
@@ -33,18 +34,20 @@ export default function DailyReport() {
 
   useEffect(() => {
     api.get<SessionInfo[]>(`${EP.sessions}?status=closed`)
-      .then(ss => {
-        setSessions(ss);
+	      .then(ss => {
+	        setLoadError(false);
+	        setSessions(ss);
         if (ss.length > 0) setSelectedId(ss[0].id);
       })
-      .catch(() => { });
+	      .catch(() => setLoadError(true));
   }, []);
 
   useEffect(() => {
     if (selectedId === null) return;
     api.get<ReportData>(EP.sessionReport(selectedId))
-      .then(r => {
-        setData(r);
+	      .then(r => {
+	        setLoadError(false);
+	        setData(r);
         const cats = Object.keys(r.categoryBreakdown);
         const subs = Object.keys(r.subBreakdown);
         const catMap: Record<string, string> = {};
@@ -56,13 +59,15 @@ export default function DailyReport() {
         setSubColorMap(subMap);
         setCatNames(cats);
       })
-      .catch(() => { });
-  }, [selectedId]);
+	      .catch(() => setLoadError(true));
+	  }, [selectedId]);
 
   const groupAvg = data && data.groups > 0 ? Math.round(data.total / data.groups) : 0;
   const guestAvg = data && data.guests > 0 ? Math.round(data.total / data.guests) : 0;
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader title={t('admin.report')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
 

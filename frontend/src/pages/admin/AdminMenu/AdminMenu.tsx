@@ -2,19 +2,19 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AppHeader, NavButton } from "@/components";
 import { ROUTES } from "@/lib/routes";
-import { ICONS } from "@/lib/icons";
+import { NAV_ICONS } from "@/lib/icons";
 
 export default function AdminMenu() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   const menuItems = [
-    { path: ROUTES.adminProducts, label: t('admin.products'), sub: t('admin.productsSub'), icon: ICONS.product },
-    { path: ROUTES.adminCourses,  label: t('admin.courses'),  sub: t('admin.coursesSub'),  icon: ICONS.course  },
-    { path: ROUTES.adminSeats,    label: t('admin.seats'),    sub: t('admin.seatsSub'),    icon: ICONS.layout  },
-    { path: ROUTES.adminStaff,    label: t('admin.staff'),    sub: t('admin.staffSub'),    icon: ICONS.staff   },
-    { path: ROUTES.adminReport,   label: t('admin.report'),   sub: t('admin.reportSub'),   icon: ICONS.report  },
-    { path: ROUTES.adminSettings, label: t('admin.settings'), sub: t('admin.settingsSub'), icon: ICONS.setting },
+    { path: ROUTES.adminProducts, label: t('admin.products'), sub: t('admin.productsSub'), icon: NAV_ICONS.product },
+    { path: ROUTES.adminCourses,  label: t('admin.courses'),  sub: t('admin.coursesSub'),  icon: NAV_ICONS.course  },
+    { path: ROUTES.adminSeats,    label: t('admin.seats'),    sub: t('admin.seatsSub'),    icon: NAV_ICONS.layout  },
+    { path: ROUTES.adminStaff,    label: t('admin.staff'),    sub: t('admin.staffSub'),    icon: NAV_ICONS.staff   },
+    { path: ROUTES.adminReport,   label: t('admin.report'),   sub: t('admin.reportSub'),   icon: NAV_ICONS.report  },
+    { path: ROUTES.adminSettings, label: t('admin.settings'), sub: t('admin.settingsSub'), icon: NAV_ICONS.setting },
   ];
 
   return (

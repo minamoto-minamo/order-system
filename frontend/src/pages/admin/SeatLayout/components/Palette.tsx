@@ -1,4 +1,5 @@
-import { BaseButton } from "@/components";
+import { BaseButton, Icon, Toast } from "@/components";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 
 interface PaletteItem {
@@ -36,7 +37,7 @@ export function Palette({ sidebarOpen, onToggle, items, onPalettePointerDown, co
         className="self-end m-1.5 w-5 h-5 flex items-center justify-center rounded text-muted text-note shrink-0"
         onClick={onToggle}
       >
-        {sidebarOpen ? '«' : '»'}
+        <Icon src={sidebarOpen ? ACTION_ICONS.chevronsLeft : ACTION_ICONS.chevronsRight} />
       </BaseButton>
       <div className={`flex flex-col flex-1 ${sidebarOpen ? 'px-3 pb-4' : 'px-1.5 pb-3'}`}>
         {sidebarOpen
@@ -51,7 +52,7 @@ export function Palette({ sidebarOpen, onToggle, items, onPalettePointerDown, co
             title={item.label}
           >
             <div className={`w-6.5 h-6.5 bg-surface border border-line flex items-center justify-center text-xs text-secondary shrink-0 ${item.type === 'seat' ? 'rounded-full' : 'rounded-[5px]'}`}>
-              {item.icon}
+              <Icon src={item.icon} size="1.15em" />
             </div>
             {sidebarOpen && (
               <div className="min-w-0">
@@ -100,13 +101,11 @@ export function Palette({ sidebarOpen, onToggle, items, onPalettePointerDown, co
                 />
                 <span className="text-caption text-dim">px</span>
               </div>
-            </div>
-            {hasOutOfBounds && (
-              <p className="text-caption text-danger mt-1.5">{t('seatEditor.canvasOutOfBounds')}</p>
-            )}
+	            </div>
           </div>
         )}
       </div>
+      <Toast message={hasOutOfBounds ? t('seatEditor.canvasOutOfBounds') : null} />
     </div>
   );
 }

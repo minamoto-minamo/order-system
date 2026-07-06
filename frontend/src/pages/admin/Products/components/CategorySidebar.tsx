@@ -1,4 +1,5 @@
-import { BaseButton } from "@/components";
+import { BaseButton, Icon } from "@/components";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 import type { Cat, ModalState, Product } from "./types";
 
@@ -50,7 +51,7 @@ export function CategorySidebar({
                 onClick={() => onToggleCat(cat.id)}
               >
                 <span className="text-caption text-dim">
-                  {expandedCats[cat.id] ? "▾" : "▸"}
+                  <Icon src={expandedCats[cat.id] ? ACTION_ICONS.chevronDown : ACTION_ICONS.chevronRight} />
                 </span>
                 <span className="text-note font-semibold text-ink">{cat.label}</span>
               </div>
@@ -59,7 +60,7 @@ export function CategorySidebar({
                 className="w-6 h-6 flex items-center justify-center rounded text-muted text-note"
                 onClick={() => setModal({ type: "editCat", payload: cat })}
               >
-                ⚙
+                <Icon src={ACTION_ICONS.gear} />
               </BaseButton>
             </div>
 
@@ -81,7 +82,7 @@ export function CategorySidebar({
                       className="w-6 h-6 flex items-center justify-center rounded text-dim text-caption"
                       onClick={() => setModal({ type: "editSub", payload: { cat, sub } })}
                     >
-                      ⚙
+                      <Icon src={ACTION_ICONS.gear} />
                     </BaseButton>
                   </div>
                 ))}

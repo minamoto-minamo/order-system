@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BaseButton } from "@/components/controls/button";
+import { Toast } from "@/components/display/Toast/Toast";
 
 // フォーム入力用のボトムシートモーダル。フィールド部分は children で差し込む。
 // 初期フォーカスはフィールドの ref を持つ呼び出し側で行う。
@@ -24,12 +25,6 @@ export function FormSheetModal({ title, error, saveDisabled, onClose, onSave, ch
 
         <div className="flex flex-col gap-4">
           {children}
-
-          {error && (
-            <div className="text-label text-danger bg-danger-bg border border-danger-border rounded-lg px-3 py-2">
-              {error}
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 mt-6">
@@ -49,6 +44,7 @@ export function FormSheetModal({ title, error, saveDisabled, onClose, onSave, ch
           </BaseButton>
         </div>
       </div>
+      <Toast message={error} />
     </div>
   );
 }

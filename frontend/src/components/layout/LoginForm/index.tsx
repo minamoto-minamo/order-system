@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BaseButton } from "@/components/controls/button";
+import { Toast } from "@/components/display/Toast/Toast";
 import { BRAND } from "@/lib/brand";
 
 // ログイン画面の全面レイアウト＋認証フォーム。
@@ -47,10 +48,7 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
               onChange={e => setPassword(e.target.value)}
               className="border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
               autoComplete="current-password"
-            />
-            {error && (
-              <div className="text-xs text-danger text-center">{error}</div>
-            )}
+	            />
             <BaseButton
               type="submit"
               variant="primary"
@@ -62,6 +60,7 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
           </form>
         </div>
       </div>
+      <Toast message={error} />
     </div>
   );
 }

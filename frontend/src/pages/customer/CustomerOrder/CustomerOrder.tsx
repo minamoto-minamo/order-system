@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
+import { ACTION_ICONS } from "@/lib/icons";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, IconButton, MenuConfirmModal, NoticeBanner, SlideUpFooter, TabNavigation } from "@/components";
+import { BaseButton, BottomSheetModal, Icon, IconButton, MenuConfirmModal, NoticeBanner, SlideUpFooter, TabNavigation } from "@/components";
 import { CustomerMenuList } from "./components/CustomerMenuList";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
@@ -190,7 +191,7 @@ export default function CustomerOrder() {
             onClick={() => setConfirmCall(true)}
             aria-label={t('customerOrder.callStaff')}
           >
-            🔔
+            <Icon src={ACTION_ICONS.bell} />
           </IconButton>
           {orderable && (
             <IconButton
@@ -198,7 +199,7 @@ export default function CustomerOrder() {
               onClick={() => setConfirmBill(true)}
               aria-label={t('customerOrder.requestBill')}
             >
-              ¥
+              <Icon src={ACTION_ICONS.yen} />
             </IconButton>
           )}
         </div>

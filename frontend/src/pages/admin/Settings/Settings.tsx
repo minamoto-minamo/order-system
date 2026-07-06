@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, SubHeader, ToggleButtonGroup, Toast } from "@/components";
+import { AppHeader, BaseButton, LoadError, SubHeader, ToggleButtonGroup, Toast } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
@@ -25,16 +25,18 @@ export default function Settings() {
   const [taxDineIn, setTaxDineIn] = useState("10");
   const [taxTakeout, setTaxTakeout] = useState("8");
   const [refreshTokenAutoExtend, setRefreshTokenAutoExtend] = useState(true);
-  const [refreshTokenExpiresMinutes, setRefreshTokenExpiresMinutes] = useState("1440");
-  const [saved, setSaved] = useState(false);
+	  const [refreshTokenExpiresMinutes, setRefreshTokenExpiresMinutes] = useState("1440");
+	  const [saved, setSaved] = useState(false);
+	  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     api.get<{
       storeName: string; closingTime: string; taxRateInHouse: number; taxRateTakeout: number;
       refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
     }>(EP.settings)
-      .then(s => {
-        setStoreName(s.storeName)
+	      .then(s => {
+	        setLoadError(false)
+	        setStoreName(s.storeName)
         const [h, m] = s.closingTime.split(':')
         setCloseHour(h)
         setCloseMin(m)
@@ -43,8 +45,8 @@ export default function Settings() {
         setRefreshTokenAutoExtend(s.refreshTokenAutoExtend)
         setRefreshTokenExpiresMinutes(String(s.refreshTokenExpiresMinutes))
       })
-      .catch(() => { })
-  }, [])
+	      .catch(() => setLoadError(true))
+	  }, [])
 
   const handleSave = () => {
     api.put(EP.settings, {
@@ -70,7 +72,9 @@ export default function Settings() {
     return `${closeHour}:${m}`;
   };
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader
         title={t('settings.title')}

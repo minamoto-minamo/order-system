@@ -13,7 +13,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BaseButton } from "@/components";
+import { BaseButton, Icon } from "@/components";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 import type { Cat, ModalState, Product } from "./types";
 import { toMeta } from "./types";
@@ -89,7 +90,9 @@ function SortableProductRow({ p, cats, isDragEnabled, setModal }: RowProps) {
             })()}
           </div>
         </div>
-        <span className="w-7 h-7 flex items-center justify-center text-muted text-note shrink-0">⚙</span>
+        <span className="w-7 h-7 flex items-center justify-center text-muted text-note shrink-0">
+          <Icon src={ACTION_ICONS.gear} />
+        </span>
       </div>
     </div>
   );
@@ -127,7 +130,7 @@ export function ProductList({
           className="w-7 h-7 flex items-center justify-center rounded text-dim text-note shrink-0"
           onClick={onToggleSidebar}
         >
-          {sidebarOpen ? '←' : '☰'}
+          <Icon src={sidebarOpen ? ACTION_ICONS.arrowLeft : ACTION_ICONS.menu} />
         </BaseButton>
         <div className="text-note text-dim flex-1">
           {selectedLabel}

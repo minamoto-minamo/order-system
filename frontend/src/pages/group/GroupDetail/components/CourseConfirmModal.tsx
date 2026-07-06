@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal, QuantityControl } from "@/components";
+import { BottomSheetModal, Icon, QuantityControl } from "@/components";
+import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 
 export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans, menus, onConfirm, onClose }: {
@@ -30,7 +31,10 @@ export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans
         if (!plan) return null;
         return (
           <div className="mb-3">
-            <div className="text-label text-info mb-1.5 font-medium">🍺 {plan.name}{t('group.drinkPlanNote')}</div>
+            <div className="flex items-center gap-1 text-label text-info mb-1.5 font-medium">
+              <Icon src={SYMBOL_ICONS.beer} />
+              <span>{plan.name}{t('group.drinkPlanNote')}</span>
+            </div>
             <div className="bg-info-bg border border-info-border rounded-lg px-3.5 py-2 flex flex-wrap gap-1">
               {plan.menuItemIds.map(mid => {
                 const name = menus.find(m => m.id === mid)?.name ?? t('common.unknownItem', { id: mid });
@@ -44,7 +48,10 @@ export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans
       })()}
       {course.foodItems.length > 0 && (
         <div className="mb-5">
-          <div className="text-label text-course mb-1.5 font-medium">🍽 {t('group.courseFoodLabel')}</div>
+          <div className="flex items-center gap-1 text-label text-course mb-1.5 font-medium">
+            <Icon src={SYMBOL_ICONS.dining} />
+            <span>{t('group.courseFoodLabel')}</span>
+          </div>
           <div className="bg-surface border border-divider rounded-lg px-3.5 py-2.5">
             {course.foodItems.map((fi, i) => {
               const name = menus.find(m => m.id === fi.menuItemId)?.name ?? t('common.unknownItem', { id: fi.menuItemId });

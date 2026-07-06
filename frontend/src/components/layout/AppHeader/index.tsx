@@ -4,8 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { NavDrawer } from "@/components/layout/NavDrawer";
 import { IconButton } from "@/components/controls/button";
+import { Icon } from "@/components/display/Icon";
 import { useOverTimeWarning } from "@/hooks/useOverTimeWarning";
 import { BRAND } from "@/lib/brand";
+import { ACTION_ICONS } from "@/lib/icons";
 
 interface AppHeaderProps {
   title: ReactNode;
@@ -30,7 +32,7 @@ export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true 
               className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface text-xs text-dim"
               onClick={() => breadcrumb.onClick ? breadcrumb.onClick() : navigate(breadcrumb.to!)}
             >
-              <span>←</span>
+              <Icon src={ACTION_ICONS.arrowLeft} />
               <span>{breadcrumb.label}</span>
             </IconButton>
           )}

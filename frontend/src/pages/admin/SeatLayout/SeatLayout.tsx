@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, SubHeader, Toast } from "@/components";
+import { AppHeader, LoadError, SubHeader, Toast } from "@/components";
 import { api } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useToast } from "@/hooks/useToast";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
+import { SYMBOL_ICONS } from "@/lib/icons";
 import { Palette } from "./components/Palette";
 import { EditSheet } from "./components/EditSheet";
 import { StatsBar } from "./components/StatsBar";
@@ -31,8 +32,9 @@ export default function SeatLayout() {
   const [gridSizeMin, setGridSizeMin] = useState(32);
   const [gridSizeMax, setGridSizeMax] = useState(80);
   const [selected, setSelected] = useState<SelectedItem | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+	  const [saved, setSaved] = useState(false);
+	  const [sidebarOpen, setSidebarOpen] = useState(true);
+	  const [loadError, setLoadError] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<DragState | null>(null);
 
@@ -43,9 +45,10 @@ export default function SeatLayout() {
   const nextTableIdRef     = useRef(-1);
 
   // ── 初期ロード ─────────────────────────────────────────────
-  useEffect(() => {
-    api.get<SeatLayoutResponse>(EP.seatLayout).then(data => {
-      originalSeatsRef.current = data.seats
+	  useEffect(() => {
+	    api.get<SeatLayoutResponse>(EP.seatLayout).then(data => {
+	      setLoadError(false)
+	      originalSeatsRef.current = data.seats
       originalTablesRef.current = data.tables
       setCols(data.canvasCols)
       setRows(data.canvasRows)
@@ -59,8 +62,8 @@ export default function SeatLayout() {
       const g = data.gridSize
       setSeats(data.seats.map(s => ({ id: s.id, label: s.label, x: s.x * g, y: s.y * g, tableId: s.tableId })))
       setTables(data.tables.map(t => ({ id: t.id, label: t.label, x: t.x * g, y: t.y * g, w: t.w * g, h: t.h * g })))
-    }).catch(() => {})
-  }, [])
+	    }).catch(() => setLoadError(true))
+	  }, [])
 
   // ── 保存 ──────────────────────────────────────────────────
   const handleSave = async () => {
@@ -203,11 +206,23 @@ export default function SeatLayout() {
       width: "44px", height: "44px", borderRadius: "10px",
       background: "white", border: "1.5px solid var(--color-line)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: "18px", opacity: "0.85",
+      color: "var(--color-secondary)", opacity: "0.85",
       transform: "translate(-50%, -50%)",
       left: e.clientX + "px", top: e.clientY + "px",
     });
-    ghost.textContent = icon;
+    const ghostIcon = document.createElement("span");
+    Object.assign(ghostIcon.style, {
+      WebkitMaskImage: `url(${icon})`,
+      maskImage: `url(${icon})`,
+      maskSize: "contain",
+      maskRepeat: "no-repeat",
+      maskPosition: "center",
+      backgroundColor: "currentColor",
+      display: "inline-block",
+      width: "20px",
+      height: "20px",
+    });
+    ghost.appendChild(ghostIcon);
     document.body.appendChild(ghost);
     const onMove = (e2: PointerEvent) => {
       ghost.style.left = e2.clientX + "px";
@@ -271,11 +286,13 @@ export default function SeatLayout() {
     tables.some(t => t.x + t.w > cols * gridSize || t.y + t.h > rows * gridSize);
 
   const paletteItems = [
-    { type: "table", icon: "▭", label: t('seatEditor.table'), sub: t('seatEditor.tableSub') },
-    { type: "seat",  icon: "○", label: t('seatEditor.seat'),  sub: t('seatEditor.seatSub') },
+    { type: "table", icon: SYMBOL_ICONS.table, label: t('seatEditor.table'), sub: t('seatEditor.tableSub') },
+    { type: "seat",  icon: SYMBOL_ICONS.seat,  label: t('seatEditor.seat'),  sub: t('seatEditor.seatSub') },
   ];
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader
           title={t('admin.seats')}

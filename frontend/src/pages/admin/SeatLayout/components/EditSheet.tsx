@@ -1,5 +1,6 @@
-import { BaseButton } from "@/components";
+import { BaseButton, Icon } from "@/components";
 import { BottomSheet } from "@/components/modal/BottomSheet";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 import type { SeatData, SelectedItem, TableData } from "./types";
 
@@ -21,7 +22,9 @@ export function EditSheet({ item, selected, onLabelChange, onDelete, onClose, G 
           <div className="text-sm font-medium text-ink">
             {selected.kind === "table" ? t('seatEditor.editTable') : t('seatEditor.editSeat')}
           </div>
-          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose}>×</BaseButton>
+          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+            <Icon src={ACTION_ICONS.close} />
+          </BaseButton>
         </div>
         <div className="text-label text-dim mb-1">{t('seatEditor.labelName')}</div>
         <input

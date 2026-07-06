@@ -1,3 +1,5 @@
+export { ErrorBoundary } from './ErrorBoundary';
+export { Icon } from './Icon';
 export { LoadError } from './LoadError';
 export { NoticeBanner } from './NoticeBanner';
 export { OrderSection } from './OrderSection';

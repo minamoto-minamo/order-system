@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, Toast } from "@/components";
+import { AppHeader, LoadError, Toast } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
@@ -19,8 +19,9 @@ export default function Courses() {
   const [drinkPlans, setDrinkPlans]       = useState<DrinkPlan[]>([]);
   const [courses, setCourses]             = useState<Course[]>([]);
   const [menus, setMenus]                 = useState<MenuItem[]>([]);
-  const [categories, setCategories]       = useState<Category[]>([]);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+	  const [categories, setCategories]       = useState<Category[]>([]);
+	  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+	  const [loadError, setLoadError] = useState(false);
 
   type DrinkPlanModalState = DrinkPlan | 'new' | null;
   type CourseModalState    = Course    | 'new' | null;
@@ -34,14 +35,15 @@ export default function Courses() {
       api.get<MenuItem[]>(EP.menus),
       api.get<Category[]>(EP.categories),
       api.get<SubCategory[]>(EP.subcategories),
-    ]).then(([dp, c, m, cat, sub]) => {
-      setDrinkPlans(dp);
+	    ]).then(([dp, c, m, cat, sub]) => {
+	      setLoadError(false);
+	      setDrinkPlans(dp);
       setCourses(c);
       setMenus(m);
       setCategories(cat.sort((a, b) => a.sort - b.sort));
       setSubCategories(sub);
-    }).catch(() => {});
-  }, []);
+	    }).catch(() => setLoadError(true));
+	  }, []);
 
   // ── DrinkPlan CRUD ──────────────────────────────────────────
   const saveDrinkPlan = async (name: string, price: number, menuItemIds: number[]) => {
@@ -89,7 +91,9 @@ export default function Courses() {
     } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))); }
   };
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader title={t('admin.courses')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
 

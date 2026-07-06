@@ -51,17 +51,19 @@ export default function App() {
   const { setSession } = useSessionStore()
   const { admin, initialized: platformInitialized, setAdmin, setInitialized: setPlatformInitialized } = usePlatformAuthStore()
 
-  useEffect(() => {
-    if (isPlatform) {
-      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
-        .then(setAdmin)
+	  useEffect(() => {
+	    if (isPlatform) {
+	      // 認証確認は失敗時も未ログイン扱いで初期化を進める
+	      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
+	        .then(setAdmin)
         .finally(() => setPlatformInitialized(true))
       return
     }
 
-    Promise.all([
-      api.get<AuthUser>(EP.authMe).catch(() => null),
-      api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
+	    Promise.all([
+	      // 認証・現セッション確認は失敗時も未ログイン/セッションなし扱いで初期化を進める
+	      api.get<AuthUser>(EP.authMe).catch(() => null),
+	      api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
     ]).then(([u, s]) => {
       setUser(u)
       setSession(s)

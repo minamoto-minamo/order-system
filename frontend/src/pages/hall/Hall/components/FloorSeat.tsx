@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { Icon } from "@/components/display/Icon";
+import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Seat, Group } from "@order-system/shared";
 import "./FloorSeat.scss";
 
@@ -48,7 +50,7 @@ export function FloorSeat({ seat, status, group, readyCount, isSelected, onTap, 
       )}
       {status === "occupied" && group && (
         readyCount > 0
-          ? <span className="text-nano font-medium text-amber-fg">🍽 {readyCount}件</span>
+          ? <span className="inline-flex items-center gap-0.5 text-nano font-medium text-amber-fg"><Icon src={SYMBOL_ICONS.dining} />{readyCount}件</span>
           : <span className="text-nano text-dim">{t('hall.occupied')}</span>
       )}
     </div>

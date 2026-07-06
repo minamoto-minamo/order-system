@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, InputModal, Toast } from "@/components";
+import { AppHeader, InputModal, LoadError, Toast } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
@@ -20,8 +20,9 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
   const [expandedCats, setExpandedCats]   = useState<Record<number, boolean>>({});
-  const [modal, setModal] = useState<ModalState>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+	  const [modal, setModal] = useState<ModalState>(null);
+	  const [sidebarOpen, setSidebarOpen] = useState(true);
+	  const [loadError, setLoadError] = useState(false);
 
   // ── 初期ロード ─────────────────────────────────────────────
   useEffect(() => {
@@ -29,8 +30,9 @@ export default function Products() {
       api.get<Category[]>(EP.categories),
       api.get<SubCategory[]>(EP.subcategories),
       api.get<MenuItem[]>(EP.menus),
-    ]).then(([apiCats, apiSubs, apiMenus]) => {
-      const catList: Cat[] = apiCats.map(c => ({
+	    ]).then(([apiCats, apiSubs, apiMenus]) => {
+	      setLoadError(false)
+	      const catList: Cat[] = apiCats.map(c => ({
         id: c.id,
         label: c.name,
         subs: apiSubs.filter(s => s.categoryId === c.id).map(s => ({ id: s.id, label: s.name })),
@@ -47,8 +49,8 @@ export default function Products() {
         takeout: m.takeout,
         sort: m.sort,
       })))
-    }).catch(() => {})
-  }, [])
+	    }).catch(() => setLoadError(true))
+	  }, [])
 
   // ── カテゴリ操作 ───────────────────────────────────────────
   const addCat = async (label: string) => {
@@ -180,7 +182,9 @@ export default function Products() {
       })()
     : t('productSettings.allProducts');
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader title={t('admin.products')} breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }} />
 

@@ -1,7 +1,8 @@
-import { BaseButton, IconButton, OrderSection, StatusBadge } from "@/components";
+import { BaseButton, Icon, IconButton, OrderSection, StatusBadge } from "@/components";
 import type { OrderItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 import { partitionOrderItems } from "@/lib/partitionOrderItems";
+import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
 
 function StatusActionButton({ item, onChangeStatus }: { item: OrderItem; onChangeStatus: (id: string) => void }) {
   const { t } = useTranslation();
@@ -38,7 +39,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                 {item.menuItemName}
                 <span className="text-xs text-muted ml-1.5">×{item.qty}</span>
                 {item.isTakeout && (
-                  <span className="text-micro text-amber ml-1.5">🥡</span>
+                  <Icon src={SYMBOL_ICONS.takeout} size="0.9em" className="text-amber ml-1.5 align-[-0.1em]" />
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -52,7 +53,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
               onClick={() => onCancelTap(item)}
               aria-label={t('group.cancelOrder')}
             >
-              ×
+              <Icon src={ACTION_ICONS.close} />
             </IconButton>
           </div>
         ))}
@@ -66,7 +67,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                 <div className="text-note text-secondary">
                   {item.menuItemName}
                   <span className="text-label text-muted ml-1.5">×{item.qty}</span>
-                  {item.isTakeout && <span className="text-micro text-amber ml-1.5">🥡</span>}
+                  {item.isTakeout && <Icon src={SYMBOL_ICONS.takeout} size="0.9em" className="text-amber ml-1.5 align-[-0.1em]" />}
                 </div>
                 <div className="text-label text-muted mt-0.5">¥{item.price.toLocaleString()} · ¥{(item.price * item.qty).toLocaleString()}</div>
               </div>
@@ -75,7 +76,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                 onClick={() => onCancelTap(item)}
                 aria-label={t('group.cancelOrder')}
               >
-                ×
+                <Icon src={ACTION_ICONS.close} />
               </IconButton>
             </div>
           ))}

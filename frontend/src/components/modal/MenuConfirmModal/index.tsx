@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "../BottomSheetModal";
+import { Icon } from "@/components/display/Icon";
+import { SYMBOL_ICONS } from "@/lib/icons";
 import type { MenuItem } from "@order-system/shared";
 
 interface OrderItem {
@@ -24,7 +26,7 @@ export function MenuConfirmModal({ open, items, orderType, submitting, onClose, 
       onClose={onClose}
       primaryAction={{
         label: orderType === 'takeout'
-          ? `🥡 ${t('group.confirmOrderTakeout')}`
+          ? <span className="inline-flex items-center justify-center gap-1.5"><Icon src={SYMBOL_ICONS.takeout} />{t('group.confirmOrderTakeout')}</span>
           : t('group.confirmOrderDineIn'),
         variant: orderType === 'takeout' ? 'takeout' : 'default',
         disabled: submitting,

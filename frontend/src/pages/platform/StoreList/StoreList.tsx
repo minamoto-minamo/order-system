@@ -1,4 +1,4 @@
-import { BaseButton, BottomSheetModal, SubHeader, Toast } from "@/components";
+import { BaseButton, BottomSheetModal, LoadError, SubHeader, Toast } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
@@ -27,14 +27,18 @@ export default function StoreList() {
   const { setAdmin } = usePlatformAuthStore();
   const [stores, setStores] = useState<Store[]>([]);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
-  const [editTarget, setEditTarget] = useState<Store | null>(null);
-  const [toggleTarget, setToggleTarget] = useState<Store | null>(null);
+	  const [editTarget, setEditTarget] = useState<Store | null>(null);
+	  const [toggleTarget, setToggleTarget] = useState<Store | null>(null);
+	  const [loadError, setLoadError] = useState(false);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StoreForm>(EMPTY_FORM);
   const { toast, showToast } = useToast();
 
-  useEffect(() => {
-    api.get<Store[]>(EP.platformStores).then(setStores).catch(console.error);
-  }, []);
+	  useEffect(() => {
+	    api.get<Store[]>(EP.platformStores).then(list => {
+	      setLoadError(false);
+	      setStores(list);
+	    }).catch(() => setLoadError(true));
+	  }, []);
 
   const openAdd = () => {
     reset(EMPTY_FORM);
@@ -86,8 +90,9 @@ export default function StoreList() {
     setToggleTarget(null);
   };
 
-  const handleLogout = async () => {
-    await api.post(EP.platformAuthLogout, {}).catch(() => {});
+	  const handleLogout = async () => {
+	    // サーバー側ログアウトに失敗しても管理画面の操作継続を防ぐためローカルログアウトは続行する
+	    await api.post(EP.platformAuthLogout, {}).catch(() => {});
     setAdmin(null);
   };
 
@@ -95,7 +100,9 @@ export default function StoreList() {
     ? !form.subdomain.trim() || !form.name.trim() || !form.adminUsername.trim() || !form.adminPassword
     : !form.name.trim();
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <div className="app-shell h-dvh bg-white flex flex-col overflow-hidden">
       <div className="bg-white border-b border-divider px-4 py-3 flex items-center justify-between shrink-0">
         <div className="text-sub font-medium text-ink">{t("platform.storesTitle")}</div>

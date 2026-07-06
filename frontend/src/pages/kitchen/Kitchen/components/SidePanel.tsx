@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { getSeatLabels } from "@/lib/utils";
-import { IconButton } from "@/components";
+import { Icon, IconButton } from "@/components";
+import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
 import type { Group, Seat } from "@order-system/shared";
 import type { DisplayCat, DisplayOrder } from "./types";
 
@@ -36,13 +37,16 @@ export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onSer
             className="w-8 h-8 flex items-center justify-center rounded-md text-lg text-dim"
             aria-label={t('common.close')}
           >
-            ×
+            <Icon src={ACTION_ICONS.close} />
           </IconButton>
         </div>
         <div className="flex-1 px-5 py-4 overflow-y-auto">
           {readyItems.length > 0 && (
             <div className="mb-4">
-              <div className="text-label text-amber-fg font-medium mb-2 tracking-[0.08em]">{`🍽 ${t('common.readyToServe')}`}</div>
+              <div className="flex items-center gap-1 text-label text-amber-fg font-medium mb-2 tracking-[0.08em]">
+                <Icon src={SYMBOL_ICONS.dining} />
+                <span>{t('common.readyToServe')}</span>
+              </div>
               {readyItems.map(o => (
                 <div key={o.id} className="px-2.5 py-2 mb-1 bg-amber-bg border border-amber-border rounded-lg flex items-center gap-2">
                   <span className="flex-1 text-note text-secondary">{o.item}</span>

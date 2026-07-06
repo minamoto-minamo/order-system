@@ -1,5 +1,6 @@
-import { BaseButton } from "@/components";
+import { BaseButton, Icon } from "@/components";
 import { useForm } from "@/hooks/useForm";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 import type { Cat, Product, ProductFormData } from "./types";
 import { TO_OPTIONS } from "./types";
@@ -52,7 +53,9 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
             </div>
             {contextLabel && <div className="text-label text-muted mt-0.5">{contextLabel}</div>}
           </div>
-          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose}>×</BaseButton>
+          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+            <Icon src={ACTION_ICONS.close} />
+          </BaseButton>
         </div>
 
         <div className="text-caption text-muted mb-0.75">{t('productSettings.productName')}</div>

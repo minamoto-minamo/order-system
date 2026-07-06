@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { BaseButton, QuantityControl } from "@/components";
+import { BaseButton, Icon, QuantityControl } from "@/components";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
+import { SYMBOL_ICONS } from "@/lib/icons";
 
 interface CourseTabProps {
   courses: Course[]
@@ -43,7 +44,8 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
               </div>
               {activeDrinkPlan && (
                 <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-info-border bg-info-bg px-2 py-0.5 text-caption text-info">
-                  <span className="truncate">🍺 {activeDrinkPlan.name} {t('group.drinkPlanActive')}</span>
+                  <Icon src={SYMBOL_ICONS.beer} className="mr-1 shrink-0" />
+                  <span className="truncate">{activeDrinkPlan.name} {t('group.drinkPlanActive')}</span>
                 </div>
               )}
             </div>
@@ -105,7 +107,7 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
                 {plan && (
                   <div className="mb-1.5">
                     <span className="text-caption text-info bg-info-bg border border-info-border px-1.75 py-0.5 rounded-full">
-                      🍺 {plan.name}
+                      <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />{plan.name}
                     </span>
                   </div>
                 )}

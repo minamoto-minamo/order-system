@@ -1,12 +1,12 @@
-import hallIcon from "@/assets/icons/hall.png";
-import kitchenIcon from "@/assets/icons/kitchen.png";
-import settingIcon from "@/assets/icons/setting.png";
-import { AppHeader, BaseButton, BottomSheetModal, NavButton } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, NavButton, Toast } from "@/components";
 import { useSessionActions } from "@/hooks/useSessionActions";
+import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { BRAND } from "@/lib/brand";
+import { NAV_ICONS } from "@/lib/icons";
 import { ROUTES } from "@/lib/routes";
 import { socket } from "@/lib/socket";
 import { isAdmin } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 export default function Home() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { toast, showToast } = useToast();
   const {
     session,
     isOpen,
@@ -32,14 +33,14 @@ export default function Home() {
     reopenSession,
     newSession,
     dismissCloseConfirm,
-  } = useSessionActions();
+  } = useSessionActions({ onError: showToast });
   const { user } = useAuthStore();
   const [storeName, setStoreName] = useState("");
 
   useEffect(() => {
     api.get<{ storeName: string }>(EP.settings)
       .then(s => setStoreName(s.storeName))
-      .catch(() => { })
+      .catch((e) => { showToast(apiErrorMessage(e, t('common.loadError'))) })
 
     // 初期フェッチと同じ useEffect にまとめて cleanup を一箇所に集約するため手動登録
     const onSettingsUpdated = (s: PublicSetting) => setStoreName(s.storeName)
@@ -49,9 +50,9 @@ export default function Home() {
 
   // gated: 営業中でないとアクセス不可。roleGated: admin ロール必須
   const modes = [
-    { path: ROUTES.hall, label: t('mode.hall'), sub: t('home.hallSub'), gated: true, roleGated: false, icon: hallIcon },
-    { path: ROUTES.kitchen, label: t('mode.kitchen'), sub: t('home.kitchenSub'), gated: true, roleGated: false, icon: kitchenIcon },
-    { path: ROUTES.admin, label: t('nav.adminMode'), sub: t('home.adminSub'), gated: false, roleGated: true, icon: settingIcon },
+    { path: ROUTES.hall, label: t('mode.hall'), sub: t('home.hallSub'), gated: true, roleGated: false, icon: NAV_ICONS.hall },
+    { path: ROUTES.kitchen, label: t('mode.kitchen'), sub: t('home.kitchenSub'), gated: true, roleGated: false, icon: NAV_ICONS.kitchen },
+    { path: ROUTES.admin, label: t('nav.adminMode'), sub: t('home.adminSub'), gated: false, roleGated: true, icon: NAV_ICONS.setting },
   ];
 
   const sessionStart = session?.openedAt
@@ -153,7 +154,7 @@ export default function Home() {
           description={t('session.confirmNewDesc')}
           onClose={() => setShowNewConfirm(false)}
           secondaryAction={{ label: t('common.cancel'), onClick: () => setShowNewConfirm(false) }}
-          primaryAction={{ label: t('session.newSessionAction'), onClick: () => { newSession(); setShowNewConfirm(false); } }}
+          primaryAction={{ label: t('session.newSessionAction'), onClick: newSession }}
         />
 
         {/* 締め確認モーダル */}
@@ -177,6 +178,7 @@ export default function Home() {
           primaryAction={{ label: t('session.reopen'), onClick: reopenSession }}
         />
 
+        <Toast message={toast} />
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton } from "@/components";
+import { BaseButton, Toast } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { isGroupActive } from "@/lib/utils";
@@ -50,9 +50,10 @@ export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, onConfir
   const [tables, setTables] = useState<SeatTable[]>([]);
   const [canvasCols, setCanvasCols] = useState(16);
   const [canvasRows, setCanvasRows] = useState(12);
-  const [gridSize, setGridSize] = useState(48);
-  const [otherGroups, setOtherGroups] = useState<Group[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+	  const [gridSize, setGridSize] = useState(48);
+	  const [otherGroups, setOtherGroups] = useState<Group[]>([]);
+	  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+	  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!show) return;
@@ -60,15 +61,16 @@ export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, onConfir
     Promise.all([
       api.get<SeatLayoutResponse>(EP.seatLayout),
       api.get<Group[]>(`${EP.groups}?status=active,bill_requested`),
-    ]).then(([layout, groups]) => {
-      const gs = layout.gridSize;
+	    ]).then(([layout, groups]) => {
+	      setLoadError(false);
+	      const gs = layout.gridSize;
       setGridSize(gs);
       setCanvasCols(layout.canvasCols);
       setCanvasRows(layout.canvasRows);
       setSeats(layout.seats.map(s => ({ ...s, x: s.x * gs, y: s.y * gs })));
       setTables(layout.tables.map(t => ({ ...t, x: t.x * gs, y: t.y * gs, w: t.w * gs, h: t.h * gs })));
       setOtherGroups(groups.filter(g => g.id !== currentGroupId));
-    }).catch(console.error);
+	    }).catch(() => setLoadError(true));
   }, [show, currentGroupId, currentSeatIds]);
 
   if (!show) return null;
@@ -120,51 +122,56 @@ export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, onConfir
           variant="primary"
           className="px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40"
           onClick={handleConfirm}
-          disabled={selectedIds.length === 0}
+	          disabled={loadError || selectedIds.length === 0}
         >
           {t('group.changeSeatConfirm')}
         </BaseButton>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        <div
-          className="relative bg-white border border-divider rounded-[10px]"
-          style={{ width: canvasW, height: canvasH, minWidth: canvasW }}
-        >
-          {tables.map(table => {
-            const tableSeats = seats.filter(s => s.tableId === table.id);
-            const hasOccupied = tableSeats.some(s => otherGroups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
-            const ids = tableSeats.map(s => s.id);
-            const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
-            return (
-              <FloorTable
-                key={table.id}
-                table={table}
-                seats={seats}
-                groups={otherGroups}
-                isSelected={isSelected}
-                onTap={handleTableTap}
-              />
-            );
-          })}
-          {seats.map(seat => {
-            const status = getSeatStatus(seat, otherGroups);
-            const isSelected = selectedIds.includes(seat.id);
-            return (
-              <FloorSeat
-                key={seat.id}
-                seat={seat}
-                status={status}
-                group={null}
-                readyCount={0}
-                isSelected={isSelected}
-                onTap={handleSeatTap}
-                G={gridSize}
-              />
-            );
-          })}
-        </div>
-      </div>
+	      <div className="flex-1 overflow-auto p-4">
+	        {loadError ? (
+	          <div className="h-full" />
+	        ) : (
+	          <div
+	            className="relative bg-white border border-divider rounded-[10px]"
+	            style={{ width: canvasW, height: canvasH, minWidth: canvasW }}
+	          >
+	            {tables.map(table => {
+	              const tableSeats = seats.filter(s => s.tableId === table.id);
+	              const hasOccupied = tableSeats.some(s => otherGroups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
+	              const ids = tableSeats.map(s => s.id);
+	              const isSelected = !hasOccupied && ids.length > 0 && ids.every(id => selectedIds.includes(id));
+	              return (
+	                <FloorTable
+	                  key={table.id}
+	                  table={table}
+	                  seats={seats}
+	                  groups={otherGroups}
+	                  isSelected={isSelected}
+	                  onTap={handleTableTap}
+	                />
+	              );
+	            })}
+	            {seats.map(seat => {
+	              const status = getSeatStatus(seat, otherGroups);
+	              const isSelected = selectedIds.includes(seat.id);
+	              return (
+	                <FloorSeat
+	                  key={seat.id}
+	                  seat={seat}
+	                  status={status}
+	                  group={null}
+	                  readyCount={0}
+	                  isSelected={isSelected}
+	                  onTap={handleSeatTap}
+	                  G={gridSize}
+	                />
+	              );
+	            })}
+	          </div>
+	        )}
+	      </div>
+	      <Toast message={loadError ? t('common.loadError') : null} />
     </div>
   );
 }

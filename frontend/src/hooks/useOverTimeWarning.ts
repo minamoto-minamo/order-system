@@ -23,9 +23,10 @@ export function useOverTimeWarning(): boolean {
   const isOpen = session?.status === 'open'
 
   useEffect(() => {
-    api.get<{ closingTime: string }>(EP.settings)
-      .then(s => setClosingTime(s.closingTime))
-      .catch(() => {})
+	    api.get<{ closingTime: string }>(EP.settings)
+	      .then(s => setClosingTime(s.closingTime))
+	      // 営業時間警告は補助表示なので、設定取得に失敗した場合は非表示のまま続行する
+	      .catch(() => {})
 
     const onSettingsUpdated = (s: PublicSetting) => setClosingTime(s.closingTime)
     socket.on(SE.settingsUpdated, onSettingsUpdated)

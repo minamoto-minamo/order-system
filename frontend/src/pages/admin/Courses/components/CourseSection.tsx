@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { Icon } from "@/components/display/Icon";
+import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 
 export function CourseSection({ courses, drinkPlans, menus, onAdd, onEdit }: {
@@ -32,7 +34,7 @@ export function CourseSection({ courses, drinkPlans, menus, onAdd, onEdit }: {
               {plan && (
                 <div className="mb-1.5">
                   <span className="text-caption text-info bg-info-bg border border-info-border px-1.75 py-0.5 rounded-full">
-                    🍺 {plan.name}
+                    <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />{plan.name}
                   </span>
                 </div>
               )}

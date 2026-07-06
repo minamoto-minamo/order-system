@@ -1,4 +1,6 @@
 import { BaseButton } from "@/components/controls/button/BaseButton";
+import { Icon } from "@/components/display/Icon";
+import { ACTION_ICONS } from "@/lib/icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -21,7 +23,9 @@ export function InputModal({ title, sub, placeholder, initialValue = "", onConfi
             <div className="text-sm font-medium text-ink">{title}</div>
             {sub && <div className="text-label text-muted mt-0.5">{sub}</div>}
           </div>
-          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose}>×</BaseButton>
+          <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+            <Icon src={ACTION_ICONS.close} />
+          </BaseButton>
         </div>
         <input
           autoFocus

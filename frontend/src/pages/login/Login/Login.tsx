@@ -29,10 +29,11 @@ export default function Login() {
     try {
       const user = await api.post<AuthUser>(EP.authLogin, { username, password });
       setUser(user);
-      // Socket.io は接続時のハンドシェイクでしか cookie を検証しないため、
-      // ログインで得た認証 cookie を反映するには再接続が必要
-      socket.disconnect().connect();
-      const session = await api.get<Session | null>(EP.sessionsCurrent).catch(() => null);
+	      // Socket.io は接続時のハンドシェイクでしか cookie を検証しないため、
+	      // ログインで得た認証 cookie を反映するには再接続が必要
+	      socket.disconnect().connect();
+	      // ログイン自体は成功済みなので、現セッション取得失敗はセッションなし扱いで続行する
+	      const session = await api.get<Session | null>(EP.sessionsCurrent).catch(() => null);
       setSession(session);
       navigate(ROUTES.root, { replace: true });
     } catch {

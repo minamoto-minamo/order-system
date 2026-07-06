@@ -2,16 +2,15 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionActions } from "@/hooks/useSessionActions";
+import { useToast } from "@/hooks/useToast";
 import { BottomSheetModal } from "@/components/modal/BottomSheetModal";
+import { NoticeBanner } from "@/components/display/NoticeBanner";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { isAdmin } from "@/lib/utils";
-import homeIcon    from "@/assets/icons/home.png";
-import hallIcon    from "@/assets/icons/hall.png";
-import kitchenIcon from "@/assets/icons/kitchen.png";
-import settingIcon from "@/assets/icons/setting.png";
-import logoutIcon  from "@/assets/icons/logout.png";
+import { Icon } from "@/components/display/Icon";
+import { NAV_ICONS, ACTION_ICONS } from "@/lib/icons";
 import { NavItem } from "./NavItem";
 import "./NavDrawer.scss";
 
@@ -24,6 +23,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, setUser } = useAuthStore();
+  const { toast, showToast } = useToast();
   const {
     session,
     isOpen,
@@ -38,19 +38,21 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
     reopenSession,
     newSession,
     dismissCloseConfirm,
-  } = useSessionActions({ onSuccess: onClose });
+  } = useSessionActions({ onSuccess: onClose, onError: showToast });
 
-  const go = (path: string) => { navigate(path); onClose(); };
+	  const go = (path: string) => { navigate(path); onClose(); };
 
-  const handleLogout = async () => {
-    await api.post(EP.authLogout, {}).catch(() => {});
+	  const handleLogout = async () => {
+	    // サーバー側ログアウトに失敗しても共有端末上の操作継続を防ぐためローカルログアウトは続行する
+	    await api.post(EP.authLogout, {}).catch(() => {});
     setUser(null);
     navigate(ROUTES.login);
   };
 
-  return (
-    <div className="fixed inset-0 z-nav">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+	  return (
+	    <div className="fixed inset-0 z-nav">
+	      {toast && <NoticeBanner variant="danger">{toast}</NoticeBanner>}
+	      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="nav-drawer absolute top-0 right-0 bottom-0 w-60 bg-white flex flex-col shadow-xl">
 
         <div className="px-5 py-3 flex items-center justify-between border-b border-divider shrink-0">
@@ -58,16 +60,18 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
             <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-open' : 'bg-faint'}`} />
             {isOpen ? t('session.open') : session ? t('session.closed') : t('session.noSession')}
           </div>
-          <button className="text-dim text-xl bg-transparent border-none cursor-pointer leading-none px-1" onClick={onClose}>×</button>
+          <button className="w-6 h-6 flex items-center justify-center text-dim bg-transparent border-none cursor-pointer leading-none px-1" onClick={onClose} aria-label={t('common.close')}>
+            <Icon src={ACTION_ICONS.close} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto py-3">
 
           <div className="px-5 pt-2 pb-1 text-xs font-semibold text-muted tracking-[0.12em]">{t('nav.modeSwitch')}</div>
-          <NavItem label={t('nav.home')}    icon={homeIcon}    onClick={() => go(ROUTES.root)} />
-          <NavItem label={t('mode.hall')}    icon={hallIcon}    onClick={() => go(ROUTES.hall)}    disabled={!isOpen} />
-          <NavItem label={t('mode.kitchen')} icon={kitchenIcon} onClick={() => go(ROUTES.kitchen)} disabled={!isOpen} />
-          <NavItem label={t('mode.admin')} icon={settingIcon} onClick={() => go(ROUTES.admin)} disabled={!isAdmin(user)} />
+          <NavItem label={t('nav.home')}    icon={NAV_ICONS.home}    onClick={() => go(ROUTES.root)} />
+          <NavItem label={t('mode.hall')}    icon={NAV_ICONS.hall}    onClick={() => go(ROUTES.hall)}    disabled={!isOpen} />
+          <NavItem label={t('mode.kitchen')} icon={NAV_ICONS.kitchen} onClick={() => go(ROUTES.kitchen)} disabled={!isOpen} />
+          <NavItem label={t('mode.admin')} icon={NAV_ICONS.setting} onClick={() => go(ROUTES.admin)} disabled={!isAdmin(user)} />
 
           <div className="mx-5 my-2.5 border-t border-divider" />
 
@@ -94,7 +98,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
           {user && (
             <div className="px-5 pb-1 text-xs font-semibold text-muted tracking-[0.04em]">{t('nav.loggedInAs', { username: user.username })}</div>
           )}
-          <NavItem label={t('nav.logout')} icon={logoutIcon} onClick={handleLogout} />
+          <NavItem label={t('nav.logout')} icon={NAV_ICONS.logout} onClick={handleLogout} />
 
         </div>
       </div>
@@ -106,7 +110,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
         description={t('session.confirmNewDesc')}
         onClose={() => setShowNewConfirm(false)}
         secondaryAction={{ label: t('common.cancel'), onClick: () => setShowNewConfirm(false) }}
-        primaryAction={{ label: t('session.newSessionAction'), onClick: () => { newSession(); setShowNewConfirm(false); } }}
+        primaryAction={{ label: t('session.newSessionAction'), onClick: newSession }}
       />
       <BottomSheetModal
         show={showCloseConfirm}

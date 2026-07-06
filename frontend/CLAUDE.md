@@ -45,7 +45,10 @@ src/
 │   └── utils.ts             # 共通ユーティリティ（getSeatLabels, isGroupActive, isAdmin）
 ├── assets/
 │   ├── fonts/               # NotoSansJP-Regular.woff2
-│   └── icons/               # hall.png, home.png, kitchen.png, logout.png, setting.png
+│   └── img/icons/
+│       ├── nav/             # 画面メニュー用PNG（home, hall, kitchen, setting など）
+│       ├── action/          # 操作ボタン用SVG（close, gear, arrow-left など）
+│       └── symbol/          # 状態・意味表示用SVG（beer, dining, takeout など）
 ├── hooks/
 │   ├── useOverTimeWarning.ts
 │   ├── useSocketListeners.ts   # Socket.io イベント登録・解除の共通フック

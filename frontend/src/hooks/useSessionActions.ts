@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
+import { ApiError, apiErrorMessage } from '@/lib/apiError'
 import { EP } from '@/lib/endpoints'
 import { useSessionStore } from '@/stores/session'
 import type { Session } from '@order-system/shared'
 
 interface UseSessionActionsOptions {
   onSuccess?: () => void
+  onError?: (message: string) => void
 }
 
 export function useSessionActions(options: UseSessionActionsOptions = {}) {
-  const { onSuccess } = options
+  const { onSuccess, onError } = options
   const { t } = useTranslation()
   const { session, setSession } = useSessionStore()
   const [showNewConfirm, setShowNewConfirm] = useState(false)
@@ -28,24 +30,38 @@ export function useSessionActions(options: UseSessionActionsOptions = {}) {
       setShowCloseConfirm(false)
       setCloseError(null)
       onSuccess?.()
-    } catch {
-      setCloseError(t('session.activeGroupsExist'))
+    } catch (e) {
+      if (e instanceof ApiError && e.serverCode === 'sessions.close.active_groups_exist') {
+        setCloseError(t('session.activeGroupsExist'))
+        return
+      }
+      const message = apiErrorMessage(e, t('common.saveFailed'))
+      setCloseError(message)
+      onError?.(message)
     }
   }
 
   const reopenSession = async () => {
     if (!session) return
-    const updated = await api.put<Session>(EP.session(session.id), { status: 'open' }).catch(() => null)
-    if (updated) setSession(updated)
-    setShowReopenConfirm(false)
+    try {
+      const updated = await api.put<Session>(EP.session(session.id), { status: 'open' })
+      setSession(updated)
+      setShowReopenConfirm(false)
+      onSuccess?.()
+    } catch (e) {
+      onError?.(apiErrorMessage(e, t('common.saveFailed')))
+    }
   }
 
   const newSession = async () => {
     // バックエンドはボディ不要だが、api ラッパーが POST 時に Content-Type を付与するため空オブジェクトを渡す
-    const created = await api.post<Session>(EP.sessions, {}).catch(() => null)
-    if (created) {
+    try {
+      const created = await api.post<Session>(EP.sessions, {})
       setSession(created)
+      setShowNewConfirm(false)
       onSuccess?.()
+    } catch (e) {
+      onError?.(apiErrorMessage(e, t('common.saveFailed')))
     }
   }
 

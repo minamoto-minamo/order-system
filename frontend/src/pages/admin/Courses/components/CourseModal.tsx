@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton, BottomSheetModal, MenuQtyStepper } from "@/components";
+import { BaseButton, BottomSheetModal, Icon, MenuQtyStepper } from "@/components";
+import { ACTION_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem, Category } from "@order-system/shared";
 
 export function CourseModal({ course, drinkPlans, menus, categories, onSave, onDelete, onClose }: {
@@ -47,7 +48,9 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
         <div className="text-sub font-medium text-ink">
           {course ? t('courses.editCourseTitle') : t('courses.addCourseTitle')}
         </div>
-        <BaseButton className="w-7 h-7 flex items-center justify-center rounded text-muted text-note" onClick={onClose}>×</BaseButton>
+        <BaseButton className="w-7 h-7 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+          <Icon src={ACTION_ICONS.close} />
+        </BaseButton>
       </div>
 
       <div className="px-6 pt-4 pb-3 space-y-3.5">

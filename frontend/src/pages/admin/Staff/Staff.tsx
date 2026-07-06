@@ -1,4 +1,4 @@
-import { AppHeader, BaseButton, BottomSheetModal, SubHeader, Toast } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, LoadError, SubHeader, Toast } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/hooks/useToast";
@@ -32,14 +32,18 @@ export default function Staff() {
   const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
   const [sessionsTarget, setSessionsTarget] = useState<StaffMember | null>(null);
   const [sessions, setSessions] = useState<StaffSession[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [revokeSessionTarget, setRevokeSessionTarget] = useState<StaffSession | null>(null);
+	  const [sessionsLoading, setSessionsLoading] = useState(false);
+	  const [revokeSessionTarget, setRevokeSessionTarget] = useState<StaffSession | null>(null);
+	  const [loadError, setLoadError] = useState(false);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StaffForm>(EMPTY_FORM);
   const { toast, showToast } = useToast();
 
-  useEffect(() => {
-    api.get<StaffMember[]>(EP.staff).then(setStaffList).catch(console.error);
-  }, []);
+	  useEffect(() => {
+	    api.get<StaffMember[]>(EP.staff).then(list => {
+	      setLoadError(false);
+	      setStaffList(list);
+	    }).catch(() => setLoadError(true));
+	  }, []);
 
   const openAdd = () => {
     reset(EMPTY_FORM);
@@ -122,7 +126,9 @@ export default function Staff() {
     !form.username.trim() ||
     (modalMode === "add" && !form.password);
 
-  return (
+	  if (loadError) return <LoadError />;
+
+	  return (
     <>
       <AppHeader
         title={t("admin.staff")}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BaseButton } from "@/components/controls/button";
+import { Toast } from "@/components/display/Toast/Toast";
 import { BottomSheet } from "../BottomSheet";
 
 interface BottomSheetModalProps {
@@ -11,12 +12,12 @@ interface BottomSheetModalProps {
   scrollable?: boolean;
   onClose: () => void;
   primaryAction: {
-    label: string;
+    label: ReactNode;
     onClick: () => void;
     variant?: "default" | "danger" | "takeout";
     disabled?: boolean;
   };
-  secondaryAction?: { label: string; onClick: () => void; variant?: "default" | "danger" };
+  secondaryAction?: { label: ReactNode; onClick: () => void; variant?: "default" | "danger" };
   children?: ReactNode;
 }
 
@@ -41,11 +42,8 @@ export function BottomSheetModal({
   const variant = primaryAction.variant ?? "default";
   const content = children ?? (
     <>
-      <div className="text-sub font-medium text-ink mb-1.5">{title}</div>
-      {error
-        ? <div className="text-xs text-danger mb-5">{error}</div>
-        : description && <div className="text-xs text-muted mb-5">{description}</div>
-      }
+	      <div className="text-sub font-medium text-ink mb-1.5">{title}</div>
+	      {description && <div className="text-xs text-muted mb-5">{description}</div>}
     </>
   );
   return (
@@ -78,6 +76,7 @@ export function BottomSheetModal({
           </BaseButton>
         </div>
       </BottomSheet>
+      <Toast message={error} />
     </div>
   );
 }

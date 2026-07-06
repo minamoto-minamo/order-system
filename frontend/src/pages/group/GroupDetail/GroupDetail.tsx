@@ -1,8 +1,9 @@
-import { AppHeader, IconButton, LoadError, TabNavigation, Toast } from "@/components";
+import { AppHeader, Icon, IconButton, LoadError, TabNavigation, Toast } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
+import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { getSeatLabels } from "@/lib/utils";
@@ -237,20 +238,22 @@ export default function GroupDetail() {
               onClick={() => setShowQr(true)}
               aria-label={t('group.showQr')}
             >
-              ▣
+              <Icon src={ACTION_ICONS.qr} />
             </IconButton>
             <IconButton
               className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
               onClick={() => setShowSeatModal(true)}
               aria-label={t('group.changeSeat')}
             >
-              ✎
+              <Icon src={ACTION_ICONS.edit} />
             </IconButton>
           </div>
         ) : undefined}
       />
 
       {/* bill_requested / closed 状態ではメニュー追加・コース操作を禁止するためタブを history のみに制限 */}
+      {/* group ロード完了前にタブを描画すると、クリック直後にロード完了時の初期タブ設定が選択を上書きするため、完了まで描画しない */}
+      {group && <>
       <TabNavigation
         tabs={group?.status === 'active'
           ? [
@@ -297,6 +300,7 @@ export default function GroupDetail() {
           />
         )}
       </div>
+      </>}
 
       {cancelTarget && (
         <CancelModal
@@ -327,7 +331,9 @@ export default function GroupDetail() {
         onClose={() => setShowResetConfirm(false)}
       >
         <div className="mb-5 text-center">
-          <div className="text-3xl mb-3">🚪</div>
+          <div className="mb-3 text-danger">
+            <Icon src={SYMBOL_ICONS.door} size="2rem" />
+          </div>
           <div className="text-sub font-semibold text-ink mb-2">{t('group.checkOutConfirmTitle')}</div>
           <div className="text-xs text-danger font-medium">{t('group.checkOutConfirmDesc')}</div>
         </div>

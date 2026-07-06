@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton, BottomSheetModal } from "@/components";
+import { BaseButton, BottomSheetModal, Icon } from "@/components";
+import { ACTION_ICONS } from "@/lib/icons";
 import type { DrinkPlan, MenuItem, Category, SubCategory } from "@order-system/shared";
 
 export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave, onDelete, onClose }: {
@@ -49,7 +50,9 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
         <div className="text-sub font-medium text-ink">
           {plan ? t('courses.editDrinkPlanTitle') : t('courses.addDrinkPlanTitle')}
         </div>
-        <BaseButton className="w-7 h-7 flex items-center justify-center rounded text-muted text-note" onClick={onClose}>×</BaseButton>
+        <BaseButton className="w-7 h-7 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+          <Icon src={ACTION_ICONS.close} />
+        </BaseButton>
       </div>
 
       <div className="px-6 pt-4 pb-2">
@@ -107,7 +110,7 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
                         onClick={() => toggle(item.id)}
                       >
                         <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-caption ${selected.has(item.id) ? 'bg-info border-info text-white' : 'border-line'}`}>
-                          {selected.has(item.id) && '✓'}
+                          {selected.has(item.id) && <Icon src={ACTION_ICONS.check} size="0.85em" />}
                         </span>
                         <span className="text-note text-ink flex-1">{item.name}</span>
                       </button>
