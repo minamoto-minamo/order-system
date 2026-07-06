@@ -38,9 +38,9 @@ test('締め済みセッションがある場合にセッション一覧とサ�
   await expect(page.getByText(ja.report.groups)).toBeVisible()
 })
 
-test('← 戻るで前の画面に遷移', async ({ page }) => {
+test('戻るで前の画面に遷移', async ({ page }) => {
   await page.goto(ROUTES.root)
   await page.goto(ROUTES.adminReport)
-  await page.getByRole('button', { name: `← ${ja.admin.menuTitle}` }).click()
+  await page.getByRole('button', { name: ja.admin.menuTitle }).click()
   await expect(page).toHaveURL(ROUTES.admin)
 })

@@ -44,7 +44,7 @@ test('タブ「メニュー」「コース」が表示される', async ({ page 
   const { group } = await setupGroup()
   await page.goto(ROUTES.hallGroup(group.id))
   await expect(page.getByRole('button', { name: ja.group.orderHistory })).toBeVisible()
-  await expect(page.getByRole('button', { name: ja.group.menuTab })).toBeVisible()
+  await expect(page.getByRole('button', { name: ja.group.menuTab, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: ja.group.courseTab })).toBeVisible()
 })
 
@@ -119,7 +119,7 @@ test('注文を追加してキャンセルできる', async ({ page }) => {
   await page.getByRole('button', { name: ja.group.orderHistory }).click()
   await expect(page.getByText(menu!.name)).toBeVisible()
 
-  await page.locator('button:has-text("×")').first().click()
+  await page.getByRole('button', { name: ja.group.cancelOrder }).first().click()
   await expect(page.getByText(ja.group.cancelQuestion)).toBeVisible()
 
   await page.getByRole('button', { name: ja.group.cancelConfirm }).click()

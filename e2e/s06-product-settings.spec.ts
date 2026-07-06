@@ -54,10 +54,10 @@ test('商品を追加できる', async ({ page }) => {
   await expect(page.getByText(TEST_PRODUCT).first()).toBeVisible()
 })
 
-test('← 戻るで前の画面に遷移', async ({ page }) => {
+test('戻るで前の画面に遷移', async ({ page }) => {
   await page.goto(ROUTES.root)
   await page.goto(ROUTES.adminProducts)
-  await page.getByRole('button', { name: `← ${ja.admin.menuTitle}` }).click()
+  await page.getByRole('button', { name: ja.admin.menuTitle }).click()
   await expect(page).toHaveURL(ROUTES.admin)
 })
 

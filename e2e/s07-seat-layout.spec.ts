@@ -39,9 +39,9 @@ test('保存ボタンを押すと完了メッセージが表示される', async
   await expect(page.getByText(ja.common.saved)).toBeVisible()
 })
 
-test('← 戻るで前の画面に遷移', async ({ page }) => {
+test('戻るで前の画面に遷移', async ({ page }) => {
   await page.goto(ROUTES.root)
   await page.goto(ROUTES.adminSeats)
-  await page.getByRole('button', { name: `← ${ja.admin.menuTitle}` }).click()
+  await page.getByRole('button', { name: ja.admin.menuTitle }).click()
   await expect(page).toHaveURL(ROUTES.admin)
 })

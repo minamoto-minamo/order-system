@@ -12,7 +12,7 @@ Codexの役務は開発だけではない。次もCodex担当に含める。
 - コード変更、バグ修正、リファクタ
 - Lint / typecheck / build の実行と失敗修正
 - 単体テストの追加・改修・実行
-- e2e テストの追加・改修・実行
+- e2e テストの追加・改修・実行（実行は「E2E実行の制約」を参照）
 - CI失敗やローカル検証失敗の原因調査
 - Claude設計と現行コードの矛盾検出
 
@@ -81,6 +81,24 @@ Codexの役務は開発だけではない。次もCodex担当に含める。
 - 進捗確認は `/codex:status` を使う。
 - 完了結果の取得は `/codex:result <job-id>` を使う。
 - ClaudeはCodexの代わりに実装しない。Codex起動に失敗した場合は失敗内容を報告して止める。
+
+## E2E実行の制約
+
+`/codex:rescue`（companion）経由のジョブでは e2e を実行できない（2026-07-06 検証済み）。
+
+- companion のジョブはネットワークが常に遮断される。`~/.codex/config.toml` の `[sandbox_workspace_write] network_access = true` は無視される（ジョブ内は `CODEX_SANDBOX_NETWORK_DISABLED=1`）。tsx が IPC socket（`/tmp/tsx-1000/*.pipe`）を listen できず、dev サーバーが起動しない。
+- companion は承認ポリシー `never` 固定のため、escalated（サンドボックス外）実行の要求も拒否される。
+
+e2e の実行は次のどちらかで行う。
+
+- Claude がローカルで `pnpm test:e2e` を実行する
+- `codex exec` を直接使う。CLI の `-c` 上書きだけがネットワーク許可を通せる:
+
+```bash
+codex exec --sandbox workspace-write -c 'sandbox_workspace_write.network_access=true' "<実行指示>"
+```
+
+e2e テストの追加・改修はコード編集なので companion で問題ない。実行だけ上記の経路に分ける。
 
 ## 規律
 
