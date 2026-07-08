@@ -5,6 +5,8 @@ import { prisma } from '../lib/prisma.js'
 import { setPlatformAccessCookie, clearPlatformAuthCookie, requirePlatformAdmin } from '../plugins/auth.js'
 import { ErrorCodes, errorBody, sendError } from '../lib/errors.js'
 
+const DUMMY_PASSWORD_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8O.MSTGeVWmSVmDsBiAGXH6XHJXxYm'
+
 const loginBodySchema = {
   type: 'object',
   required: ['username', 'password'],
@@ -31,7 +33,10 @@ const platformAuthRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { username, password } = request.body as { username: string; password: string }
     const admin = await prisma.platformAdmin.findUnique({ where: { username } })
-    if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
+    const passwordValid = admin
+      ? await bcrypt.compare(password, admin.passwordHash)
+      : await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+    if (!admin || !passwordValid) {
       return sendError(reply, 401, ErrorCodes.Auth.InvalidCredentials, '認証情報が正しくありません')
     }
     const token = fastify.jwt.sign(

@@ -47,6 +47,7 @@ async function buildTestApp(io = buildMockIo()) {
 
 const PASSWORD_HASH = bcrypt.hashSync('correct-password', 4)
 const STAFF = { id: 'staff-1', username: 'taro', role: 'staff', storeId: STORE_ID, passwordHash: PASSWORD_HASH }
+const DUMMY_PASSWORD_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8O.MSTGeVWmSVmDsBiAGXH6XHJXxYm'
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -76,6 +77,7 @@ describe('POST /api/auth/login', () => {
   it('パスワード不一致の場合は 401 を返し cookie をセットしない', async () => {
     const app = await buildTestApp()
     mockFindUniqueStaff.mockResolvedValue(STAFF)
+    const compareSpy = jest.spyOn(bcrypt, 'compare')
 
     const res = await app.inject({
       method: 'POST', url: '/api/auth/login',
@@ -83,6 +85,24 @@ describe('POST /api/auth/login', () => {
     })
 
     expect(res.statusCode).toBe(401)
+    expect(compareSpy).toHaveBeenCalledWith('wrong-password', STAFF.passwordHash)
+    expect(mockIssueRefreshToken).not.toHaveBeenCalled()
+    expect(res.cookies.length).toBe(0)
+    await app.close()
+  })
+
+  it('ユーザー不在の場合もダミーハッシュで比較して 401 を返す', async () => {
+    const app = await buildTestApp()
+    mockFindUniqueStaff.mockResolvedValue(null)
+    const compareSpy = jest.spyOn(bcrypt, 'compare')
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/auth/login',
+      payload: { username: 'missing', password: 'wrong-password' },
+    })
+
+    expect(res.statusCode).toBe(401)
+    expect(compareSpy).toHaveBeenCalledWith('wrong-password', DUMMY_PASSWORD_HASH)
     expect(mockIssueRefreshToken).not.toHaveBeenCalled()
     expect(res.cookies.length).toBe(0)
     await app.close()

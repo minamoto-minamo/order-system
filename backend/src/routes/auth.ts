@@ -6,6 +6,8 @@ import { setAccessCookie, setRefreshCookie, clearAuthCookies, type JwtPayload } 
 import { issueRefreshToken, revokeTokenByRaw, verifyRefreshToken } from '../lib/refreshToken.js'
 import { ErrorCodes, errorBody, sendError } from '../lib/errors.js'
 
+const DUMMY_PASSWORD_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8O.MSTGeVWmSVmDsBiAGXH6XHJXxYm'
+
 const loginBodySchema = {
   type: 'object',
   required: ['username', 'password'],
@@ -32,7 +34,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { username, password } = request.body as { username: string; password: string }
     const user = await prisma.staff.findUnique({ where: { storeId_username: { storeId: request.storeId, username } } })
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    const passwordValid = user
+      ? await bcrypt.compare(password, user.passwordHash)
+      : await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+    if (!user || !passwordValid) {
       return sendError(reply, 401, ErrorCodes.Auth.InvalidCredentials, '認証情報が正しくありません')
     }
     const token = fastify.jwt.sign(
