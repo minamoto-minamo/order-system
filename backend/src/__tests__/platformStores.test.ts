@@ -3,7 +3,11 @@ import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 
-const mockStoreFindUnique = jest.fn<(...args: unknown[]) => Promise<{ id: number; subdomain: string } | null>>()
+const mockStoreFindUnique = jest.fn<(...args: unknown[]) => Promise<{
+  id: number
+  subdomain: string
+  isActive: boolean
+} | null>>()
 const mockStoreUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStoreDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockTransaction = jest.fn<(ops: Promise<unknown>[]) => Promise<unknown>>()
@@ -103,7 +107,7 @@ describe('DELETE /api/platform/stores/:id', () => {
   })
 
   it('存在する店舗を削除すると 204 を返し、storeId で全テーブルを削除する', async () => {
-    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test' })
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
 
     const res = await app.inject({
       method: 'DELETE',
@@ -127,5 +131,34 @@ describe('DELETE /api/platform/stores/:id', () => {
     expect(mockStaffDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockSettingDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockStoreDelete).toHaveBeenCalledWith({ where: { id: STORE_ID } })
+  })
+
+  it('削除トランザクションが失敗すると isActive を true へ戻してログを出す', async () => {
+    const error = new Error('delete failed')
+    const logError = jest.spyOn(app.log, 'error').mockImplementation(() => undefined)
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockTransaction.mockRejectedValue(error)
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+    })
+
+    expect(res.statusCode).toBe(500)
+    expect(mockStoreUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: STORE_ID },
+      data: { isActive: false },
+    })
+    expect(mockStoreUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: STORE_ID },
+      data: { isActive: true },
+    })
+    expect(logError).toHaveBeenCalledWith(
+      { err: error, storeId: STORE_ID, subdomain: 'e2e-test' },
+      'Failed to delete store after deactivation',
+    )
+
+    logError.mockRestore()
   })
 })

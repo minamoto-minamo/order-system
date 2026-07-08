@@ -97,22 +97,35 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     // 以降のリクエストは Host 解決の時点で 404 になる。
     await prisma.store.update({ where: { id: storeId }, data: { isActive: false } })
 
-    // FK 依存の逆順で削除する（GroupSeat/CourseFoodItem/DrinkPlanItem/RefreshToken は onDelete: Cascade で自動削除される）
-    await prisma.$transaction([
-      prisma.orderItem.deleteMany({ where: { storeId } }),
-      prisma.group.deleteMany({ where: { storeId } }),
-      prisma.session.deleteMany({ where: { storeId } }),
-      prisma.course.deleteMany({ where: { storeId } }),
-      prisma.drinkPlan.deleteMany({ where: { storeId } }),
-      prisma.menuItem.deleteMany({ where: { storeId } }),
-      prisma.subCategory.deleteMany({ where: { storeId } }),
-      prisma.category.deleteMany({ where: { storeId } }),
-      prisma.seat.deleteMany({ where: { storeId } }),
-      prisma.seatTable.deleteMany({ where: { storeId } }),
-      prisma.staff.deleteMany({ where: { storeId } }),
-      prisma.setting.deleteMany({ where: { storeId } }),
-      prisma.store.delete({ where: { id: storeId } }),
-    ])
+    try {
+      // FK 依存の逆順で削除する（GroupSeat/CourseFoodItem/DrinkPlanItem/RefreshToken は onDelete: Cascade で自動削除される）
+      await prisma.$transaction([
+        prisma.orderItem.deleteMany({ where: { storeId } }),
+        prisma.group.deleteMany({ where: { storeId } }),
+        prisma.session.deleteMany({ where: { storeId } }),
+        prisma.course.deleteMany({ where: { storeId } }),
+        prisma.drinkPlan.deleteMany({ where: { storeId } }),
+        prisma.menuItem.deleteMany({ where: { storeId } }),
+        prisma.subCategory.deleteMany({ where: { storeId } }),
+        prisma.category.deleteMany({ where: { storeId } }),
+        prisma.seat.deleteMany({ where: { storeId } }),
+        prisma.seatTable.deleteMany({ where: { storeId } }),
+        prisma.staff.deleteMany({ where: { storeId } }),
+        prisma.setting.deleteMany({ where: { storeId } }),
+        prisma.store.delete({ where: { id: storeId } }),
+      ])
+    } catch (err) {
+      request.log.error({ err, storeId, subdomain: existing.subdomain }, 'Failed to delete store after deactivation')
+      try {
+        await prisma.store.update({ where: { id: storeId }, data: { isActive: true } })
+      } catch (restoreErr) {
+        request.log.error(
+          { err: restoreErr, storeId, subdomain: existing.subdomain },
+          'Failed to restore store active state after delete failure',
+        )
+      }
+      throw err
+    }
 
     return reply.status(204).send()
   })
