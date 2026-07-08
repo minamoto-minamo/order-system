@@ -117,7 +117,10 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
     const soldOut = body.items.filter(i => menuItemMap.get(i.menuItemId)?.soldOut)
     if (soldOut.length > 0) {
-      return sendError(reply, 409, ErrorCodes.Customer.SoldOut, '品切れの商品が含まれています')
+      return sendError(reply, 409, ErrorCodes.Customer.SoldOut, '品切れの商品が注文リストに入っています', {
+        menuItemIds: soldOut.map(i => i.menuItemId),
+        menuItemNames: soldOut.map(i => menuItemMap.get(i.menuItemId)!.name),
+      })
     }
 
     const takeoutOnly = body.items.filter(i => menuItemMap.get(i.menuItemId)?.takeout === 'takeout')

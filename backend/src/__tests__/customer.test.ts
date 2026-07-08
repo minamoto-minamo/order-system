@@ -122,4 +122,25 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     expect(res.statusCode).toBe(422)
     expect(res.json()).toMatchObject({ error: { message: 'テイクアウト専用の商品は店内でご注文いただけません' } })
   })
+
+  it('品切れ商品を注文すると 409 と details に品切れ商品の id・name が入る', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '生ビール', price: 600, soldOut: true },
+      { id: 2, name: 'ウーロン茶', price: 300, soldOut: false },
+    ])
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/customer/orders',
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }, { menuItemId: 2, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        message: '品切れの商品が注文リストに入っています',
+        details: { menuItemIds: [1], menuItemNames: ['生ビール'] },
+      },
+    })
+  })
 })

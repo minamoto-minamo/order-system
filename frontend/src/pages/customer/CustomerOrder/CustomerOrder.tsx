@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
+import { ApiError, apiErrorMessage } from "@/lib/apiError";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { ACTION_ICONS } from "@/lib/icons";
@@ -42,6 +43,7 @@ export default function CustomerOrder() {
   const [confirmBill, setConfirmBill]       = useState(false);
   const [successMsg, setSuccessMsg]         = useState<string | null>(null);
   const [errorMsg, setErrorMsg]             = useState<string | null>(null);
+  const [soldOutNames, setSoldOutNames]     = useState<string[]>([]);
 
   useEffect(() => {
     const fetchAll = () => Promise.all([
@@ -109,6 +111,7 @@ export default function CustomerOrder() {
     if (submitting || orderItems.length === 0) return;
     setSubmitting(true);
     setErrorMsg(null);
+    setSoldOutNames([]);
     try {
       const created = await api.post<OrderItem[]>(EP.customerOrders, {
         groupId,
@@ -121,8 +124,24 @@ export default function CustomerOrder() {
       setSuccessMsg(t('customerOrder.orderSuccess'));
       setTimeout(() => setSuccessMsg(null), 3000);
       setTab('history');
-    } catch {
-      setErrorMsg(t('customerOrder.orderFailed'));
+    } catch (e) {
+      if (e instanceof ApiError && e.serverCode === 'customer.orders.sold_out') {
+        const details = e.details as { menuItemIds?: number[]; menuItemNames?: string[] } | null;
+        const soldOutIds = details?.menuItemIds ?? [];
+        setQtys(prev => {
+          const next = { ...prev };
+          for (const id of soldOutIds) delete next[id];
+          return next;
+        });
+        setSoldOutNames(details?.menuItemNames ?? []);
+        api.get<CustomerMenusResponse>(EP.customerMenus(groupId)).then(m => {
+          setMenus(m.menus);
+          setCategories(m.categories);
+          setSubCategories(m.subCategories);
+        });
+        setConfirmOpen(false);
+      }
+      setErrorMsg(apiErrorMessage(e, t('customerOrder.orderFailed')));
     } finally {
       setSubmitting(false);
     }
@@ -131,10 +150,13 @@ export default function CustomerOrder() {
   const handleBill = async () => {
     if (billing || group?.status !== 'active') return;
     setBilling(true);
+    setErrorMsg(null);
     try {
-      setConfirmBill(false);
       await api.post(EP.customerBill(groupId), {});
       setGroup(prev => prev ? { ...prev, status: 'bill_requested' } : prev);
+      setConfirmBill(false);
+    } catch {
+      setErrorMsg(t('customerOrder.orderFailed'));
     } finally {
       setBilling(false);
     }
@@ -143,11 +165,14 @@ export default function CustomerOrder() {
   const handleCallStaff = async () => {
     if (calling) return;
     setCalling(true);
+    setErrorMsg(null);
     try {
-      setConfirmCall(false);
       await api.post(EP.customerCallStaff(groupId), {});
+      setConfirmCall(false);
       setSuccessMsg(t('customerOrder.callStaffSuccess'));
       setTimeout(() => setSuccessMsg(null), 3000);
+    } catch {
+      setErrorMsg(t('customerOrder.orderFailed'));
     } finally {
       setCalling(false);
     }
@@ -237,7 +262,14 @@ export default function CustomerOrder() {
 
       {successMsg && <NoticeBanner>{successMsg}</NoticeBanner>}
 
-      {errorMsg && <NoticeBanner variant="danger">{errorMsg}</NoticeBanner>}
+      {errorMsg && (
+        <NoticeBanner variant="danger">
+          <div className="flex flex-col items-center gap-0.5">
+            <span>{errorMsg}</span>
+            {soldOutNames.length > 0 && <span className="text-label opacity-80">{soldOutNames.join('、')}</span>}
+          </div>
+        </NoticeBanner>
+      )}
 
       {activeTab === 'menu' && orderItems.length > 0 && (
         <SlideUpFooter>
