@@ -6,7 +6,9 @@ import { Prisma } from '@prisma/client'
 
 const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockMenuItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockSubCategoryFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseFoodItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockDrinkPlanItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,7 +17,8 @@ const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     orderItem: { count: mockOrderItemCount },
-    menuItem: { findFirst: mockMenuItemFindFirst, delete: mockMenuItemDelete },
+    menuItem: { findFirst: mockMenuItemFindFirst, update: mockMenuItemUpdate, delete: mockMenuItemDelete },
+    subCategory: { findFirst: mockSubCategoryFindFirst },
     courseFoodItem: { count: mockCourseFoodItemCount },
     drinkPlanItem: { count: mockDrinkPlanItemCount },
     $transaction: mockTransaction,
@@ -47,6 +50,80 @@ async function buildTestApp() {
   await app.ready()
   return app
 }
+
+describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function token() {
+    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+  }
+
+  it('categoryId のみ変更して現在の subCategory と不整合になる場合は 422 を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { categoryId: 20 },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({ error: { code: 'menus.save.subcategory_mismatch', message: 'サブカテゴリがカテゴリと一致しません' } })
+    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({ where: { id: 100, storeId: STORE_ID } })
+    expect(mockMenuItemUpdate).not.toHaveBeenCalled()
+  })
+
+  it('categoryId と subCategoryId を整合的に変更できる', async () => {
+    const updated = { id: 1, categoryId: 20, subCategoryId: 200, soldOut: false }
+    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 200, categoryId: 20 })
+    mockMenuItemUpdate.mockResolvedValue(updated)
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { categoryId: 20, subCategoryId: 200 },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject(updated)
+    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({ where: { id: 200, storeId: STORE_ID } })
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({ categoryId: 20, subCategoryId: 200 }),
+    })
+  })
+
+  it('subCategoryId: null は整合性検証をスキップして成功する', async () => {
+    const updated = { id: 1, categoryId: 10, subCategoryId: 100, soldOut: false }
+    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockMenuItemUpdate.mockResolvedValue(updated)
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { subCategoryId: null },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject(updated)
+    expect(mockSubCategoryFindFirst).not.toHaveBeenCalled()
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({ subCategoryId: undefined }),
+    })
+  })
+})
 
 describe('DELETE /api/menus/:id — 削除制御', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>

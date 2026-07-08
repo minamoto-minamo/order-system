@@ -34,7 +34,7 @@ const updateBodySchema = {
     name: { type: 'string', minLength: 1 },
     price: { type: 'integer', minimum: 0 },
     categoryId: { type: 'integer', minimum: 1 },
-    subCategoryId: { type: 'integer', minimum: 1 },
+    subCategoryId: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] },
     soldOut: { type: 'boolean' },
     takeout: { type: 'string', enum: ['dine_in', 'both', 'takeout'] },
   },
@@ -106,7 +106,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/:id', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = request.body as Partial<{
-      name: string; price: number; categoryId: number; subCategoryId: number;
+      name: string; price: number; categoryId: number; subCategoryId: number | null;
       soldOut: boolean; takeout: string;
     }>
 
@@ -115,8 +115,9 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
       if (!current) return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
 
       const targetCategoryId = body.categoryId ?? current.categoryId
-      if (body.subCategoryId !== undefined) {
-        const subCat = await prisma.subCategory.findFirst({ where: { id: body.subCategoryId, storeId: request.storeId } })
+      const targetSubCategoryId = body.subCategoryId !== undefined ? body.subCategoryId : current.subCategoryId
+      if ((body.categoryId !== undefined || body.subCategoryId !== undefined) && targetSubCategoryId !== null) {
+        const subCat = await prisma.subCategory.findFirst({ where: { id: targetSubCategoryId, storeId: request.storeId } })
         if (!subCat) return sendError(reply, 422, ErrorCodes.Menus.SubCategoryNotFound, 'サブカテゴリが見つかりません')
         if (subCat.categoryId !== targetCategoryId) {
           return sendError(reply, 422, ErrorCodes.Menus.SubCategoryMismatch, 'サブカテゴリがカテゴリと一致しません')
@@ -129,7 +130,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           name: body.name,
           price: body.price,
           categoryId: body.categoryId,
-          subCategoryId: body.subCategoryId,
+          subCategoryId: body.subCategoryId ?? undefined,
           soldOut: body.soldOut,
           takeout: body.takeout as 'dine_in' | 'both' | 'takeout' | undefined,
         },
