@@ -75,11 +75,12 @@ model PlatformAdmin {
 }
 
 model Session {
-  id       Int           @id @default(autoincrement())
-  storeId  Int
-  status   SessionStatus @default(open)
-  openedAt DateTime      @default(now())
-  closedAt DateTime?
+  id            Int           @id @default(autoincrement())
+  storeId       Int
+  status        SessionStatus @default(open)
+  openedAt      DateTime      @default(now())
+  closedAt      DateTime?
+  seatUsageRate Int?
 
   store  Store   @relation(fields: [storeId], references: [id])
   groups Group[]
