@@ -42,6 +42,10 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/', { schema: { body: createBodySchema }, preHandler: requireAdmin }, async (request, reply) => {
     const body = request.body as { label: string; type: 'counter' | 'table'; x: number; y: number; tableId?: number }
+    if (body.tableId != null) {
+      const table = await prisma.seatTable.findFirst({ where: { id: body.tableId, storeId: request.storeId } })
+      if (!table) return sendError(reply, 422, ErrorCodes.Seats.TableNotFound, 'テーブルが見つかりません')
+    }
     const seat = await prisma.seat.create({
       data: {
         label: body.label,
@@ -61,6 +65,10 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as Partial<{ label: string; type: 'counter' | 'table'; x: number; y: number; tableId: number | null }>
     const existing = await prisma.seat.findFirst({ where: { id: Number(id), storeId: request.storeId } })
     if (!existing) return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
+    if (body.tableId != null) {
+      const table = await prisma.seatTable.findFirst({ where: { id: body.tableId, storeId: request.storeId } })
+      if (!table) return sendError(reply, 422, ErrorCodes.Seats.TableNotFound, 'テーブルが見つかりません')
+    }
     const seat = await prisma.seat.update({
       where: { id: Number(id) },
       data: { label: body.label, type: body.type, x: body.x, y: body.y, tableId: body.tableId },

@@ -5,6 +5,8 @@ import { toOrderItem } from '../lib/mappers.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 
 class GroupStatusError extends Error {}
+class CourseMismatchError extends Error {}
+class SettingNotFoundError extends Error {}
 
 const createBodySchema = {
   type: 'object',
@@ -99,53 +101,63 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!course) return sendError(reply, 422, ErrorCodes.Orders.CourseNotFound, `course ${body.courseId} が見つかりません`, { courseId: body.courseId })
     }
 
-    let planMenuItemIds: Set<number> | null = null
-    if (group.drinkPlanId) {
-      const planItems = await prisma.drinkPlanItem.findMany({
-        where: { drinkPlanId: group.drinkPlanId },
-        select: { menuItemId: true },
-      })
-      planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
-    }
-
-    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
-    if (!setting) {
-      fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
-      return sendError(reply, 500, ErrorCodes.Orders.SettingNotFound, '店舗設定が見つかりません')
-    }
-    const taxRateInHouse = setting.taxRateInHouse.toNumber()
-    const taxRateTakeout = setting.taxRateTakeout.toNumber()
-
-    const created = await prisma.$transaction(async (tx) => {
-      const currentGroup = await tx.group.findUnique({ where: { id: body.groupId } })
-      if (currentGroup?.status !== 'active') throw new GroupStatusError()
-      return Promise.all(body.items.map(item => {
-        const isTakeout = item.isTakeout ?? false
-        // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
-        const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
-        // 飲み放題対象商品は price を 0 にするため、解除時に復元できるよう元価格を originalPrice に退避する
-        const originalPrice = menuItemMap.get(item.menuItemId)!.price
-        return tx.orderItem.create({
-          data: {
-            groupId: body.groupId,
-            menuItemId: item.menuItemId,
-            // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
-            menuItemName: menuItemMap.get(item.menuItemId)!.name,
-            price: isPlanItem ? 0 : originalPrice,
-            originalPrice: isPlanItem ? originalPrice : null,
-            qty: item.qty,
-            isTakeout,
-            taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
-            courseId: body.courseId ?? null,
-            storeId: request.storeId,
-          },
+    let created
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const currentGroup = await tx.group.findUnique({
+          where: { id: body.groupId },
+          select: { status: true, courseId: true, drinkPlanId: true },
         })
-      }))
-    }).catch(e => {
-      if (e instanceof GroupStatusError) return null
+        if (currentGroup?.status !== 'active') throw new GroupStatusError()
+        if (body.courseId != null && currentGroup.courseId !== body.courseId) throw new CourseMismatchError()
+
+        let planMenuItemIds: Set<number> | null = null
+        if (currentGroup.drinkPlanId) {
+          const planItems = await tx.drinkPlanItem.findMany({
+            where: { drinkPlanId: currentGroup.drinkPlanId },
+            select: { menuItemId: true },
+          })
+          planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
+        }
+
+        const setting = await tx.setting.findUnique({ where: { storeId: request.storeId } })
+        if (!setting) throw new SettingNotFoundError()
+        const taxRateInHouse = setting.taxRateInHouse.toNumber()
+        const taxRateTakeout = setting.taxRateTakeout.toNumber()
+
+        return Promise.all(body.items.map(item => {
+          const isTakeout = item.isTakeout ?? false
+          // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
+          const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
+          // 飲み放題対象商品は price を 0 にするため、解除時に復元できるよう元価格を originalPrice に退避する
+          const originalPrice = menuItemMap.get(item.menuItemId)!.price
+          return tx.orderItem.create({
+            data: {
+              groupId: body.groupId,
+              menuItemId: item.menuItemId,
+              // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
+              menuItemName: menuItemMap.get(item.menuItemId)!.name,
+              price: isPlanItem ? 0 : originalPrice,
+              originalPrice: isPlanItem ? originalPrice : null,
+              qty: item.qty,
+              isTakeout,
+              taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
+              courseId: body.courseId ?? null,
+              storeId: request.storeId,
+            },
+          })
+        }))
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (e) {
+      if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Orders.GroupNotAccepting, 'このグループには注文を追加できません')
+      if (e instanceof CourseMismatchError) return sendError(reply, 422, ErrorCodes.Orders.CourseMismatch, '適用中のコースと一致しません', { courseId: body.courseId })
+      if (e instanceof SettingNotFoundError) {
+        fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
+        return sendError(reply, 500, ErrorCodes.Orders.SettingNotFound, '店舗設定が見つかりません')
+      }
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') return sendError(reply, 409, ErrorCodes.Orders.Conflict, '他の操作と競合しました。もう一度お試しください')
       throw e
-    })
-    if (!created) return sendError(reply, 409, ErrorCodes.Orders.GroupNotAccepting, 'このグループには注文を追加できません')
+    }
 
     const results = created.map(toOrderItem)
     for (const result of results) {

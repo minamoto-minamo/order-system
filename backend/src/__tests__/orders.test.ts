@@ -4,20 +4,23 @@ import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 import { Prisma } from '@prisma/client'
 
-type Group = { id: string; status: string; drinkPlanId: number | null }
+type Group = { id: string; status: string; drinkPlanId: number | null; courseId: number | null }
 type MenuItem = { id: number; name: string; price: number; soldOut: boolean; takeout: string }
 type DrinkPlanItem = { menuItemId: number }
+type Setting = { taxRateInHouse: { toNumber(): number }; taxRateTakeout: { toNumber(): number } }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
+const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
-const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxRateTakeout: { toNumber(): number } } | null>>()
+const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<Setting | null>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
+const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>, options?: unknown) => Promise<any>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     group: { findFirst: mockGroupFindFirst },
+    course: { findFirst: mockCourseFindFirst },
     menuItem: { findMany: mockMenuItemFindMany },
     drinkPlanItem: { findMany: mockDrinkPlanItemFindMany },
     setting: { findUnique: mockSettingFindUnique },
@@ -55,10 +58,12 @@ function token(app: Awaited<ReturnType<typeof buildTestApp>>) {
   return app.jwt.sign({ type: 'staff' as const, userId: STAFF_ID, username: 'staff', role: 'staff', storeId: STORE_ID })
 }
 
-function mockTx(createFn: (...args: unknown[]) => Promise<unknown>) {
+function mockTx(createFn: (...args: unknown[]) => Promise<unknown>, currentGroup: Partial<Group> = {}) {
   mockTransaction.mockImplementation(async (cb) => {
     const tx = {
-      group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }) },
+      group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null, ...currentGroup }) },
+      drinkPlanItem: { findMany: mockDrinkPlanItemFindMany },
+      setting: { findUnique: mockSettingFindUnique },
       orderItem: { create: createFn },
     }
     return cb(tx)
@@ -72,13 +77,13 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
   beforeEach(() => { jest.clearAllMocks() })
 
   it('drinkPlan 対象商品を店内注文すると price が 0 になる', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
     mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 0, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() })
-    mockTx(mockCreate)
+    mockTx(mockCreate, { drinkPlanId: 5 })
 
     const res = await app.inject({
       method: 'POST', url: '/api/orders',
@@ -87,19 +92,21 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
     })
 
     expect(res.statusCode).toBe(201)
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    expect(mockDrinkPlanItemFindMany).toHaveBeenCalledWith({ where: { drinkPlanId: 5 }, select: { menuItemId: true } })
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ menuItemId: 1, price: 0, originalPrice: 600 }),
     }))
   })
 
   it('drinkPlan 対象商品でもテイクアウト注文なら通常単価のまま', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
     mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール', price: 600, qty: 1, status: 'pending', isTakeout: true, taxRate: { toNumber: () => 8 }, courseId: null, orderedAt: new Date() })
-    mockTx(mockCreate)
+    mockTx(mockCreate, { drinkPlanId: 5 })
 
     const res = await app.inject({
       method: 'POST', url: '/api/orders',
@@ -114,7 +121,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
   })
 
   it('drinkPlan が設定されていないグループでは通常単価のまま', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,9 +149,11 @@ describe('POST /api/orders — Setting未取得時のフォールバック禁止
   beforeEach(() => { jest.clearAllMocks() })
 
   it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
     mockSettingFindUnique.mockResolvedValue(null)
+    const mockCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTx(mockCreate)
 
     const res = await app.inject({
       method: 'POST', url: '/api/orders',
@@ -153,6 +162,72 @@ describe('POST /api/orders — Setting未取得時のフォールバック禁止
     })
 
     expect(res.statusCode).toBe(500)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/orders — courseId 検証', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  it('適用中コースと一致する courseId 付き注文は成功する', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: 10 })
+    mockCourseFindFirst.mockResolvedValue({ id: 10 })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({ id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '枝豆', price: 300, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 10, orderedAt: new Date() })
+    mockTx(mockCreate, { courseId: 10 })
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, courseId: 10, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ courseId: 10 }),
+    }))
+  })
+
+  it('適用中コースと不一致の courseId 付き注文は 422 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: 10 })
+    mockCourseFindFirst.mockResolvedValue({ id: 20 })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
+    const mockCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTx(mockCreate, { courseId: 10 })
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, courseId: 20, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({ error: { code: 'orders.create.course_mismatch', message: '適用中のコースと一致しません' } })
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('Serializable 分離レベルでの作成競合（P2034）でも 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' }])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', { code: 'P2034', clientVersion: '5.17.0' })
+    })
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { message: '他の操作と競合しました。もう一度お試しください' } })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   })
 })
 
@@ -163,7 +238,7 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
   beforeEach(() => { jest.clearAllMocks() })
 
   it('テイクアウト専用商品を店内注文（isTakeout未指定）すると 422 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '弁当', price: 800, soldOut: false, takeout: 'takeout' }])
 
     const res = await app.inject({
@@ -177,7 +252,7 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
   })
 
   it('店内専用商品をテイクアウト注文すると 422 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'dine_in' }])
 
     const res = await app.inject({
@@ -191,7 +266,7 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
   })
 
   it('テイクアウト専用商品をテイクアウト注文すれば通る', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '弁当', price: 800, soldOut: false, takeout: 'takeout' }])
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

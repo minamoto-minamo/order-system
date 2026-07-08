@@ -319,125 +319,126 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     }
     const taxRateInHouse = setting.taxRateInHouse.toNumber()
 
-    const txResult = await prisma.$transaction(async (tx) => {
-      const currentGroup = await tx.group.findUnique({ where: { id } })
-      if (currentGroup?.status !== 'active') throw new GroupStatusError()
+    let txResult
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const currentGroup = await tx.group.findUnique({ where: { id } })
+        if (currentGroup?.status !== 'active') throw new GroupStatusError()
 
-      // 既にコースが適用されている場合は、二重課金にならないよう先に旧コースを取り消してから新コースを適用する
-      const unapplied = currentGroup.courseId != null
-        ? await unapplyCourse(tx, {
-            groupId: id,
-            storeId: request.storeId,
-            courseId: currentGroup.courseId,
-            drinkPlanId: currentGroup.drinkPlanId,
-          })
-        : { restoredItems: [], cancelledItems: [] }
+        // 既にコースが適用されている場合は、二重課金にならないよう先に旧コースを取り消してから新コースを適用する
+        const unapplied = currentGroup.courseId != null
+          ? await unapplyCourse(tx, {
+              groupId: id,
+              storeId: request.storeId,
+              courseId: currentGroup.courseId,
+              drinkPlanId: currentGroup.drinkPlanId,
+            })
+          : { restoredItems: [], cancelledItems: [] }
 
-      const createdItems = []
-      if (course.price > 0) {
-        const chargeItem = await tx.orderItem.create({
-          data: {
-            groupId: id,
-            menuItemId: null,
-            menuItemName: course.name,
-            price: course.price,
-            qty,
-            status: 'served',
-            isTakeout: false,
-            taxRate: taxRateInHouse,
-            courseId: course.id,
-            isCourseCharge: true,
-            isDrinkPlanCharge: false,
-            storeId: request.storeId,
-          },
-        })
-        createdItems.push(chargeItem)
-      }
-      if (drinkPlan && drinkPlan.price > 0) {
-        // 飲み放題は人数按分ではなくグループ単位の定額課金
-        const drinkPlanChargeItem = await tx.orderItem.create({
-          data: {
-            groupId: id,
-            menuItemId: null,
-            menuItemName: drinkPlan.name,
-            price: drinkPlan.price,
-            qty: 1,
-            status: 'served',
-            isTakeout: false,
-            taxRate: taxRateInHouse,
-            courseId: course.id,
-            isCourseCharge: true,
-            isDrinkPlanCharge: true,
-            storeId: request.storeId,
-          },
-        })
-        createdItems.push(drinkPlanChargeItem)
-      }
-      if (course.foodItems.length > 0) {
-        const menuItemIds = course.foodItems.map(fi => fi.menuItemId)
-        const menuItems = await tx.menuItem.findMany({ where: { id: { in: menuItemIds }, storeId: request.storeId } })
-        const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
-        for (const fi of course.foodItems) {
-          const menuItem = menuItemMap.get(fi.menuItemId)
-          if (!menuItem) continue
-          if (menuItem.soldOut) throw new SoldOutError()
-          const item = await tx.orderItem.create({
+        const createdItems = []
+        if (course.price > 0) {
+          const chargeItem = await tx.orderItem.create({
             data: {
               groupId: id,
-              menuItemId: fi.menuItemId,
-              menuItemName: menuItem.name,
-              // コース料金に含まれるため個別の料理は0円で登録する
-              price: 0,
-              qty: fi.qty * qty,
+              menuItemId: null,
+              menuItemName: course.name,
+              price: course.price,
+              qty,
+              status: 'served',
               isTakeout: false,
               taxRate: taxRateInHouse,
               courseId: course.id,
+              isCourseCharge: true,
+              isDrinkPlanCharge: false,
               storeId: request.storeId,
             },
           })
-          createdItems.push(item)
+          createdItems.push(chargeItem)
         }
-      }
-
-      // 飲み放題プラン対象商品は、コース適用前に既に注文済みの分も遡って0円にする（テイクアウトはプラン対象外）
-      const updatedOrderItems = []
-      if (drinkPlan) {
-        const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId: drinkPlan.id }, select: { menuItemId: true } })
-        const planMenuItemIds = planItems.map(p => p.menuItemId)
-        if (planMenuItemIds.length > 0) {
-          const targets = await tx.orderItem.findMany({
-            where: {
+        if (drinkPlan && drinkPlan.price > 0) {
+          // 飲み放題は人数按分ではなくグループ単位の定額課金
+          const drinkPlanChargeItem = await tx.orderItem.create({
+            data: {
               groupId: id,
-              storeId: request.storeId,
-              menuItemId: { in: planMenuItemIds },
+              menuItemId: null,
+              menuItemName: drinkPlan.name,
+              price: drinkPlan.price,
+              qty: 1,
+              status: 'served',
               isTakeout: false,
-              status: { not: 'cancelled' },
+              taxRate: taxRateInHouse,
+              courseId: course.id,
+              isCourseCharge: true,
+              isDrinkPlanCharge: true,
+              storeId: request.storeId,
             },
           })
-          // 解除時に注文時点の価格へ復元できるよう、ゼロ化前の price を originalPrice に退避する
-          for (const target of targets) {
-            const zeroed = await tx.orderItem.update({
-              where: { id: target.id },
-              data: { price: 0, originalPrice: target.price },
+          createdItems.push(drinkPlanChargeItem)
+        }
+        if (course.foodItems.length > 0) {
+          const menuItemIds = course.foodItems.map(fi => fi.menuItemId)
+          const menuItems = await tx.menuItem.findMany({ where: { id: { in: menuItemIds }, storeId: request.storeId } })
+          const menuItemMap = new Map(menuItems.map(m => [m.id, m]))
+          for (const fi of course.foodItems) {
+            const menuItem = menuItemMap.get(fi.menuItemId)
+            if (!menuItem) continue
+            if (menuItem.soldOut) throw new SoldOutError()
+            const item = await tx.orderItem.create({
+              data: {
+                groupId: id,
+                menuItemId: fi.menuItemId,
+                menuItemName: menuItem.name,
+                // コース料金に含まれるため個別の料理は0円で登録する
+                price: 0,
+                qty: fi.qty * qty,
+                isTakeout: false,
+                taxRate: taxRateInHouse,
+                courseId: course.id,
+                storeId: request.storeId,
+              },
             })
-            updatedOrderItems.push(zeroed)
+            createdItems.push(item)
           }
         }
-      }
 
-      const updatedGroup = await tx.group.update({
-        where: { id },
-        data: { courseId: course.id, drinkPlanId: course.drinkPlanId },
-        include: { seats: true },
+        // 飲み放題プラン対象商品は、コース適用前に既に注文済みの分も遡って0円にする（テイクアウトはプラン対象外）
+        const updatedOrderItems = []
+        if (drinkPlan) {
+          const planItems = await tx.drinkPlanItem.findMany({ where: { drinkPlanId: drinkPlan.id }, select: { menuItemId: true } })
+          const planMenuItemIds = planItems.map(p => p.menuItemId)
+          if (planMenuItemIds.length > 0) {
+            const targets = await tx.orderItem.findMany({
+              where: {
+                groupId: id,
+                storeId: request.storeId,
+                menuItemId: { in: planMenuItemIds },
+                isTakeout: false,
+                status: { not: 'cancelled' },
+              },
+            })
+            // 解除時に注文時点の価格へ復元できるよう、ゼロ化前の price を originalPrice に退避する
+            for (const target of targets) {
+              const zeroed = await tx.orderItem.update({
+                where: { id: target.id },
+                data: { price: 0, originalPrice: target.price },
+              })
+              updatedOrderItems.push(zeroed)
+            }
+          }
+        }
+
+        const updatedGroup = await tx.group.update({
+          where: { id },
+          data: { courseId: course.id, drinkPlanId: course.drinkPlanId },
+          include: { seats: true },
+        })
+        return { createdItems, updatedOrderItems, updatedGroup, unapplied }
       })
-      return { createdItems, updatedOrderItems, updatedGroup, unapplied }
-    }).catch(e => {
-      if (e instanceof GroupStatusError || e instanceof SoldOutError) return e
+    } catch (e) {
+      if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseNotApplicable, 'このグループにはコースを適用できません')
+      if (e instanceof SoldOutError) return sendError(reply, 409, ErrorCodes.Groups.CourseSoldOut, 'コース内に品切れの商品が含まれています')
       throw e
-    })
-
-    if (txResult instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseNotApplicable, 'このグループにはコースを適用できません')
-    if (txResult instanceof SoldOutError) return sendError(reply, 409, ErrorCodes.Groups.CourseSoldOut, 'コース内に品切れの商品が含まれています')
+    }
 
     const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
     const groupResult = toGroup(updatedGroup)
@@ -463,42 +464,53 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const course = await prisma.course.findFirst({ where: { id: group.courseId, storeId: request.storeId }, include: { foodItems: true } })
     const foodItemQtyByMenuItemId = new Map((course?.foodItems ?? []).map(fi => [fi.menuItemId, fi.qty]))
 
-    const { chargeResult, updatedFoodItems } = await prisma.$transaction(async (tx) => {
-      const chargeItem = await tx.orderItem.findFirst({
-        where: {
-          groupId: id,
-          storeId: request.storeId,
-          isCourseCharge: true,
-          isDrinkPlanCharge: false,
-          courseId: group.courseId,
-          status: { not: 'cancelled' },
-        },
-      })
-      const chargeResult = chargeItem ? await tx.orderItem.update({ where: { id: chargeItem.id }, data: { qty } }) : null
+    let txResult
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const currentGroup = await tx.group.findUnique({ where: { id } })
+        if (currentGroup?.status !== 'active' || currentGroup.courseId !== group.courseId) throw new GroupStatusError()
 
-      // コース料金明細だけでなく、コース適用時に自動生成された食事明細（1人あたり qty）も
-      // 人数変更に応じて比例して再計算する。手動追加の明細（courseId が異なる／null）は対象外
-      const updatedFoodItems = []
-      if (foodItemQtyByMenuItemId.size > 0) {
-        const foodItems = await tx.orderItem.findMany({
+        const chargeItem = await tx.orderItem.findFirst({
           where: {
             groupId: id,
             storeId: request.storeId,
+            isCourseCharge: true,
+            isDrinkPlanCharge: false,
             courseId: group.courseId,
-            isCourseCharge: false,
             status: { not: 'cancelled' },
           },
         })
-        for (const item of foodItems) {
-          const perGuestQty = item.menuItemId != null ? foodItemQtyByMenuItemId.get(item.menuItemId) : undefined
-          if (perGuestQty == null) continue
-          const updatedFoodItem = await tx.orderItem.update({ where: { id: item.id }, data: { qty: perGuestQty * qty } })
-          updatedFoodItems.push(updatedFoodItem)
-        }
-      }
+        const chargeResult = chargeItem ? await tx.orderItem.update({ where: { id: chargeItem.id }, data: { qty } }) : null
 
-      return { chargeResult, updatedFoodItems }
-    })
+        // コース料金明細だけでなく、コース適用時に自動生成された食事明細（1人あたり qty）も
+        // 人数変更に応じて比例して再計算する。手動追加の明細（courseId が異なる／null）は対象外
+        const updatedFoodItems = []
+        if (foodItemQtyByMenuItemId.size > 0) {
+          const foodItems = await tx.orderItem.findMany({
+            where: {
+              groupId: id,
+              storeId: request.storeId,
+              courseId: group.courseId,
+              isCourseCharge: false,
+              status: { not: 'cancelled' },
+            },
+          })
+          for (const item of foodItems) {
+            const perGuestQty = item.menuItemId != null ? foodItemQtyByMenuItemId.get(item.menuItemId) : undefined
+            if (perGuestQty == null) continue
+            const updatedFoodItem = await tx.orderItem.update({ where: { id: item.id }, data: { qty: perGuestQty * qty } })
+            updatedFoodItems.push(updatedFoodItem)
+          }
+        }
+
+        return { chargeResult, updatedFoodItems }
+      })
+    } catch (e) {
+      if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseQtyNotEditable, 'このグループのコース人数は変更できません')
+      throw e
+    }
+
+    const { chargeResult, updatedFoodItems } = txResult
 
     for (const item of updatedFoodItems) {
       fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))
@@ -517,29 +529,30 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     if (!existing) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
     if (existing.status !== 'active') return sendError(reply, 409, ErrorCodes.Groups.CourseRemovalNotAllowed, 'このグループのコースは解除できません')
 
-    const txResult = await prisma.$transaction(async (tx) => {
-      const currentGroup = await tx.group.findUnique({ where: { id } })
-      if (currentGroup?.status !== 'active') throw new GroupStatusError()
+    let txResult
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const currentGroup = await tx.group.findUnique({ where: { id } })
+        if (currentGroup?.status !== 'active') throw new GroupStatusError()
 
-      const { restoredItems, cancelledItems } = await unapplyCourse(tx, {
-        groupId: id,
-        storeId: request.storeId,
-        courseId: currentGroup.courseId,
-        drinkPlanId: currentGroup.drinkPlanId,
-      })
+        const { restoredItems, cancelledItems } = await unapplyCourse(tx, {
+          groupId: id,
+          storeId: request.storeId,
+          courseId: currentGroup.courseId,
+          drinkPlanId: currentGroup.drinkPlanId,
+        })
 
-      const group = await tx.group.update({
-        where: { id },
-        data: { courseId: null, drinkPlanId: null },
-        include: { seats: true },
+        const group = await tx.group.update({
+          where: { id },
+          data: { courseId: null, drinkPlanId: null },
+          include: { seats: true },
+        })
+        return { group, restoredItems, cancelledItems }
       })
-      return { group, restoredItems, cancelledItems }
-    }).catch(e => {
-      if (e instanceof GroupStatusError) return e
+    } catch (e) {
+      if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseRemovalNotAllowed, 'このグループのコースは解除できません')
       throw e
-    })
-
-    if (txResult instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.CourseRemovalNotAllowed, 'このグループのコースは解除できません')
+    }
 
     const { group, restoredItems, cancelledItems } = txResult
     const result = toGroup(group)

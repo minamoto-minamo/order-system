@@ -48,6 +48,7 @@ export const ErrorCodes = {
     SoldOut: 'orders.create.sold_out',
     TakeoutMismatch: 'orders.create.takeout_mismatch',
     CourseNotFound: 'orders.create.course_not_found',
+    CourseMismatch: 'orders.create.course_mismatch',
     SettingNotFound: 'orders.create.setting_not_found',
     Conflict: 'orders.cancel.conflict',
     NotFound: 'orders.cancel.not_found',
@@ -69,6 +70,7 @@ export const ErrorCodes = {
   },
   Subcategories: {
     NotFound: 'subcategories.detail.not_found',
+    CategoryNotFound: 'subcategories.save.category_not_found',
     InUse: 'subcategories.delete.in_use',
   },
   Courses: {
@@ -86,12 +88,14 @@ export const ErrorCodes = {
   Seats: {
     NotFound: 'seats.detail.not_found',
     InUse: 'seats.delete.in_use',
+    TableNotFound: 'seats.save.table_not_found',
   },
   SeatLayout: {
     CanvasColsOutOfRange: 'seat_layout.update.canvas_cols_out_of_range',
     CanvasRowsOutOfRange: 'seat_layout.update.canvas_rows_out_of_range',
     GridSizeOutOfRange: 'seat_layout.update.grid_size_out_of_range',
     BusySeatsIncluded: 'seat_layout.update.busy_seats_included',
+    InvalidTableId: 'seat_layout.update.invalid_table_id',
   },
   Staff: {
     DuplicateUsername: 'staff.save.duplicate_username',

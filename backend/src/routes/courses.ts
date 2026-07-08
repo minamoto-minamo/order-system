@@ -1,8 +1,9 @@
+import { Prisma } from '@prisma/client'
 import type { FastifyPluginAsync } from 'fastify'
-import { prisma } from '../lib/prisma.js'
-import { requireAdmin } from '../plugins/auth.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { toCourse } from '../lib/mappers.js'
+import { prisma } from '../lib/prisma.js'
+import { requireAdmin } from '../plugins/auth.js'
 
 const foodItemSchema = {
   type: 'object',
@@ -121,13 +122,28 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const courseId = Number(id)
-    const existing = await prisma.course.findFirst({ where: { id: courseId, storeId: request.storeId } })
-    if (!existing) return sendError(reply, 404, ErrorCodes.Courses.NotFound, 'コースが見つかりません')
-    const activeGroup = await prisma.group.findFirst({
-      where: { courseId, status: { in: ['active', 'bill_requested'] } },
-    })
-    if (activeGroup) return sendError(reply, 409, ErrorCodes.Courses.InUse, '使用中のコースは削除できません')
-    await prisma.course.delete({ where: { id: courseId } })
+    let txResult
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const existing = await tx.course.findFirst({ where: { id: courseId, storeId: request.storeId } })
+        if (!existing) return { err: 'not_found' as const }
+        const activeGroup = await tx.group.findFirst({
+          where: { courseId, status: { in: ['active', 'bill_requested'] } },
+        })
+        if (activeGroup) return { err: 'in_use' as const }
+        await tx.course.delete({ where: { id: courseId } })
+        return { ok: true as const }
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
+        return sendError(reply, 409, ErrorCodes.Courses.InUse, '使用中のコースは削除できません')
+      }
+      throw e
+    }
+    if ('err' in txResult) {
+      if (txResult.err === 'not_found') return sendError(reply, 404, ErrorCodes.Courses.NotFound, 'コースが見つかりません')
+      return sendError(reply, 409, ErrorCodes.Courses.InUse, '使用中のコースは削除できません')
+    }
     fastify.io.to(`store:${request.storeId}`).emit('course:deleted', courseId)
     return reply.status(204).send()
   })

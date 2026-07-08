@@ -1,4 +1,5 @@
 import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
+import { Prisma } from '@prisma/client'
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
@@ -10,9 +11,17 @@ const mockCourseCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockTransaction = jest.fn<(
+  callback: (tx: {
+    group: { findFirst: typeof mockGroupFindFirst };
+    course: { findFirst: typeof mockCourseFindFirst; delete: typeof mockCourseDelete };
+  }) => Promise<unknown>,
+  options?: unknown,
+) => Promise<unknown>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
+    $transaction: mockTransaction,
     group: { findFirst: mockGroupFindFirst },
     course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete, create: mockCourseCreate, update: mockCourseUpdate },
     menuItem: { count: mockMenuItemCount },
@@ -53,7 +62,13 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
 
   beforeAll(async () => { app = await buildTestApp() })
   afterAll(async () => { await app.close() })
-  beforeEach(() => { jest.clearAllMocks() })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockTransaction.mockImplementation(async (callback) => callback({
+      group: { findFirst: mockGroupFindFirst },
+      course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete },
+    }))
+  })
 
   function token() {
     return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
@@ -70,6 +85,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     expect(res.statusCode).toBe(409)
     expect(res.json()).toMatchObject({ error: { message: '使用中のコースは削除できません' } })
     expect(mockCourseDelete).not.toHaveBeenCalled()
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   })
 
   it('bill_requested グループが使用中なら 409 を返す', async () => {
@@ -97,6 +113,7 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     expect(res.statusCode).toBe(204)
     expect(mockCourseDelete).toHaveBeenCalledWith({ where: { id: 1 } })
     expect(mockIoEmit).toHaveBeenCalledWith('course:deleted', 1)
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
@@ -109,6 +126,22 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     expect(res.statusCode).toBe(404)
     expect(res.json()).toMatchObject({ error: { message: 'コースが見つかりません' } })
     expect(mockCourseDelete).not.toHaveBeenCalled()
+  })
+
+  it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
+    mockTransaction.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError(
+      'Transaction failed due to a write conflict',
+      { code: 'P2034', clientVersion: '5.17.0' },
+    ))
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { message: '使用中のコースは削除できません' } })
+    expect(mockCourseDelete).not.toHaveBeenCalled()
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   })
 })
 

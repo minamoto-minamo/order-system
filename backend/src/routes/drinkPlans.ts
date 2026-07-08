@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
@@ -88,15 +89,31 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const drinkPlanId = Number(id)
-    const existing = await prisma.drinkPlan.findFirst({ where: { id: drinkPlanId, storeId: request.storeId } })
-    if (!existing) return sendError(reply, 404, ErrorCodes.DrinkPlans.NotFound, '飲み放題プランが見つかりません')
-    const referencedCourse = await prisma.course.findFirst({ where: { drinkPlanId } })
-    if (referencedCourse) return sendError(reply, 409, ErrorCodes.DrinkPlans.ReferencedCourse, 'コースから参照されているため削除できません')
-    const activeGroup = await prisma.group.findFirst({
-      where: { drinkPlanId, status: { in: ['active', 'bill_requested'] } },
-    })
-    if (activeGroup) return sendError(reply, 409, ErrorCodes.DrinkPlans.InUse, '使用中の飲み放題プランは削除できません')
-    await prisma.drinkPlan.delete({ where: { id: drinkPlanId } })
+    let txResult
+    try {
+      txResult = await prisma.$transaction(async (tx) => {
+        const existing = await tx.drinkPlan.findFirst({ where: { id: drinkPlanId, storeId: request.storeId } })
+        if (!existing) return { err: 'not_found' as const }
+        const referencedCourse = await tx.course.findFirst({ where: { drinkPlanId } })
+        if (referencedCourse) return { err: 'referenced_course' as const }
+        const activeGroup = await tx.group.findFirst({
+          where: { drinkPlanId, status: { in: ['active', 'bill_requested'] } },
+        })
+        if (activeGroup) return { err: 'in_use' as const }
+        await tx.drinkPlan.delete({ where: { id: drinkPlanId } })
+        return { ok: true as const }
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
+        return sendError(reply, 409, ErrorCodes.DrinkPlans.InUse, '使用中の飲み放題プランは削除できません')
+      }
+      throw e
+    }
+    if ('err' in txResult) {
+      if (txResult.err === 'not_found') return sendError(reply, 404, ErrorCodes.DrinkPlans.NotFound, '飲み放題プランが見つかりません')
+      if (txResult.err === 'referenced_course') return sendError(reply, 409, ErrorCodes.DrinkPlans.ReferencedCourse, 'コースから参照されているため削除できません')
+      return sendError(reply, 409, ErrorCodes.DrinkPlans.InUse, '使用中の飲み放題プランは削除できません')
+    }
     fastify.io.to(`store:${request.storeId}`).emit('drinkPlan:deleted', drinkPlanId)
     return reply.status(204).send()
   })

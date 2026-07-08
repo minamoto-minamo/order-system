@@ -584,7 +584,10 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
     const mockOrderItemFindFirstInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(chargeItem)
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(updatedChargeItem)
     mockTransaction.mockImplementation(async (cb) => {
-      const tx = { orderItem: { findFirst: mockOrderItemFindFirstInTx, update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) } }
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }) },
+        orderItem: { findFirst: mockOrderItemFindFirstInTx, update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
+      }
       return cb(tx)
     })
     const res = await app.inject({
@@ -608,7 +611,10 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
     mockTransaction.mockImplementation(async (cb) => {
-      const tx = { orderItem: { findFirst: () => Promise.resolve(null), update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) } }
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }) },
+        orderItem: { findFirst: () => Promise.resolve(null), update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
+      }
       return cb(tx)
     })
     const res = await app.inject({
@@ -626,7 +632,10 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
     const mockOrderItemFindFirstInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(null)
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
     mockTransaction.mockImplementation(async (cb) => {
-      const tx = { orderItem: { findFirst: mockOrderItemFindFirstInTx, update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) } }
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 }) },
+        orderItem: { findFirst: mockOrderItemFindFirstInTx, update: mockOrderItemUpdateInTx, findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
+      }
       return cb(tx)
     })
     const res = await app.inject({
@@ -655,7 +664,10 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
       .mockImplementation(async (args: any) =>
         args.where.id === 'item-1' ? { ...chargeItem, qty: 5 } : { ...foodItem, qty: 10 })
     mockTransaction.mockImplementation(async (cb) => {
-      const tx = { orderItem: { findFirst: mockOrderItemFindFirstInTx, findMany: mockOrderItemFindManyInTx, update: mockOrderItemUpdateInTx } }
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }) },
+        orderItem: { findFirst: mockOrderItemFindFirstInTx, findMany: mockOrderItemFindManyInTx, update: mockOrderItemUpdateInTx },
+      }
       return cb(tx)
     })
     const res = await app.inject({
@@ -672,5 +684,47 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
       where: { id: 'food-1' },
       data: { qty: 10 },
     }))
+  })
+
+  it('事前チェック後・トランザクション内で active でなくなっていた場合も 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'コースA', price: 3000, drinkPlanId: null, foodItems: [] })
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'bill_requested', courseId: 1, drinkPlanId: null }) },
+        orderItem: { findFirst: jest.fn(), findMany: jest.fn(), update: mockOrderItemUpdateInTx },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 5 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { message: 'このグループのコース人数は変更できません' } })
+    expect(mockOrderItemUpdateInTx).not.toHaveBeenCalled()
+  })
+
+  it('事前チェック後・トランザクション内で courseId が変わっていた場合も 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
+    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'コースA', price: 3000, drinkPlanId: null, foodItems: [] })
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 2, drinkPlanId: null }) },
+        orderItem: { findFirst: jest.fn(), findMany: jest.fn(), update: mockOrderItemUpdateInTx },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 5 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { message: 'このグループのコース人数は変更できません' } })
+    expect(mockOrderItemUpdateInTx).not.toHaveBeenCalled()
   })
 })

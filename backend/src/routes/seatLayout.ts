@@ -108,6 +108,10 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
     const dbSeatIds = new Set(dbSeats.map(s => s.id))
     const ownedTables = tables.filter(t => t.id < 0 || dbTableIds.has(t.id))
     const ownedSeats = seats.filter(s => s.id < 0 || dbSeatIds.has(s.id))
+    const invalidTableId = ownedSeats.find(s => s.tableId != null && s.tableId > 0 && !dbTableIds.has(s.tableId))?.tableId
+    if (invalidTableId != null) {
+      return sendError(reply, 422, ErrorCodes.SeatLayout.InvalidTableId, '無効なテーブルが含まれています', { tableId: invalidTableId })
+    }
 
     // 削除対象の事前チェック（使用中席の保護）
     const reqSeatIds = new Set(ownedSeats.filter(s => s.id > 0).map(s => s.id))

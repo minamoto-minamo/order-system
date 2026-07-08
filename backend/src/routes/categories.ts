@@ -49,15 +49,29 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const existing = await prisma.category.findFirst({ where: { id: Number(id), storeId: request.storeId } })
-    if (!existing) return sendError(reply, 404, ErrorCodes.Categories.NotFound, 'カテゴリが見つかりません')
+    const categoryId = Number(id)
+    let txResult
     try {
-      await prisma.category.delete({ where: { id: Number(id) } })
+      txResult = await prisma.$transaction(async (tx) => {
+        const existing = await tx.category.findFirst({ where: { id: categoryId, storeId: request.storeId } })
+        if (!existing) return { err: 'not_found' as const }
+        const [subCategoryCount, menuItemCount] = await Promise.all([
+          tx.subCategory.count({ where: { categoryId } }),
+          tx.menuItem.count({ where: { categoryId } }),
+        ])
+        if (subCategoryCount > 0 || menuItemCount > 0) return { err: 'in_use' as const }
+        await tx.category.delete({ where: { id: categoryId } })
+        return { ok: true as const }
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
         return sendError(reply, 409, ErrorCodes.Categories.InUse, '使用中のカテゴリは削除できません')
       }
       throw e
+    }
+    if ('err' in txResult) {
+      if (txResult.err === 'not_found') return sendError(reply, 404, ErrorCodes.Categories.NotFound, 'カテゴリが見つかりません')
+      return sendError(reply, 409, ErrorCodes.Categories.InUse, '使用中のカテゴリは削除できません')
     }
     return reply.status(204).send()
   })
