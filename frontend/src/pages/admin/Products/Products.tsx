@@ -220,7 +220,7 @@ export default function Products() {
 
       {/* モーダル群 */}
       {modal?.type === "addCat" && (
-        <InputModal title={t('productSettings.addCategoryTitle')} placeholder="例：ドリンク" onConfirm={addCat} onClose={() => setModal(null)} />
+        <InputModal title={t('productSettings.addCategoryTitle')} placeholder={t('productSettings.categoryPlaceholder')} onConfirm={addCat} onClose={() => setModal(null)} />
       )}
       {modal?.type === "editCat" && (
         <InputModal title={t('productSettings.editCategoryTitle')} placeholder="" initialValue={modal.payload.label}

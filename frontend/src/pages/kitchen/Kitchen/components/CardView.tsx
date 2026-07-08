@@ -48,7 +48,7 @@ export function CardView({ groups, orders, seats, onComplete, onCardClick }: {
                   <div key={o.id} onClick={e => e.stopPropagation()} className="flex items-center px-3.5 py-1.75 gap-2 border-b border-surface last:border-b-0">
                     <span className="min-w-0 flex-1 truncate text-caption font-medium text-ink">{o.item}</span>
                     <span className="shrink-0 rounded-full bg-surface-deep px-2 py-0.5 text-caption text-secondary">×{o.qty}</span>
-                    <button className="complete-btn shrink-0 bg-white border border-line rounded-md px-2.5 py-1.75 text-caption text-dim" onClick={() => onComplete(o.id)}>{t('kitchen.complete')}</button>
+                    <button className="complete-btn shrink-0 bg-white border border-line rounded-md px-2.5 py-3 text-caption leading-4 text-dim" onClick={() => onComplete(o.id)}>{t('kitchen.complete')}</button>
                   </div>
                 ))
               )}

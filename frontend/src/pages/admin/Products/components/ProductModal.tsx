@@ -1,6 +1,7 @@
 import { BaseButton, Icon } from "@/components";
 import { useForm } from "@/hooks/useForm";
 import { ACTION_ICONS } from "@/lib/icons";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { Cat, Product, ProductFormData } from "./types";
 import { TO_OPTIONS } from "./types";
@@ -22,6 +23,11 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
   onDelete?: () => void;
 }) {
   const { t } = useTranslation();
+  const formId = useId();
+  const nameId = `${formId}-name`;
+  const priceId = `${formId}-price`;
+  const subIdId = `${formId}-sub-id`;
+  const takeoutId = `${formId}-takeout`;
   const { values: form, setValue } = useForm<ProductForm>({
     name: product?.name ?? "",
     price: product?.price ?? "",
@@ -58,20 +64,20 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
           </BaseButton>
         </div>
 
-        <div className="text-caption text-muted mb-0.75">{t('productSettings.productName')}</div>
-        <input value={name} onChange={e => setValue("name", e.target.value)}
+        <label htmlFor={nameId} className="block text-caption text-muted mb-0.75">{t('productSettings.productName')}</label>
+        <input id={nameId} value={name} onChange={e => setValue("name", e.target.value)}
           placeholder={t('productSettings.namePlaceholder')}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
         />
 
-        <div className="text-caption text-muted mb-0.75">{t('productSettings.price')}</div>
-        <input value={price} onChange={e => setValue("price", e.target.value)}
-          placeholder="例：550" type="number"
+        <label htmlFor={priceId} className="block text-caption text-muted mb-0.75">{t('productSettings.price')}</label>
+        <input id={priceId} value={price} onChange={e => setValue("price", e.target.value)}
+          placeholder={t('productSettings.pricePlaceholder')} type="number"
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
         />
 
-        <div className="text-caption text-muted mb-0.75">{t('productSettings.category')}</div>
-        <select value={subId ?? ""} onChange={e => setValue("subId", e.target.value ? Number(e.target.value) : null)}
+        <label htmlFor={subIdId} className="block text-caption text-muted mb-0.75">{t('productSettings.category')}</label>
+        <select id={subIdId} value={subId ?? ""} onChange={e => setValue("subId", e.target.value ? Number(e.target.value) : null)}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-2 appearance-none"
         >
           {!subId && <option value="">{t('productSettings.selectPrompt')}</option>}
@@ -84,8 +90,8 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
           ))}
         </select>
 
-        <div className="text-caption text-muted mb-0.75">{t('productSettings.takeoutType')}</div>
-        <select value={takeout} onChange={e => setValue("takeout", e.target.value)}
+        <label htmlFor={takeoutId} className="block text-caption text-muted mb-0.75">{t('productSettings.takeoutType')}</label>
+        <select id={takeoutId} value={takeout} onChange={e => setValue("takeout", e.target.value)}
           className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-3 appearance-none"
         >
           {TO_OPTIONS.map(opt => (

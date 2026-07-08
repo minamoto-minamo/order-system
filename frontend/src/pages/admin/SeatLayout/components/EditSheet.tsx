@@ -1,6 +1,7 @@
 import { BaseButton, Icon } from "@/components";
 import { BottomSheet } from "@/components/modal/BottomSheet";
 import { ACTION_ICONS } from "@/lib/icons";
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { SeatData, SelectedItem, TableData } from "./types";
 
@@ -15,6 +16,7 @@ interface Props {
 
 export function EditSheet({ item, selected, onLabelChange, onDelete, onClose, G }: Props) {
   const { t } = useTranslation();
+  const labelInputId = useId();
   return (
     <div className="fixed bottom-0 left-0 right-0 z-modal flex justify-center pointer-events-none">
       <BottomSheet className="pointer-events-auto max-w-lg px-5 pt-4 pb-8 shadow-xl">
@@ -26,8 +28,9 @@ export function EditSheet({ item, selected, onLabelChange, onDelete, onClose, G 
             <Icon src={ACTION_ICONS.close} />
           </BaseButton>
         </div>
-        <div className="text-label text-dim mb-1">{t('seatEditor.labelName')}</div>
+        <label htmlFor={labelInputId} className="block text-label text-dim mb-1">{t('seatEditor.labelName')}</label>
         <input
+          id={labelInputId}
           value={item.label}
           onChange={(e) => onLabelChange(e.target.value)}
           className="input-field w-full border border-line rounded-[7px] px-3 py-2.25 text-sm outline-none text-ink mb-3"

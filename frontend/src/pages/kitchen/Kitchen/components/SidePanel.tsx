@@ -48,10 +48,10 @@ export function SidePanel({ groupId, groups, orders, seats, cats, onClose, onSer
                 <span>{t('common.readyToServe')}</span>
               </div>
               {readyItems.map(o => (
-                <div key={o.id} className="px-2.5 py-2 mb-1 bg-amber-bg border border-amber-border rounded-lg flex items-center gap-2">
+                <div key={o.id} className="px-2.5 py-2 mb-2 bg-amber-bg border border-amber-border rounded-lg flex items-center gap-2">
                   <span className="flex-1 text-note text-secondary">{o.item}</span>
                   <span className="text-xs text-muted">×{o.qty}</span>
-                  <button className="complete-btn bg-amber-bg border border-amber-border rounded-[5px] px-2 py-0.75 text-caption text-amber-fg" onClick={() => onServed(o.id)}>{t('kitchen.serveComplete')}</button>
+                  <button className="complete-btn bg-amber-bg border border-amber-border rounded-[5px] px-2 py-3 text-caption leading-4 text-amber-fg" onClick={() => onServed(o.id)}>{t('kitchen.serveComplete')}</button>
                 </div>
               ))}
             </div>

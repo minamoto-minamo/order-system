@@ -5,20 +5,22 @@ import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { useToast } from "@/hooks/useToast";
 import { NoticeBanner } from "../../display/NoticeBanner";
 import type { ApiErrorPayload } from "@order-system/shared";
+import { useTranslation } from "react-i18next";
 
 export function PageLayout({ children }: { children: ReactNode }) {
   const { toast, showToast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     let wasConnected = socket.connected;
     const onError = (payload: ApiErrorPayload) => showToast(payload.message);
     const onConnect = () => { wasConnected = true; };
-    const onConnectError = () => showToast('リアルタイム接続に失敗しました');
+    const onConnectError = () => showToast(t('common.socketConnectError'));
     const onDisconnect = () => {
-      if (wasConnected) showToast('リアルタイム接続が切断されました');
+      if (wasConnected) showToast(t('common.socketDisconnected'));
       wasConnected = false;
     };
-    const onReconnectFailed = () => showToast('リアルタイム接続を再開できません');
+    const onReconnectFailed = () => showToast(t('common.socketReconnectFailed'));
 
     socket.on(SE.error, onError);
     socket.on('connect', onConnect);
@@ -32,7 +34,7 @@ export function PageLayout({ children }: { children: ReactNode }) {
       socket.off('disconnect', onDisconnect);
       socket.io.off('reconnect_failed', onReconnectFailed);
     };
-  }, [showToast]);
+  }, [showToast, t]);
 
 	  return (
 	    <div className="app-shell h-dvh bg-white flex flex-col overflow-hidden">

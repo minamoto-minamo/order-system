@@ -1,7 +1,7 @@
 import { BaseButton } from "@/components/controls/button/BaseButton";
 import { Icon } from "@/components/display/Icon";
 import { ACTION_ICONS } from "@/lib/icons";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export function InputModal({ title, sub, placeholder, initialValue = "", onConfirm, onClose, onDelete }: {
@@ -14,6 +14,7 @@ export function InputModal({ title, sub, placeholder, initialValue = "", onConfi
   onDelete?: () => void;
 }) {
   const { t } = useTranslation();
+  const inputId = useId();
   const [val, setVal] = useState(initialValue);
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-modal animate-[fadeIn_0.15s_ease_both]" onClick={onClose}>
@@ -27,7 +28,9 @@ export function InputModal({ title, sub, placeholder, initialValue = "", onConfi
             <Icon src={ACTION_ICONS.close} />
           </BaseButton>
         </div>
+        <label htmlFor={inputId} className="sr-only">{title}</label>
         <input
+          id={inputId}
           autoFocus
           value={val}
           onChange={e => setVal(e.target.value)}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BaseButton, BottomSheetModal, Icon, MenuQtyStepper } from "@/components";
 import { ACTION_ICONS } from "@/lib/icons";
@@ -14,6 +14,10 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const formId = useId();
+  const nameId = `${formId}-name`;
+  const priceId = `${formId}-price`;
+  const drinkPlanIdId = `${formId}-drink-plan-id`;
   const [name, setName] = useState(course?.name ?? "");
   const [price, setPrice] = useState(String(course?.price ?? ""));
   const [drinkPlanId, setDrinkPlanId] = useState<number | null>(course?.drinkPlanId ?? null);
@@ -55,8 +59,9 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
 
       <div className="px-6 pt-4 pb-3 space-y-3.5">
         <div>
-          <label className="text-xs text-muted block mb-1.5">{t('courses.courseNameLabel')}</label>
+          <label htmlFor={nameId} className="text-xs text-muted block mb-1.5">{t('courses.courseNameLabel')}</label>
           <input
+            id={nameId}
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
@@ -64,8 +69,9 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
           />
         </div>
         <div>
-          <label className="text-xs text-muted block mb-1.5">{t('courses.coursePriceLabel')}</label>
+          <label htmlFor={priceId} className="text-xs text-muted block mb-1.5">{t('courses.coursePriceLabel')}</label>
           <input
+            id={priceId}
             type="number"
             inputMode="numeric"
             value={price}
@@ -74,8 +80,9 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
           />
         </div>
         <div>
-          <label className="text-xs text-muted block mb-1.5">{t('courses.courseDrinkPlanLabel')}</label>
+          <label htmlFor={drinkPlanIdId} className="text-xs text-muted block mb-1.5">{t('courses.courseDrinkPlanLabel')}</label>
           <select
+            id={drinkPlanIdId}
             value={drinkPlanId ?? ""}
             onChange={e => setDrinkPlanId(e.target.value === "" ? null : Number(e.target.value))}
             className="input-field w-full border border-line rounded-[7px] px-3 py-2.25 text-sm outline-none text-ink bg-white"

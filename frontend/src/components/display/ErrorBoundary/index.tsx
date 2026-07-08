@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Toast } from '../Toast/Toast'
+import ja from '@/i18n/locales/ja'
 
 type Props = {
   children: ReactNode
@@ -28,9 +29,9 @@ export class ErrorBoundary extends Component<Props, State> {
             className="px-4 py-2 rounded-lg bg-secondary text-white text-sm"
             onClick={() => window.location.reload()}
           >
-            再読込
+            {ja.common.retry}
           </button>
-          <Toast message="画面の表示中にエラーが発生しました" />
+          <Toast message={ja.common.renderError} />
         </div>
       )
     }

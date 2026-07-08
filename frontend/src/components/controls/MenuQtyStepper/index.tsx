@@ -1,6 +1,6 @@
 /** 商品個数の増減ステッパー（− 数値 ＋）。qty===0 では − と数値を隠し ＋ のみ表示する */
 
-import { BaseButton } from "@/components";
+import { BaseButton } from "@/components/controls/button";
 
 interface MenuQtyStepperProps {
   qty: number;
@@ -15,22 +15,26 @@ export function MenuQtyStepper({ qty, onChange, disabled }: MenuQtyStepperProps)
       {qty > 0 && (
         <>
           <BaseButton
-            className="w-7.5 h-7.5 rounded-full border border-line bg-white text-base text-dim flex items-center justify-center"
+            className="min-w-11 min-h-11 p-0 border-none bg-transparent flex items-center justify-center"
             onClick={() => onChange(qty - 1)}
           >
-            −
+            <span className="w-7.5 h-7.5 rounded-full border border-line bg-white text-base text-dim flex items-center justify-center">
+              −
+            </span>
           </BaseButton>
           <span className="text-sub font-medium text-ink min-w-5 text-center">{qty}</span>
         </>
       )}
       <BaseButton
-        className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
-          qty > 0 ? "border-brand bg-brand text-white" : "border-line bg-white text-dim"
-        }`}
+        className="min-w-11 min-h-11 p-0 border-none bg-transparent flex items-center justify-center"
         onClick={() => onChange(qty + 1)}
         disabled={disabled}
       >
-        ＋
+        <span className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
+          qty > 0 ? "border-brand bg-brand text-white" : "border-line bg-white text-dim"
+        }`}>
+          ＋
+        </span>
       </BaseButton>
     </div>
   );

@@ -108,5 +108,6 @@ body,
   &:focus {
     outline: none;
     border-color: var(--color-brand) !important;
+    box-shadow: 0 0 0 2px var(--color-info-glow);
   }
 }

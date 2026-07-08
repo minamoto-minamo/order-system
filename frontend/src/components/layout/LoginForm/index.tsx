@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { BaseButton } from "@/components/controls/button";
 import { Toast } from "@/components/display/Toast/Toast";
 import { BRAND } from "@/lib/brand";
@@ -15,6 +15,9 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
   loading: boolean;
   onSubmit: (username: string, password: string) => void;
 }) {
+  const formId = useId();
+  const usernameId = `${formId}-username`;
+  const passwordId = `${formId}-password`;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -33,22 +36,34 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
             <div className="text-label text-muted mt-1">{title}</div>
           </div>
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder={usernamePlaceholder}
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
-              autoComplete="username"
-            />
-            <input
-              type="password"
-              placeholder={passwordPlaceholder}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
-              autoComplete="current-password"
-	            />
+            <div>
+              <label htmlFor={usernameId} className="block text-caption text-muted mb-1">
+                {usernamePlaceholder}
+              </label>
+              <input
+                id={usernameId}
+                type="text"
+                placeholder={usernamePlaceholder}
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                className="input-field w-full border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label htmlFor={passwordId} className="block text-caption text-muted mb-1">
+                {passwordPlaceholder}
+              </label>
+              <input
+                id={passwordId}
+                type="password"
+                placeholder={passwordPlaceholder}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="input-field w-full border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
+                autoComplete="current-password"
+              />
+            </div>
             <BaseButton
               type="submit"
               variant="primary"

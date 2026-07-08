@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BaseButton, BottomSheetModal, Icon } from "@/components";
 import { ACTION_ICONS } from "@/lib/icons";
@@ -14,6 +14,9 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const formId = useId();
+  const nameId = `${formId}-name`;
+  const priceId = `${formId}-price`;
   const [name, setName] = useState(plan?.name ?? "");
   const [price, setPrice] = useState(String(plan?.price ?? ""));
   const [selected, setSelected] = useState<Set<number>>(new Set(plan?.menuItemIds ?? []));
@@ -56,8 +59,9 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
       </div>
 
       <div className="px-6 pt-4 pb-2">
-        <label className="text-xs text-muted block mb-1.5">{t('courses.drinkPlanNameLabel')}</label>
+        <label htmlFor={nameId} className="text-xs text-muted block mb-1.5">{t('courses.drinkPlanNameLabel')}</label>
         <input
+          id={nameId}
           autoFocus
           value={name}
           onChange={e => setName(e.target.value)}
@@ -66,8 +70,9 @@ export function DrinkPlanModal({ plan, menus, categories, subCategories, onSave,
       </div>
 
       <div className="px-6 pt-3 pb-2">
-        <label className="text-xs text-muted block mb-1.5">{t('courses.drinkPlanPriceLabel')}</label>
+        <label htmlFor={priceId} className="text-xs text-muted block mb-1.5">{t('courses.drinkPlanPriceLabel')}</label>
         <input
+          id={priceId}
           type="number"
           inputMode="numeric"
           value={price}

@@ -31,7 +31,7 @@ export function TicketCard({ order, onComplete, onClick }: {
         <div className="shrink-0 rounded-full bg-surface-deep px-2 py-0.5 text-caption text-secondary">×{order.qty}</div>
       </div>
       <button
-        className="complete-btn w-full bg-surface-deep border border-line rounded-md py-2.25 text-caption text-secondary"
+        className="complete-btn w-full bg-surface-deep border border-line rounded-md py-3 text-caption leading-4 text-secondary"
         onClick={(e) => { e.stopPropagation(); onComplete(order.id); }}
       >
         {t('kitchen.complete')}

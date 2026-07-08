@@ -56,7 +56,7 @@ export function RankingSection({ ranking, catColorMap }: {
               style={{
                 borderColor: isActive ? accentColor : "var(--color-line)",
                 background: isActive ? (opt.isCat ? `${accentColor}18` : "var(--color-surface-deep)") : "white",
-                color: isActive ? (opt.isCat ? accentColor : "var(--color-secondary)") : "var(--color-faint)",
+                color: isActive ? (opt.isCat ? accentColor : "var(--color-secondary)") : "var(--color-muted)",
                 fontWeight: opt.isSub ? 300 : 400,
               }}>
               {opt.isSub ? `└ ${opt.label}` : opt.label}
