@@ -126,7 +126,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         if (!group) return
         socket.join(`group:${groupId}`)
       } catch (e) {
-        fastify.log.error(e, 'group:join error')
+        fastify.log.error({ err: e, groupId }, 'group:join error')
       }
     })
 
@@ -147,7 +147,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         })
         io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
-        fastify.log.error(e, 'order:complete error')
+        fastify.log.error({ err: e, itemId }, 'order:complete error')
         socket.emit('error', errorBody(ErrorCodes.Socket.OrderCompleteFailed, '注文完了の処理に失敗しました').error)
       }
     })
@@ -169,7 +169,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         })
         io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
       } catch (e) {
-        fastify.log.error(e, 'order:serve error')
+        fastify.log.error({ err: e, itemId }, 'order:serve error')
         socket.emit('error', errorBody(ErrorCodes.Socket.OrderServeFailed, '提供完了の処理に失敗しました').error)
       }
     })
