@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import { BottomSheetModal, QuantityControl } from "@/components";
 import type { OrderItem } from "@order-system/shared";
 
-export function CancelModal({ item, onConfirm, onClose }: {
+export function CancelModal({ item, disabled, onConfirm, onClose }: {
   item: OrderItem;
+  disabled?: boolean;
   onConfirm: (id: string, cancelQty: number) => void;
   onClose: () => void;
 }) {
@@ -20,6 +21,7 @@ export function CancelModal({ item, onConfirm, onClose }: {
       primaryAction={{
         label: isMulti ? t('group.cancelQty', { qty }) : t('group.cancelConfirm'),
         variant: "danger",
+        disabled,
         onClick: () => onConfirm(item.id, isMulti ? qty : 1),
       }}
     >

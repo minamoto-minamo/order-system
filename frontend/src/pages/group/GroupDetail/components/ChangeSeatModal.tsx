@@ -40,11 +40,12 @@ interface Props {
   show: boolean;
   currentGroupId: string;
   currentSeatIds: number[];
+  disabled?: boolean;
   onConfirm: (seatIds: number[], name: string) => void;
   onClose: () => void;
 }
 
-export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, onConfirm, onClose }: Props) {
+export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, disabled, onConfirm, onClose }: Props) {
   const { t } = useTranslation();
   const [seats, setSeats] = useState<Seat[]>([]);
   const [tables, setTables] = useState<SeatTable[]>([]);
@@ -122,7 +123,7 @@ export function ChangeSeatModal({ show, currentGroupId, currentSeatIds, onConfir
           variant="primary"
           className="px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-40"
           onClick={handleConfirm}
-	          disabled={loadError || selectedIds.length === 0}
+	          disabled={disabled || loadError || selectedIds.length === 0}
         >
           {t('group.changeSeatConfirm')}
         </BaseButton>

@@ -3,12 +3,13 @@ import { BottomSheetModal, Icon, QuantityControl } from "@/components";
 import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 
-export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans, menus, onConfirm, onClose }: {
+export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans, menus, disabled, onConfirm, onClose }: {
   course: Course;
   courseQty: number;
   setCourseQty: (qty: number) => void;
   drinkPlans: DrinkPlan[];
   menus: MenuItem[];
+  disabled?: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -18,7 +19,7 @@ export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans
       show={true}
       onClose={onClose}
       secondaryAction={{ label: t('common.back'), onClick: onClose }}
-      primaryAction={{ label: t('group.courseApplyAction'), onClick: onConfirm }}
+      primaryAction={{ label: t('group.courseApplyAction'), onClick: onConfirm, disabled }}
     >
       <div className="text-sub font-medium text-ink mb-1">{course.name}</div>
       <div className="text-xs text-muted mb-4">¥{course.price.toLocaleString()} {t('common.perPerson')}</div>

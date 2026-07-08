@@ -9,6 +9,7 @@ interface ConfirmModalProps {
   confirmLabel: string;
   cancelLabel?: string;
   variant?: "default" | "danger";
+  disabled?: boolean;
   onConfirm: () => void;
   onClose: () => void;
   children?: ReactNode;
@@ -21,6 +22,7 @@ export function ConfirmModal({
   confirmLabel,
   cancelLabel,
   variant = "default",
+  disabled,
   onConfirm,
   onClose,
   children,
@@ -33,7 +35,7 @@ export function ConfirmModal({
       description={description}
       onClose={onClose}
       secondaryAction={{ label: cancelLabel ?? t("common.cancel"), onClick: onClose }}
-      primaryAction={{ label: confirmLabel, onClick: onConfirm, variant }}
+      primaryAction={{ label: confirmLabel, onClick: onConfirm, variant, disabled }}
     >
       {children}
     </BottomSheetModal>

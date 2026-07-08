@@ -8,7 +8,7 @@ import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { getSeatLabels } from "@/lib/utils";
 import type { Category, Course, DrinkPlan, Group, MenuItem, OrderItem, Seat, SubCategory } from "@order-system/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { BillFooter } from "./components/BillFooter";
@@ -22,6 +22,17 @@ import { OrderHistory } from "./components/OrderHistory";
 import { QrModal } from "./components/QrModal";
 
 // ── メイン ───────────────────────────────────────────────────
+
+type SubmittingAction =
+  | 'courseOrder'
+  | 'courseRemove'
+  | 'courseQtyChange'
+  | 'cancel'
+  | 'add'
+  | 'seatChange'
+  | 'billConfirm'
+  | 'billCancel'
+  | 'reset';
 
 export default function GroupDetail() {
   const { t } = useTranslation();
@@ -48,6 +59,8 @@ export default function GroupDetail() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { toast: addedToast, showToast } = useToast();
   const [loadError, setLoadError] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<SubmittingAction | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const fetchAll = () => Promise.all([
@@ -108,40 +121,59 @@ export default function GroupDetail() {
   const appliedCourseQty = appliedCourseChargeItem?.qty ?? null;
 
   const seatLabels = getSeatLabels(seats, group?.seatIds ?? []);
+  const isSubmitting = submittingAction !== null;
+
+  const runSubmitting = async (action: SubmittingAction, task: () => Promise<void>) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmittingAction(action);
+    try {
+      await task();
+    } finally {
+      submittingRef.current = false;
+      setSubmittingAction(null);
+    }
+  };
 
   const handleCourseOrder = async (course: Course, qty: number) => {
     if (!group) return;
-    try {
-      const updatedGroup = await api.post<Group>(EP.groupCourse(group.id), { courseId: course.id, qty });
-      setGroup(updatedGroup);
-      showToast(t('group.courseAppliedToast', { name: course.name }));
-      setShowCourseConfirm(null);
-      setTab('history');
-    } catch {
-      showToast(t('group.courseApplyFailed'));
-    }
+    await runSubmitting('courseOrder', async () => {
+      try {
+        const updatedGroup = await api.post<Group>(EP.groupCourse(group.id), { courseId: course.id, qty });
+        setGroup(updatedGroup);
+        showToast(t('group.courseAppliedToast', { name: course.name }));
+        setShowCourseConfirm(null);
+        setTab('history');
+      } catch {
+        showToast(t('group.courseApplyFailed'));
+      }
+    });
   };
 
   const handleCourseRemove = async () => {
     if (!group) return;
-    try {
-      const updatedGroup = await api.delete<Group>(EP.groupCourse(group.id));
-      setGroup(updatedGroup);
-      showToast(t('group.courseRemovedToast'));
-    } catch {
-      showToast(t('group.courseRemoveFailed'));
-    }
+    await runSubmitting('courseRemove', async () => {
+      try {
+        const updatedGroup = await api.delete<Group>(EP.groupCourse(group.id));
+        setGroup(updatedGroup);
+        showToast(t('group.courseRemovedToast'));
+      } catch {
+        showToast(t('group.courseRemoveFailed'));
+      }
+    });
   };
 
   const handleCourseQtyChange = async (qty: number) => {
     if (!group) return;
-    try {
-      const updated = await api.put<OrderItem | undefined>(EP.groupCourse(group.id), { qty });
-      if (updated) setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
-      showToast(t('group.courseQtyChangedToast'));
-    } catch {
-      showToast(t('group.courseQtyChangeFailed'));
-    }
+    await runSubmitting('courseQtyChange', async () => {
+      try {
+        const updated = await api.put<OrderItem | undefined>(EP.groupCourse(group.id), { qty });
+        if (updated) setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+        showToast(t('group.courseQtyChangedToast'));
+      } catch {
+        showToast(t('group.courseQtyChangeFailed'));
+      }
+    });
   };
 
   const handleChangeStatus = (id: string) => {
@@ -152,75 +184,87 @@ export default function GroupDetail() {
   };
 
   const handleCancelConfirm = async (id: string, cancelQty: number) => {
-    try {
-      const updated = await api.put<OrderItem>(EP.orderCancel(id), { qty: cancelQty });
-      setItems(prev => prev.map(i => i.id === id ? updated : i));
-    } catch {
-      showToast(t('group.cancelFailed'));
-    }
-    setCancelTarget(null);
+    await runSubmitting('cancel', async () => {
+      try {
+        const updated = await api.put<OrderItem>(EP.orderCancel(id), { qty: cancelQty });
+        setItems(prev => prev.map(i => i.id === id ? updated : i));
+      } catch {
+        showToast(t('group.cancelFailed'));
+      }
+      setCancelTarget(null);
+    });
   };
 
   const handleAdd = async (orderItems: { item: MenuItem; qty: number }[], isTakeout: boolean) => {
     if (!group || orderItems.length === 0) return;
-    try {
-      const created = await api.post<OrderItem[]>(EP.orders, {
-        groupId: group.id,
-        items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty, isTakeout })),
-      });
-      // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
-      setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
-      const names = orderItems.map(({ item, qty }) => `${item.name} ×${qty}`).join('、');
-      showToast(t('group.addedToastMsg', { name: names }));
-      setTab('history');
-    } catch {
-      showToast(t('group.addOrderFailed'));
-    }
+    await runSubmitting('add', async () => {
+      try {
+        const created = await api.post<OrderItem[]>(EP.orders, {
+          groupId: group.id,
+          items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty, isTakeout })),
+        });
+        // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
+        setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
+        const names = orderItems.map(({ item, qty }) => `${item.name} ×${qty}`).join('、');
+        showToast(t('group.addedToastMsg', { name: names }));
+        setTab('history');
+      } catch {
+        showToast(t('group.addOrderFailed'));
+      }
+    });
   };
 
   const handleSeatChange = async (seatIds: number[], name: string) => {
     if (!group) return;
-    try {
-      const updated = await api.put<Group>(EP.group(group.id), { seatIds, name });
-      setGroup(updated);
-      showToast(t('group.changeSeatToast'));
-    } catch {
-      showToast(t('group.changeSeatFailed'));
-    }
-    setShowSeatModal(false);
+    await runSubmitting('seatChange', async () => {
+      try {
+        const updated = await api.put<Group>(EP.group(group.id), { seatIds, name });
+        setGroup(updated);
+        showToast(t('group.changeSeatToast'));
+      } catch {
+        showToast(t('group.changeSeatFailed'));
+      }
+      setShowSeatModal(false);
+    });
   };
 
   const handleBillConfirm = async () => {
     if (!group) return;
-    try {
-      const updated = await api.put<Group>(EP.group(group.id), { status: 'bill_requested' });
-      setGroup(updated);
-    } catch {
-      showToast(t('group.billFailed'));
-    }
-    setShowBillConfirm(false);
+    await runSubmitting('billConfirm', async () => {
+      try {
+        const updated = await api.put<Group>(EP.group(group.id), { status: 'bill_requested' });
+        setGroup(updated);
+      } catch {
+        showToast(t('group.billFailed'));
+      }
+      setShowBillConfirm(false);
+    });
   };
 
   const handleBillCancel = async () => {
     if (!group) return;
-    try {
-      const updated = await api.put<Group>(EP.group(group.id), { status: 'active' });
-      setGroup(updated);
-      setTab('history');
-    } catch {
-      showToast(t('group.billCancelFailed'));
-    }
+    await runSubmitting('billCancel', async () => {
+      try {
+        const updated = await api.put<Group>(EP.group(group.id), { status: 'active' });
+        setGroup(updated);
+        setTab('history');
+      } catch {
+        showToast(t('group.billCancelFailed'));
+      }
+    });
   };
 
   const handleResetConfirm = async () => {
     if (!group) return;
-    try {
-      await api.put<Group>(EP.group(group.id), { status: 'closed' });
-      navigate(-1);
-    } catch {
-      showToast(t('group.checkOutFailed'));
-    }
-    setShowResetConfirm(false);
+    await runSubmitting('reset', async () => {
+      try {
+        await api.put<Group>(EP.group(group.id), { status: 'closed' });
+        navigate(-1);
+      } catch {
+        showToast(t('group.checkOutFailed'));
+      }
+      setShowResetConfirm(false);
+    });
   };
 
   if (loadError) return <LoadError />;
@@ -305,6 +349,7 @@ export default function GroupDetail() {
       {cancelTarget && (
         <CancelModal
           item={cancelTarget}
+          disabled={isSubmitting}
           onConfirm={handleCancelConfirm}
           onClose={() => setCancelTarget(null)}
         />
@@ -318,6 +363,7 @@ export default function GroupDetail() {
         description={t('group.billConfirmDesc')}
         cancelLabel={t('common.back')}
         confirmLabel={t('group.billConfirmAction')}
+        disabled={isSubmitting}
         onConfirm={handleBillConfirm}
         onClose={() => setShowBillConfirm(false)}
       />
@@ -327,6 +373,7 @@ export default function GroupDetail() {
         cancelLabel={t('common.back')}
         confirmLabel={t('group.checkOutAction')}
         variant="danger"
+        disabled={isSubmitting}
         onConfirm={handleResetConfirm}
         onClose={() => setShowResetConfirm(false)}
       >
@@ -346,6 +393,7 @@ export default function GroupDetail() {
           setCourseQty={setCourseQty}
           drinkPlans={drinkPlans}
           menus={menus}
+          disabled={isSubmitting}
           onConfirm={() => handleCourseOrder(showCourseConfirm, courseQty)}
           onClose={() => setShowCourseConfirm(null)}
         />
@@ -355,6 +403,7 @@ export default function GroupDetail() {
         show={showSeatModal}
         currentGroupId={groupId}
         currentSeatIds={group?.seatIds ?? []}
+        disabled={isSubmitting}
         onConfirm={handleSeatChange}
         onClose={() => setShowSeatModal(false)}
       />
