@@ -52,8 +52,8 @@ export default function Settings() {
     api.put(EP.settings, {
       storeName,
       closingTime: `${closeHour.padStart(2, '0')}:${closeMin.padStart(2, '0')}`,
-      taxRateInHouse: parseInt(taxDineIn, 10),
-      taxRateTakeout: parseInt(taxTakeout, 10),
+      taxRateInHouse: parseFloat(taxDineIn),
+      taxRateTakeout: parseFloat(taxTakeout),
       refreshTokenAutoExtend,
       refreshTokenExpiresMinutes: parseInt(refreshTokenExpiresMinutes, 10),
     })
