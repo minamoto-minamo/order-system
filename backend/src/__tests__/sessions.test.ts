@@ -12,6 +12,7 @@ type FakeOrderItem = {
   isCourseCharge: boolean
   courseId: number | null
   taxRate: { toNumber(): number }
+  taxInclusive: boolean
   orderedAt: Date
   menuItem: { category: { name: string }; subCategory: { name: string } } | null
 }
@@ -84,6 +85,7 @@ describe('GET /api/sessions/:id/report — カテゴリ内訳', () => {
         isCourseCharge: true,
         courseId: 5,
         taxRate: { toNumber: () => 10 },
+        taxInclusive: false,
         orderedAt: new Date('2026-07-02T12:00:00'),
         menuItem: null,
       },
@@ -95,6 +97,7 @@ describe('GET /api/sessions/:id/report — カテゴリ内訳', () => {
         isCourseCharge: false,
         courseId: null,
         taxRate: { toNumber: () => 10 },
+        taxInclusive: false,
         orderedAt: new Date('2026-07-02T12:00:00'),
         menuItem: null,
       },
@@ -106,6 +109,7 @@ describe('GET /api/sessions/:id/report — カテゴリ内訳', () => {
         isCourseCharge: false,
         courseId: null,
         taxRate: { toNumber: () => 10 },
+        taxInclusive: false,
         orderedAt: new Date('2026-07-02T12:00:00'),
         menuItem: { category: { name: 'ドリンク' }, subCategory: { name: 'アルコール' } },
       },
@@ -123,6 +127,62 @@ describe('GET /api/sessions/:id/report — カテゴリ内訳', () => {
     expect(body.categoryBreakdown['ドリンク']).toBe(600)
   })
 
+  it('taxBreakdown は税込・外税の混在を明細単位で集計する', async () => {
+    mockSessionFindFirst.mockResolvedValue({ id: 1 })
+    mockGroupFindMany.mockResolvedValue([{ id: 'g1', guestCount: 2, seats: [] }])
+    mockSeatCount.mockResolvedValue(10)
+    mockOrderItemFindMany.mockResolvedValue([
+      {
+        menuItemId: 1,
+        menuItemName: '外税商品',
+        price: 1000,
+        qty: 2,
+        isCourseCharge: false,
+        courseId: null,
+        taxRate: { toNumber: () => 10 },
+        taxInclusive: false,
+        orderedAt: new Date('2026-07-02T12:00:00'),
+        menuItem: { category: { name: 'フード' }, subCategory: { name: '揚げ物' } },
+      },
+      {
+        menuItemId: 2,
+        menuItemName: '税込商品',
+        price: 800,
+        qty: 3,
+        isCourseCharge: false,
+        courseId: null,
+        taxRate: { toNumber: () => 10 },
+        taxInclusive: true,
+        orderedAt: new Date('2026-07-02T12:00:00'),
+        menuItem: { category: { name: 'ドリンク' }, subCategory: { name: 'ソフトドリンク' } },
+      },
+      {
+        menuItemId: 3,
+        menuItemName: '外税テイクアウト',
+        price: 500,
+        qty: 1,
+        isCourseCharge: false,
+        courseId: null,
+        taxRate: { toNumber: () => 8 },
+        taxInclusive: false,
+        orderedAt: new Date('2026-07-02T12:00:00'),
+        menuItem: { category: { name: '弁当' }, subCategory: { name: '持ち帰り' } },
+      },
+    ])
+
+    const res = await app.inject({
+      method: 'GET', url: '/api/sessions/1/report',
+      headers: { cookie: `token=${token(app)}` },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json().taxBreakdown).toEqual({
+      '10': { subtotal: 2000, tax: 200 },
+      inclusive: { subtotal: 2400, tax: 0 },
+      '8': { subtotal: 500, tax: 40 },
+    })
+  })
+
   it('時間帯別集計はサーバーTZに依存せずJSTのhourに計上する', async () => {
     mockSessionFindFirst.mockResolvedValue({ id: 1 })
     mockGroupFindMany.mockResolvedValue([{ id: 'g1', guestCount: 2, seats: [] }])
@@ -136,6 +196,7 @@ describe('GET /api/sessions/:id/report — カテゴリ内訳', () => {
         isCourseCharge: false,
         courseId: null,
         taxRate: { toNumber: () => 10 },
+        taxInclusive: false,
         orderedAt: new Date('2026-07-02T11:00:00.000Z'),
         menuItem: { category: { name: 'ドリンク' }, subCategory: { name: 'アルコール' } },
       },

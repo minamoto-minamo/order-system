@@ -8,6 +8,7 @@ const DEFAULT_SETTING = {
   closingTime: '23:00',
   taxRateInHouse: 10,
   taxRateTakeout: 8,
+  taxInclusive: false,
   refreshTokenAutoExtend: true,
   refreshTokenExpiresMinutes: 1440,
 }
@@ -19,6 +20,7 @@ const updateBodySchema = {
     closingTime: { type: 'string', pattern: '^\\d{2}:\\d{2}$' },
     taxRateInHouse: { type: 'number', minimum: 0, maximum: 100 },
     taxRateTakeout: { type: 'number', minimum: 0, maximum: 100 },
+    taxInclusive: { type: 'boolean' },
     refreshTokenAutoExtend: { type: 'boolean' },
     refreshTokenExpiresMinutes: { type: 'integer', minimum: 5, maximum: 43200 },
   },
@@ -33,6 +35,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       closingTime: setting?.closingTime ?? DEFAULT_SETTING.closingTime,
       taxRateInHouse: setting ? setting.taxRateInHouse.toNumber() : DEFAULT_SETTING.taxRateInHouse,
       taxRateTakeout: setting ? setting.taxRateTakeout.toNumber() : DEFAULT_SETTING.taxRateTakeout,
+      taxInclusive: setting?.taxInclusive ?? DEFAULT_SETTING.taxInclusive,
       refreshTokenAutoExtend: setting?.refreshTokenAutoExtend ?? DEFAULT_SETTING.refreshTokenAutoExtend,
       refreshTokenExpiresMinutes: setting?.refreshTokenExpiresMinutes ?? DEFAULT_SETTING.refreshTokenExpiresMinutes,
     }
@@ -42,6 +45,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as Partial<{
       storeName: string; closingTime: string;
       taxRateInHouse: number; taxRateTakeout: number;
+      taxInclusive: boolean;
       refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
     }>
     const setting = await prisma.setting.upsert({
@@ -54,6 +58,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       closingTime: setting.closingTime,
       taxRateInHouse: setting.taxRateInHouse.toNumber(),
       taxRateTakeout: setting.taxRateTakeout.toNumber(),
+      taxInclusive: setting.taxInclusive,
       refreshTokenAutoExtend: setting.refreshTokenAutoExtend,
       refreshTokenExpiresMinutes: setting.refreshTokenExpiresMinutes,
     }

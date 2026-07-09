@@ -11,6 +11,7 @@ const DEFAULT_SETTING = {
   closingTime: '23:00',
   taxRateInHouse: 10,
   taxRateTakeout: 8,
+  taxInclusive: false,
 }
 
 const createBodySchema = {

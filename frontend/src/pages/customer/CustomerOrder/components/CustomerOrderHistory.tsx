@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { OrderItem } from "@order-system/shared";
 import { OrderSection } from "@/components";
 import { partitionOrderItems } from "@/lib/partitionOrderItems";
+import { calculateTaxTotals } from "@/lib/taxTotals";
 import { ActiveItemRow, ServedItemRow, type ItemGroup } from "./HistoryRows";
 import { HistoryCourseBlock } from "./HistoryCourseBlock";
 import { HistoryTotalsFooter } from "./HistoryTotalsFooter";
@@ -22,8 +23,7 @@ export function CustomerOrderHistory({ items }: { items: OrderItem[] }) {
   const { active, served, courseCharges, courseDishes } = partitionOrderItems(items);
   const activeGroups = groupItems(active);
   const servedGroups = groupItems(served);
-  const subtotal = items.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + i.price * i.qty, 0);
-  const tax      = items.filter(i => i.status !== 'cancelled').reduce((sum, i) => sum + Math.floor(i.price * i.qty * i.taxRate / 100), 0);
+  const { subtotal, tax } = calculateTaxTotals(items);
 
   // キャンセル済みは表示しないため、キャンセル分しか無い場合も「注文なし」扱いにする
   if (items.every(i => i.status === 'cancelled')) {

@@ -226,7 +226,8 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
     })
     mockOrderItemUpdate.mockResolvedValue({
       id: 'item-1', groupId: 'g1', menuItemId: 1, menuItemName: 'test', price: 100, qty: 1,
-      status: 'ready', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date(),
+      status: 'ready', isTakeout: false, taxRate: { toNumber: () => 10 }, taxInclusive: false, courseId: null,
+      isCourseCharge: false, isDrinkPlanCharge: false, orderedAt: new Date(),
     })
     await socket.handlers.get('order:complete')!('item-1')
     expect(mockOrderItemUpdate).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'item-1' }, data: { status: 'ready' } }))

@@ -1,4 +1,5 @@
 import { BaseButton } from "@/components";
+import { calculateTaxTotals } from "@/lib/taxTotals";
 import type { GroupStatus, OrderItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 
@@ -12,10 +13,7 @@ interface BillFooterProps {
 
 export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, onCheckOut }: BillFooterProps) {
   const { t } = useTranslation();
-  const activeItems = items.filter(i => i.status !== 'cancelled');
-  const subtotal = activeItems.reduce((s, i) => s + i.price * i.qty, 0);
-  // Math.floor で端数切り捨て（円未満の税額が生じないようにする）
-  const tax = activeItems.reduce((s, i) => s + Math.floor(i.price * i.qty * i.taxRate / 100), 0);
+  const { subtotal, tax } = calculateTaxTotals(items);
 
   return (
     <div className="px-4 pt-4 pb-5 border-t border-divider bg-surface shrink-0">
@@ -24,10 +22,12 @@ export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, on
           <span className="text-note text-dim">{t('group.total')}</span>
           <span className="text-note text-dim">¥{subtotal.toLocaleString()}</span>
         </div>
-        <div className="flex justify-between items-baseline mb-0.5">
-          <span className="text-xs text-muted">{t('group.tax')}</span>
-          <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
-        </div>
+        {tax > 0 && (
+          <div className="flex justify-between items-baseline mb-0.5">
+            <span className="text-xs text-muted">{t('group.tax')}</span>
+            <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
+          </div>
+        )}
         <div className="flex justify-between items-baseline">
           <span className="text-note text-dim">{t('group.totalWithTax')}</span>
           <span className="text-lg font-medium text-ink">¥{(subtotal + tax).toLocaleString()}</span>

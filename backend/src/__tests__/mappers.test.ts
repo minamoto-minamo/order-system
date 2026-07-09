@@ -69,6 +69,7 @@ describe('toOrderItem', () => {
     status: 'pending',
     isTakeout: false,
     taxRate: { toNumber: () => 10 },
+    taxInclusive: false,
     courseId: null,
     isCourseCharge: false,
     isDrinkPlanCharge: false,
@@ -86,6 +87,7 @@ describe('toOrderItem', () => {
       status: 'pending',
       isTakeout: false,
       taxRate: 10,
+      taxInclusive: false,
       courseId: null,
       isCourseCharge: false,
       isDrinkPlanCharge: false,
@@ -103,6 +105,10 @@ describe('toOrderItem', () => {
 
   it('isDrinkPlanCharge を変換する', () => {
     expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({ isDrinkPlanCharge: true })
+  })
+
+  it('taxInclusive を変換する', () => {
+    expect(toOrderItem({ ...base, taxInclusive: true })).toMatchObject({ taxInclusive: true })
   })
 })
 

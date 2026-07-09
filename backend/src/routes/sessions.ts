@@ -123,10 +123,15 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       const { menuItem } = item
       const amount = item.price * item.qty
 
-      const rate = item.taxRate.toNumber().toString()
-      if (!taxBreakdown[rate]) taxBreakdown[rate] = { subtotal: 0, tax: 0 }
-      taxBreakdown[rate].subtotal += amount
-      taxBreakdown[rate].tax += Math.floor(amount * item.taxRate.toNumber() / 100)
+      if (item.taxInclusive) {
+        if (!taxBreakdown.inclusive) taxBreakdown.inclusive = { subtotal: 0, tax: 0 }
+        taxBreakdown.inclusive.subtotal += amount
+      } else {
+        const rate = item.taxRate.toNumber().toString()
+        if (!taxBreakdown[rate]) taxBreakdown[rate] = { subtotal: 0, tax: 0 }
+        taxBreakdown[rate].subtotal += amount
+        taxBreakdown[rate].tax += Math.floor(amount * item.taxRate.toNumber() / 100)
+      }
 
       const catName = item.isCourseCharge ? 'コース・飲み放題料金' : (menuItem?.category.name ?? '削除済みメニュー')
       const subName = item.isCourseCharge ? 'コース・飲み放題料金' : (menuItem?.subCategory.name ?? '削除済みメニュー')

@@ -8,7 +8,7 @@ type DrinkPlanItem = { menuItemId: number }
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
-const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number } } | null>>()
+const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxInclusive?: boolean } | null>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
 

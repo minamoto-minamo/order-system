@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client'
 type Group = { id: string; status: string; drinkPlanId: number | null; courseId: number | null }
 type MenuItem = { id: number; name: string; price: number; soldOut: boolean; takeout: string }
 type DrinkPlanItem = { menuItemId: number }
-type Setting = { taxRateInHouse: { toNumber(): number }; taxRateTakeout: { toNumber(): number } }
+type Setting = { taxRateInHouse: { toNumber(): number }; taxRateTakeout: { toNumber(): number }; taxInclusive?: boolean }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
@@ -138,6 +138,35 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
     expect(mockDrinkPlanItemFindMany).not.toHaveBeenCalled()
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ menuItemId: 1, price: 600, originalPrice: null }),
+    }))
+  })
+
+  it('注文作成時点の taxInclusive を OrderItem にスナップショットする', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: true,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({
+      id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール',
+      price: 600, qty: 1, status: 'pending', isTakeout: false,
+      taxRate: { toNumber: () => 10 }, taxInclusive: true, courseId: null,
+      isCourseCharge: false, isDrinkPlanCharge: false, orderedAt: new Date(),
+    })
+    mockTx(mockCreate)
+
+    const res = await app.inject({
+      method: 'POST', url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ taxRate: 10, taxInclusive: true }),
     }))
   })
 })

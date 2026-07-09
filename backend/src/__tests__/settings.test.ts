@@ -53,7 +53,7 @@ describe('GET /api/settings', () => {
       method: 'GET', url: '/api/settings',
       headers: { cookie: `token=${app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'a', role: 'admin', storeId: STORE_ID })}` },
     })
-    expect(res.json()).toMatchObject({ refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 1440 })
+    expect(res.json()).toMatchObject({ taxInclusive: false, refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 1440 })
     await app.close()
   })
 
@@ -62,13 +62,14 @@ describe('GET /api/settings', () => {
     mockFindUnique.mockResolvedValue({
       storeName: 's', closingTime: '23:00',
       taxRateInHouse: decimal(10), taxRateTakeout: decimal(8),
+      taxInclusive: true,
       refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 60,
     })
     const res = await app.inject({
       method: 'GET', url: '/api/settings',
       headers: { cookie: `token=${app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'a', role: 'admin', storeId: STORE_ID })}` },
     })
-    expect(res.json()).toMatchObject({ refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 60 })
+    expect(res.json()).toMatchObject({ taxInclusive: true, refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 60 })
     await app.close()
   })
 })
@@ -79,6 +80,7 @@ describe('PUT /api/settings', () => {
     mockUpsert.mockResolvedValue({
       storeName: 's', closingTime: '23:00',
       taxRateInHouse: decimal(10), taxRateTakeout: decimal(8),
+      taxInclusive: true,
       refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 120,
     })
     const res = await app.inject({
@@ -89,6 +91,27 @@ describe('PUT /api/settings', () => {
     expect(res.statusCode).toBe(200)
     expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({
       update: { refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 120 },
+    }))
+    await app.close()
+  })
+
+  it('taxInclusive を更新できる', async () => {
+    const app = await buildTestApp()
+    mockUpsert.mockResolvedValue({
+      storeName: 's', closingTime: '23:00',
+      taxRateInHouse: decimal(10), taxRateTakeout: decimal(8),
+      taxInclusive: true,
+      refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 1440,
+    })
+    const res = await app.inject({
+      method: 'PUT', url: '/api/settings',
+      headers: { cookie: `token=${app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'a', role: 'admin', storeId: STORE_ID })}` },
+      payload: { taxInclusive: true },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ taxInclusive: true })
+    expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: { taxInclusive: true },
     }))
     await app.close()
   })
@@ -121,6 +144,7 @@ describe('PUT /api/settings', () => {
     mockUpsert.mockResolvedValue({
       storeName: 's', closingTime: '22:00',
       taxRateInHouse: decimal(10), taxRateTakeout: decimal(8),
+      taxInclusive: true,
       refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 120,
     })
     const res = await app.inject({

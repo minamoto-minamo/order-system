@@ -124,6 +124,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         if (!setting) throw new SettingNotFoundError()
         const taxRateInHouse = setting.taxRateInHouse.toNumber()
         const taxRateTakeout = setting.taxRateTakeout.toNumber()
+        const taxInclusive = setting.taxInclusive ?? false
 
         return Promise.all(body.items.map(item => {
           const isTakeout = item.isTakeout ?? false
@@ -142,6 +143,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
               qty: item.qty,
               isTakeout,
               taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
+              taxInclusive,
               courseId: body.courseId ?? null,
               storeId: request.storeId,
             },

@@ -54,6 +54,7 @@ export interface OrderItem {
   status: OrderItemStatus
   isTakeout: boolean
   taxRate: number
+  taxInclusive: boolean
   courseId: number | null
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean
@@ -115,6 +116,7 @@ export interface Setting {
   closingTime: string
   taxRateInHouse: number
   taxRateTakeout: number
+  taxInclusive: boolean
   refreshTokenAutoExtend: boolean
   refreshTokenExpiresMinutes: number
 }
@@ -228,6 +230,7 @@ export interface UpdateSettingRequest {
   closingTime?: string
   taxRateInHouse?: number
   taxRateTakeout?: number
+  taxInclusive?: boolean
   refreshTokenAutoExtend?: boolean
   refreshTokenExpiresMinutes?: number
 }

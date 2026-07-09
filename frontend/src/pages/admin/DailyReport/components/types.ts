@@ -9,6 +9,7 @@ export interface RankingEntry { name: string; qty: number; amount: number; categ
 export interface ReportData {
   total: number; groups: number; guests: number; seatUsageRate: number;
   categoryBreakdown: Record<string, number>; subBreakdown: Record<string, number>;
+  taxBreakdown: Record<string, { subtotal: number; tax: number }>;
   hourly: HourlyEntry[]; ranking: RankingEntry[];
 }
 

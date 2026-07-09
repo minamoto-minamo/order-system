@@ -318,6 +318,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       return sendError(reply, 500, ErrorCodes.Groups.SettingNotFound, '店舗設定が見つかりません')
     }
     const taxRateInHouse = setting.taxRateInHouse.toNumber()
+    const taxInclusive = setting.taxInclusive ?? false
 
     let txResult
     try {
@@ -347,6 +348,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               status: 'served',
               isTakeout: false,
               taxRate: taxRateInHouse,
+              taxInclusive,
               courseId: course.id,
               isCourseCharge: true,
               isDrinkPlanCharge: false,
@@ -367,6 +369,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               status: 'served',
               isTakeout: false,
               taxRate: taxRateInHouse,
+              taxInclusive,
               courseId: course.id,
               isCourseCharge: true,
               isDrinkPlanCharge: true,
@@ -393,6 +396,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 qty: fi.qty * qty,
                 isTakeout: false,
                 taxRate: taxRateInHouse,
+                taxInclusive,
                 courseId: course.id,
                 storeId: request.storeId,
               },

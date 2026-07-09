@@ -24,6 +24,7 @@ export default function Settings() {
   const [closeMin, setCloseMin] = useState("00");
   const [taxDineIn, setTaxDineIn] = useState("10");
   const [taxTakeout, setTaxTakeout] = useState("8");
+  const [taxInclusive, setTaxInclusive] = useState(false);
   const [refreshTokenAutoExtend, setRefreshTokenAutoExtend] = useState(true);
 	  const [refreshTokenExpiresMinutes, setRefreshTokenExpiresMinutes] = useState("1440");
 	  const [saved, setSaved] = useState(false);
@@ -32,6 +33,7 @@ export default function Settings() {
   useEffect(() => {
     api.get<{
       storeName: string; closingTime: string; taxRateInHouse: number; taxRateTakeout: number;
+      taxInclusive: boolean;
       refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
     }>(EP.settings)
 	      .then(s => {
@@ -42,6 +44,7 @@ export default function Settings() {
         setCloseMin(m)
         setTaxDineIn(String(s.taxRateInHouse))
         setTaxTakeout(String(s.taxRateTakeout))
+        setTaxInclusive(s.taxInclusive)
         setRefreshTokenAutoExtend(s.refreshTokenAutoExtend)
         setRefreshTokenExpiresMinutes(String(s.refreshTokenExpiresMinutes))
       })
@@ -54,6 +57,7 @@ export default function Settings() {
       closingTime: `${closeHour.padStart(2, '0')}:${closeMin.padStart(2, '0')}`,
       taxRateInHouse: parseFloat(taxDineIn),
       taxRateTakeout: parseFloat(taxTakeout),
+      taxInclusive,
       refreshTokenAutoExtend,
       refreshTokenExpiresMinutes: parseInt(refreshTokenExpiresMinutes, 10),
     })
@@ -155,6 +159,19 @@ export default function Settings() {
         {/* 税率設定 */}
         <Section title={t('settings.taxSettings')}>
           <SettingRow
+            label={t('settings.taxInclusive')}
+            sub={t('settings.taxInclusiveSub')}
+          >
+            <ToggleButtonGroup
+              options={[
+                { key: 'on', label: t('settings.taxInclusiveOn') },
+                { key: 'off', label: t('settings.taxInclusiveOff') },
+              ]}
+              value={taxInclusive ? 'on' : 'off'}
+              onChange={v => setTaxInclusive(v === 'on')}
+            />
+          </SettingRow>
+          <SettingRow
             label={t('settings.taxDineIn')}
             sub={t('settings.taxDineInSub')}
           >
@@ -163,6 +180,7 @@ export default function Settings() {
                 className="input-field border border-line rounded-[7px] px-2 py-1.5 text-sm w-15 text-center text-ink"
                 type="number" min="0" max="100"
                 value={taxDineIn}
+                disabled={taxInclusive}
                 onChange={e => setTaxDineIn(e.target.value)}
                 onBlur={e => setTaxDineIn(clamp(e.target.value, 0, 100))}
               />
@@ -178,6 +196,7 @@ export default function Settings() {
                 className="input-field border border-line rounded-[7px] px-2 py-1.5 text-sm w-15 text-center text-ink"
                 type="number" min="0" max="100"
                 value={taxTakeout}
+                disabled={taxInclusive}
                 onChange={e => setTaxTakeout(e.target.value)}
                 onBlur={e => setTaxTakeout(clamp(e.target.value, 0, 100))}
               />

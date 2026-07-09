@@ -144,6 +144,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
     if (!setting) fastify.log.warn('setting not found, using default tax rates')
     const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
+    const taxInclusive = setting?.taxInclusive ?? false
 
     const txResult = await prisma.$transaction(async (tx) => {
       const current = await tx.group.findUnique({ where: { id: body.groupId }, select: { status: true } })
@@ -163,6 +164,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               qty: item.qty,
               isTakeout: false,
               taxRate: taxRateInHouse,
+              taxInclusive,
               courseId: null,
               storeId: request.storeId,
             },

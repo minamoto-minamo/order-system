@@ -50,7 +50,7 @@ export function toStaffSession(t: {
 
 export function toOrderItem(o: {
   id: string; groupId: string; menuItemId: number | null; menuItemName: string; price: number;
-  qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; courseId: number | null;
+  qty: number; status: string; isTakeout: boolean; taxRate: { toNumber(): number }; taxInclusive: boolean; courseId: number | null;
   isCourseCharge: boolean; isDrinkPlanCharge: boolean; orderedAt: Date;
 }) {
   return {
@@ -64,6 +64,7 @@ export function toOrderItem(o: {
     status: o.status as OrderItemStatus,
     isTakeout: o.isTakeout,
     taxRate: o.taxRate.toNumber(),
+    taxInclusive: o.taxInclusive,
     courseId: o.courseId,
     isCourseCharge: o.isCourseCharge,
     isDrinkPlanCharge: o.isDrinkPlanCharge,

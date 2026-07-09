@@ -18,7 +18,7 @@ const menus = [
 
 const order: OrderItem = {
   id: 'uuid-order-1', groupId: 'uuid-group-1', menuItemId: 10, menuItemName: '枝豆',
-  price: 300, qty: 2, status: 'pending', isTakeout: false, taxRate: 10,
+  price: 300, qty: 2, status: 'pending', isTakeout: false, taxRate: 10, taxInclusive: false,
   courseId: null, isCourseCharge: false, isDrinkPlanCharge: false,
   orderedAt: '2024-01-01T10:00:00.000Z',
 }

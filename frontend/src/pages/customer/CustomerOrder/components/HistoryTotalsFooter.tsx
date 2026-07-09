@@ -8,10 +8,12 @@ export function HistoryTotalsFooter({ subtotal, tax }: { subtotal: number; tax: 
         <span className="text-note text-muted">{t('customerOrder.subtotal')}</span>
         <span className="text-note text-dim">¥{subtotal.toLocaleString()}</span>
       </div>
-      <div className="flex justify-between items-baseline">
-        <span className="text-xs text-muted">{t('customerOrder.tax')}</span>
-        <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
-      </div>
+      {tax > 0 && (
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs text-muted">{t('customerOrder.tax')}</span>
+          <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
+        </div>
+      )}
       <div className="flex justify-between items-baseline">
         <span className="text-note text-muted">{t('customerOrder.totalWithTax')}</span>
         <span className="text-sub font-medium text-ink">¥{(subtotal + tax).toLocaleString()}</span>
