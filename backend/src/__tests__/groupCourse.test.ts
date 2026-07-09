@@ -10,7 +10,7 @@ type DrinkPlan = { id: number; name: string; price: number }
 const mockGroupFindFirst  = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<Course | null>>()
 const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<DrinkPlan | null>>()
-const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxInclusive?: boolean } | null>>()
+const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxRateTakeout: { toNumber(): number }; taxInclusive: boolean } | null>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
 
@@ -59,7 +59,14 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
   beforeAll(async () => { app = await buildTestApp() })
   afterAll(async () => { await app.close() })
-  beforeEach(() => { jest.clearAllMocks() })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: false,
+    })
+  })
 
   it('グループが存在しない場合 404 を返す', async () => {
     mockGroupFindFirst.mockResolvedValue(null)
@@ -95,23 +102,9 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     expect(res.json()).toMatchObject({ error: { message: 'コースが見つかりません' } })
   })
 
-  it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
-    mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
-    mockSettingFindUnique.mockResolvedValue(null)
-    const res = await app.inject({
-      method: 'POST', url: `/api/groups/${GROUP_ID}/course`,
-      headers: { cookie: `token=${token(app)}` },
-      payload: { courseId: 1, qty: 2 },
-    })
-    expect(res.statusCode).toBe(500)
-    expect(mockTransaction).not.toHaveBeenCalled()
-  })
-
   it('food items なしのコースを適用すると group が更新され 200 を返す', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ランチ', price: 0, drinkPlanId: null, foodItems: [] })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const mockOrderItemCreate = jest.fn<() => Promise<unknown>>().mockResolvedValue({})
     mockTransaction.mockImplementation(async (cb) => {
@@ -135,7 +128,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   it('course.price > 0 のコースを適用するとコース料金 OrderItem が作成される', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 3000, drinkPlanId: null, foodItems: [] })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 3, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const chargeItem = { id: 'item-1', groupId: GROUP_ID, menuItemId: null, menuItemName: 'ディナーコース', price: 3000, qty: 2, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,7 +155,6 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         price: 3000,
         qty: 2,
         status: 'served',
-        taxRate: 10,
         courseId: 1,
         isCourseCharge: true,
         isDrinkPlanCharge: false,
@@ -174,7 +166,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 0, drinkPlanId: 5, foodItems: [] })
     mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, name: '飲み放題プラン', price: 2000 })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 4, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: 5, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const chargeItem = { id: 'item-2', groupId: GROUP_ID, menuItemId: null, menuItemName: '飲み放題プラン', price: 2000, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,7 +195,6 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         price: 2000,
         qty: 1,
         status: 'served',
-        taxRate: 10,
         courseId: 1,
         isCourseCharge: true,
         isDrinkPlanCharge: true,
@@ -217,7 +208,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       id: 1, name: 'コースA', price: 0, drinkPlanId: null,
       foodItems: [{ menuItemId: 10, qty: 2 }],
     })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 3, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const foodOrderItem = { id: 'item-food', groupId: GROUP_ID, menuItemId: 10, menuItemName: '唐揚げ', price: 0, qty: 6, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, orderedAt: new Date() }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -252,7 +243,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 0, drinkPlanId: 5, foodItems: [] })
     mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, name: '飲み放題プラン', price: 0 })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: 5, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const existingItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({ ...existingItem, price: 0, originalPrice: 500 })
@@ -284,7 +275,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   it('既にコースが適用されている場合、旧コースの課金明細を取消してから新コースを適用する（二重課金防止）', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 })
     mockCourseFindFirst.mockResolvedValue({ id: 2, name: '新コース', price: 4000, drinkPlanId: null, foodItems: [] })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 2, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const oldChargeItem = { id: 'old-charge', groupId: GROUP_ID, menuItemId: null, menuItemName: '旧コース', price: 3000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
     const drinkItem = { id: 'drink-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 0, originalPrice: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
@@ -331,7 +322,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
   it('旧コースの食事明細（isCourseCharge:false）も切替時にキャンセルされる（重複蓄積防止）', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 2, name: '新コース', price: 4000, drinkPlanId: null, foodItems: [] })
-    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 2, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const oldChargeItem = { id: 'old-charge', groupId: GROUP_ID, menuItemId: null, menuItemName: '旧コース', price: 3000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
     const oldFoodItem = { id: 'old-food', groupId: GROUP_ID, menuItemId: 10, menuItemName: '唐揚げ', price: 0, qty: 4, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 1, isCourseCharge: false, isDrinkPlanCharge: false, orderedAt: new Date() }

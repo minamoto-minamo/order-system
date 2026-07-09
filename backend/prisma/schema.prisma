@@ -234,6 +234,9 @@ model Group {
   sessionId   Int
   courseId    Int?
   drinkPlanId Int?
+  billedTaxRateInHouse Decimal? @db.Decimal(5, 2)
+  billedTaxRateTakeout Decimal? @db.Decimal(5, 2)
+  billedTaxInclusive Boolean?
   createdAt   DateTime    @default(now())
 
   store     Store      @relation(fields: [storeId], references: [id])
@@ -273,8 +276,6 @@ model OrderItem {
   qty            Int
   status         OrderItemStatus @default(pending)
   isTakeout      Boolean         @default(false)
-  taxRate        Decimal         @db.Decimal(5, 2)
-  taxInclusive   Boolean         @default(false)
   courseId       Int?
   // コース/飲み放題の定額課金明細かどうか。menuItemId が null になるだけでは
   // 「削除済みメニュー」と区別できないため明示的に持たせる

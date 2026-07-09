@@ -86,6 +86,9 @@ erDiagram
       string name
       int guestCount
       string status
+      Decimal billedTaxRateInHouse "nullable"
+      Decimal billedTaxRateTakeout "nullable"
+      boolean billedTaxInclusive "nullable"
       datetime createdAt
     }
     GROUP_SEAT {
@@ -101,7 +104,6 @@ erDiagram
       int qty
       string status
       boolean isTakeout
-      Decimal taxRate
       datetime orderedAt
     }
     SEAT_TABLE {

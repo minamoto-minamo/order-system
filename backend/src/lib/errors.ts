@@ -7,6 +7,7 @@ export const ErrorCodes = {
     InternalServerError: 'common.server.internal_error',
     DatabaseUnavailable: 'common.health.database_unavailable',
     UnknownStore: 'common.store.unknown',
+    SettingNotFound: 'common.setting_not_found',
   },
   Auth: {
     Required: 'auth.session.required',
@@ -23,6 +24,7 @@ export const ErrorCodes = {
     AlreadyOpen: 'sessions.create.already_open',
     NotFound: 'sessions.detail.not_found',
     ActiveGroupsExist: 'sessions.close.active_groups_exist',
+    ReportNotClosed: 'sessions.report.not_closed',
   },
   Groups: {
     InvalidStatus: 'groups.list.invalid_status',

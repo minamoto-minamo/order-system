@@ -10,8 +10,6 @@ function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
     qty: 1,
     status: 'pending' as OrderItemStatus,
     isTakeout: false,
-    taxRate: 10,
-    taxInclusive: false,
     courseId: null,
     isCourseCharge: false,
     isDrinkPlanCharge: false,

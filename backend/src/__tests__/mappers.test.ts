@@ -1,5 +1,11 @@
 import { toGroup, toCourse, toDrinkPlan, toOrderItem, toStaffSession } from '../lib/mappers.js'
 
+const setting = {
+  taxRateInHouse: { toNumber: () => 10 },
+  taxRateTakeout: { toNumber: () => 8 },
+  taxInclusive: false,
+}
+
 describe('toGroup', () => {
   const base = {
     id: 'uuid-group-1',
@@ -9,12 +15,15 @@ describe('toGroup', () => {
     sessionId: 10,
     courseId: null,
     drinkPlanId: null,
+    billedTaxRateInHouse: null,
+    billedTaxRateTakeout: null,
+    billedTaxInclusive: null,
     createdAt: new Date('2024-01-01T00:00:00.000Z'),
     seats: [{ seatId: 2 }, { seatId: 3 }],
   }
 
   it('Prismaレコードを共有型に変換する', () => {
-    expect(toGroup(base)).toEqual({
+    expect(toGroup(base, setting)).toEqual({
       id: 'uuid-group-1',
       name: 'テーブル1',
       guestCount: 3,
@@ -23,12 +32,28 @@ describe('toGroup', () => {
       sessionId: 10,
       courseId: null,
       drinkPlanId: null,
+      effectiveTaxRateInHouse: 10,
+      effectiveTaxRateTakeout: 8,
+      effectiveTaxInclusive: false,
       createdAt: '2024-01-01T00:00:00.000Z',
     })
   })
 
   it('seats が空のとき seatIds は []', () => {
-    expect(toGroup({ ...base, seats: [] }).seatIds).toEqual([])
+    expect(toGroup({ ...base, seats: [] }, setting).seatIds).toEqual([])
+  })
+
+  it('billedTax があるときは Setting より優先して実効税率にする', () => {
+    expect(toGroup({
+      ...base,
+      billedTaxRateInHouse: { toNumber: () => 12 },
+      billedTaxRateTakeout: { toNumber: () => 9 },
+      billedTaxInclusive: true,
+    }, setting)).toMatchObject({
+      effectiveTaxRateInHouse: 12,
+      effectiveTaxRateTakeout: 9,
+      effectiveTaxInclusive: true,
+    })
   })
 })
 
@@ -68,8 +93,6 @@ describe('toOrderItem', () => {
     qty: 2,
     status: 'pending',
     isTakeout: false,
-    taxRate: { toNumber: () => 10 },
-    taxInclusive: false,
     courseId: null,
     isCourseCharge: false,
     isDrinkPlanCharge: false,
@@ -86,8 +109,6 @@ describe('toOrderItem', () => {
       qty: 2,
       status: 'pending',
       isTakeout: false,
-      taxRate: 10,
-      taxInclusive: false,
       courseId: null,
       isCourseCharge: false,
       isDrinkPlanCharge: false,
@@ -105,10 +126,6 @@ describe('toOrderItem', () => {
 
   it('isDrinkPlanCharge を変換する', () => {
     expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({ isDrinkPlanCharge: true })
-  })
-
-  it('taxInclusive を変換する', () => {
-    expect(toOrderItem({ ...base, taxInclusive: true })).toMatchObject({ taxInclusive: true })
   })
 })
 

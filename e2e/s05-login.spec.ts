@@ -93,7 +93,6 @@ test('ログイン直後にリロードなしで調理完了ボタンが機能�
       price: menu!.price,
       qty: 1,
       status: 'pending',
-      taxRate: 10,
       storeId,
     },
   })

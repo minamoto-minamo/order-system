@@ -6,7 +6,6 @@ import { ErrorCodes, sendError } from '../lib/errors.js'
 
 class GroupStatusError extends Error {}
 class CourseMismatchError extends Error {}
-class SettingNotFoundError extends Error {}
 
 const createBodySchema = {
   type: 'object',
@@ -120,12 +119,6 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           planMenuItemIds = new Set(planItems.map(p => p.menuItemId))
         }
 
-        const setting = await tx.setting.findUnique({ where: { storeId: request.storeId } })
-        if (!setting) throw new SettingNotFoundError()
-        const taxRateInHouse = setting.taxRateInHouse.toNumber()
-        const taxRateTakeout = setting.taxRateTakeout.toNumber()
-        const taxInclusive = setting.taxInclusive ?? false
-
         return Promise.all(body.items.map(item => {
           const isTakeout = item.isTakeout ?? false
           // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
@@ -136,14 +129,12 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
             data: {
               groupId: body.groupId,
               menuItemId: item.menuItemId,
-              // 注文時点の名称・価格・税率をスナップショット保存（後から変更しても履歴が壊れない）
+              // 注文時点の名称・価格をスナップショット保存（後から変更しても履歴が壊れない）
               menuItemName: menuItemMap.get(item.menuItemId)!.name,
               price: isPlanItem ? 0 : originalPrice,
               originalPrice: isPlanItem ? originalPrice : null,
               qty: item.qty,
               isTakeout,
-              taxRate: isTakeout ? taxRateTakeout : taxRateInHouse,
-              taxInclusive,
               courseId: body.courseId ?? null,
               storeId: request.storeId,
             },
@@ -153,10 +144,6 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (e) {
       if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Orders.GroupNotAccepting, 'このグループには注文を追加できません')
       if (e instanceof CourseMismatchError) return sendError(reply, 422, ErrorCodes.Orders.CourseMismatch, '適用中のコースと一致しません', { courseId: body.courseId })
-      if (e instanceof SettingNotFoundError) {
-        fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
-        return sendError(reply, 500, ErrorCodes.Orders.SettingNotFound, '店舗設定が見つかりません')
-      }
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') return sendError(reply, 409, ErrorCodes.Orders.Conflict, '他の操作と競合しました。もう一度お試しください')
       throw e
     }

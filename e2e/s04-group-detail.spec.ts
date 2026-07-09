@@ -110,7 +110,6 @@ test('注文を追加してキャンセルできる', async ({ page }) => {
       price: menu!.price,
       qty: 1,
       status: 'pending',
-      taxRate: 10,
       storeId: getStore().id,
     },
   })

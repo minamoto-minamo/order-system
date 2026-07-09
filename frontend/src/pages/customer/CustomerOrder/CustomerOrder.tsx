@@ -14,7 +14,7 @@ import { CustomerMenuList } from "./components/CustomerMenuList";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
 
-type CustomerGroup = { id: string; name: string; status: string };
+type CustomerGroup = Pick<Group, 'id' | 'name' | 'status' | 'effectiveTaxRateInHouse' | 'effectiveTaxRateTakeout' | 'effectiveTaxInclusive'>;
 type CustomerMenusResponse = {
   menus: MenuItem[];
   categories: Category[];
@@ -81,7 +81,14 @@ export default function CustomerOrder() {
       setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'cancelled' as const } : i));
     },
     [SE.groupUpdated]: (g: Group) => {
-      if (g.id === groupId) setGroup({ id: g.id, name: g.name, status: g.status });
+      if (g.id === groupId) setGroup({
+        id: g.id,
+        name: g.name,
+        status: g.status,
+        effectiveTaxRateInHouse: g.effectiveTaxRateInHouse,
+        effectiveTaxRateTakeout: g.effectiveTaxRateTakeout,
+        effectiveTaxInclusive: g.effectiveTaxInclusive,
+      });
     },
   });
 
@@ -252,7 +259,7 @@ export default function CustomerOrder() {
           footerVisible={orderItems.length > 0}
         />
       ) : (
-        <CustomerOrderHistory items={items} />
+        <CustomerOrderHistory items={items} tax={group} />
       )}
 
       {activeTab === 'menu' && orderItems.length > 0 && (

@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit'
 import { prisma } from '../lib/prisma.js'
 import { toOrderItem, toGroup } from '../lib/mappers.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { getTaxSettingOrThrow, SettingNotFoundError } from '../lib/taxSetting.js'
 
 const createOrderBodySchema = {
   type: 'object',
@@ -31,9 +32,15 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/groups/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
-    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
+    const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId }, include: { seats: true } })
     if (!group) return sendError(reply, 404, ErrorCodes.Customer.GroupNotFound, 'テーブルが見つかりません')
-    return { id: group.id, name: group.name, status: group.status }
+    try {
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      return toGroup(group, setting)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
   })
 
   fastify.get('/groups/:id/menus', async (request, reply) => {
@@ -74,12 +81,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group) return sendError(reply, 404, ErrorCodes.Customer.GroupNotFound, 'テーブルが見つかりません')
     if (group.status !== 'active') return sendError(reply, 400, ErrorCodes.Customer.BillRequestNotAllowed, '会計を依頼できない状態です')
+    let setting
+    try {
+      setting = await getTaxSettingOrThrow(request.storeId)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
     const updated = await prisma.group.update({
       where: { id },
       data: { status: 'bill_requested' },
       include: { seats: true },
     })
-    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', toGroup(updated))
+    fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', toGroup(updated, setting))
     return reply.status(204).send()
   })
 
@@ -141,11 +155,6 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
-    if (!setting) fastify.log.warn('setting not found, using default tax rates')
-    const taxRateInHouse = setting?.taxRateInHouse.toNumber() ?? 10
-    const taxInclusive = setting?.taxInclusive ?? false
-
     const txResult = await prisma.$transaction(async (tx) => {
       const current = await tx.group.findUnique({ where: { id: body.groupId }, select: { status: true } })
       if (current?.status !== 'active') return null
@@ -163,8 +172,6 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               originalPrice: isPlanItem ? originalPrice : null,
               qty: item.qty,
               isTakeout: false,
-              taxRate: taxRateInHouse,
-              taxInclusive,
               courseId: null,
               storeId: request.storeId,
             },

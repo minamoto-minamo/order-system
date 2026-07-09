@@ -15,6 +15,7 @@ const tables: SeatTable[] = [
 const baseGroup: Group = {
   id: 'uuid-group-1', name: 'G1', guestCount: 2, seatIds: [], sessionId: 1,
   courseId: null, drinkPlanId: null, createdAt: '2024-01-01T00:00:00.000Z',
+  effectiveTaxRateInHouse: 10, effectiveTaxRateTakeout: 8, effectiveTaxInclusive: false,
   status: 'active',
 }
 

@@ -1,19 +1,20 @@
 import { BaseButton } from "@/components";
 import { calculateTaxTotals } from "@/lib/taxTotals";
-import type { GroupStatus, OrderItem } from "@order-system/shared";
+import type { Group, GroupStatus, OrderItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 
 interface BillFooterProps {
   items: OrderItem[]
+  tax: Pick<Group, 'effectiveTaxRateInHouse' | 'effectiveTaxRateTakeout' | 'effectiveTaxInclusive'>
   groupStatus: GroupStatus | undefined
   onBillRequest: () => void
   onBillCancel: () => void
   onCheckOut: () => void
 }
 
-export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, onCheckOut }: BillFooterProps) {
+export function BillFooter({ items, tax, groupStatus, onBillRequest, onBillCancel, onCheckOut }: BillFooterProps) {
   const { t } = useTranslation();
-  const { subtotal, tax } = calculateTaxTotals(items);
+  const { subtotal, tax: taxAmount } = calculateTaxTotals(items, tax);
 
   return (
     <div className="px-4 pt-4 pb-5 border-t border-divider bg-surface shrink-0">
@@ -22,15 +23,15 @@ export function BillFooter({ items, groupStatus, onBillRequest, onBillCancel, on
           <span className="text-note text-dim">{t('group.total')}</span>
           <span className="text-note text-dim">¥{subtotal.toLocaleString()}</span>
         </div>
-        {tax > 0 && (
+        {taxAmount > 0 && (
           <div className="flex justify-between items-baseline mb-0.5">
             <span className="text-xs text-muted">{t('group.tax')}</span>
-            <span className="text-xs text-muted">+¥{tax.toLocaleString()}</span>
+            <span className="text-xs text-muted">+¥{taxAmount.toLocaleString()}</span>
           </div>
         )}
         <div className="flex justify-between items-baseline">
           <span className="text-note text-dim">{t('group.totalWithTax')}</span>
-          <span className="text-lg font-medium text-ink">¥{(subtotal + tax).toLocaleString()}</span>
+          <span className="text-lg font-medium text-ink">¥{(subtotal + taxAmount).toLocaleString()}</span>
         </div>
       </div>
       {groupStatus === 'bill_requested' ? (

@@ -93,7 +93,7 @@ Socket emit: `menu:updated`（常に、更新後の MenuItem オブジェクト�
 
 Response 204: No Content
 Response 404: `menus.detail.not_found`
-Response 409: `menus.delete.active_order_exists` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price`・`taxRate` は保持）になる。
+Response 409: `menus.delete.active_order_exists` — `pending` または `ready` の注文が存在する場合。`served`/`cancelled` のみなら削除可能。削除後、過去の `OrderItem` は `menuItemId: null`（`menuItemName`・`price` は保持）になる。
 Socket emit: `menu:deleted`（削除した `menuItemId: number`）
 
 ## Categories

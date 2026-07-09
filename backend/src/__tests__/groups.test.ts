@@ -5,7 +5,12 @@ import jwt from '@fastify/jwt'
 import { Prisma } from '@prisma/client'
 
 type GroupSeat = { groupId: string; seatId: number }
-type Group = { id: string; name: string; guestCount: number; status: string; sessionId: number; courseId: number | null; drinkPlanId: number | null; createdAt: Date; seats: { seatId: number }[] }
+type Group = {
+  id: string; name: string; guestCount: number; status: string; sessionId: number;
+  courseId: number | null; drinkPlanId: number | null;
+  billedTaxRateInHouse: { toNumber(): number } | null; billedTaxRateTakeout: { toNumber(): number } | null; billedTaxInclusive: boolean | null;
+  createdAt: Date; seats: { seatId: number }[];
+}
 
 const mockSessionFindFirst = jest.fn<() => Promise<{ id: number; status: string } | null>>()
 const mockSeatFindMany = jest.fn<() => Promise<{ id: number; label: string }[]>>()
@@ -14,6 +19,7 @@ const mockGroupFindFirst = jest.fn<() => Promise<{ id: string; sessionId?: numbe
 const mockGroupSeatFindFirst = jest.fn<() => Promise<GroupSeat | null>>()
 const mockGroupCreate = jest.fn<() => Promise<Group>>()
 const mockGroupUpdate = jest.fn<() => Promise<Group>>()
+const mockSettingFindUnique = jest.fn<() => Promise<any>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
 
@@ -23,6 +29,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     seat: { findMany: mockSeatFindMany, count: mockSeatCount },
     groupSeat: { findFirst: mockGroupSeatFindFirst },
     group: { findFirst: mockGroupFindFirst, create: mockGroupCreate, update: mockGroupUpdate },
+    setting: { findUnique: mockSettingFindUnique },
     $transaction: mockTransaction,
   },
 }))
@@ -33,6 +40,7 @@ const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const GROUP_ID = 'gggggggg-gggg-gggg-gggg-gggggggggggg'
 const STORE_ID = 1
+const groupTax = { billedTaxRateInHouse: null, billedTaxRateTakeout: null, billedTaxInclusive: null }
 
 async function buildTestApp() {
   const app = Fastify({ logger: false })
@@ -57,11 +65,49 @@ function token(app: Awaited<ReturnType<typeof buildTestApp>>) {
   return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
 }
 
-describe('POST /api/groups — グループ作成', () => {
+describe('GET /api/groups/:id — 税率設定', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
   beforeAll(async () => { app = await buildTestApp() })
   afterAll(async () => { await app.close() })
   beforeEach(() => { jest.clearAllMocks() })
+
+  it('Setting が存在しない場合、デフォルト税率へフォールバックせず 500 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      name: 'A-1',
+      guestCount: 2,
+      status: 'active',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      ...groupTax,
+      createdAt: new Date(),
+      seats: [],
+    } as any)
+    mockSettingFindUnique.mockResolvedValue(null)
+
+    const res = await app.inject({
+      method: 'GET', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+    })
+
+    expect(res.statusCode).toBe(500)
+    expect(res.json()).toMatchObject({ error: { code: 'common.setting_not_found', message: '店舗設定が見つかりません' } })
+  })
+})
+
+describe('POST /api/groups — グループ作成', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: false,
+    })
+  })
 
   it('営業中セッションがない場合 409 を返す', async () => {
     mockSeatFindMany.mockResolvedValue([{ id: 1, label: 'A-1' }])
@@ -117,7 +163,7 @@ describe('POST /api/groups — グループ作成', () => {
   })
 
   it('競合席がない場合グループを作成して 201 を返す', async () => {
-    const newGroup: Group = { id: GROUP_ID, name: 'A-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [{ seatId: 1 }] }
+    const newGroup: Group = { id: GROUP_ID, name: 'A-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, ...groupTax, createdAt: new Date(), seats: [{ seatId: 1 }] }
     mockSeatFindMany.mockResolvedValue([{ id: 1, label: 'A-1' }])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
@@ -143,6 +189,11 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
   afterAll(async () => { await app.close() })
   beforeEach(() => {
     jest.clearAllMocks()
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: false,
+    })
     mockSessionFindFirst.mockResolvedValue({ id: 1, status: 'open' })
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, sessionId: 1 })
   })
@@ -230,7 +281,7 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
   })
 
   it('seatIds に競合席がない場合グループを更新して 200 を返す', async () => {
-    const updatedGroup: Group = { id: GROUP_ID, name: 'B-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [{ seatId: 3 }] }
+    const updatedGroup: Group = { id: GROUP_ID, name: 'B-1', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, ...groupTax, createdAt: new Date(), seats: [{ seatId: 3 }] }
     mockSeatFindMany.mockResolvedValue([])
     mockSeatCount.mockResolvedValue(1)
     mockTransaction.mockImplementation(async (cb) => {
@@ -249,8 +300,84 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     expect(res.json()).toMatchObject({ id: GROUP_ID })
   })
 
+  it('bill_requested から closed へ遷移すると現在の税率を Group にスナップショットする', async () => {
+    const billedSetting = {
+      taxRateInHouse: { toNumber: () => 12 },
+      taxRateTakeout: { toNumber: () => 9 },
+      taxInclusive: true,
+    }
+    const updatedGroup: Group = {
+      id: GROUP_ID,
+      name: 'テスト',
+      guestCount: 2,
+      status: 'closed',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      billedTaxRateInHouse: billedSetting.taxRateInHouse,
+      billedTaxRateTakeout: billedSetting.taxRateTakeout,
+      billedTaxInclusive: true,
+      createdAt: new Date(),
+      seats: [],
+    }
+    const mockTxGroupUpdate = jest.fn<any>().mockResolvedValue(updatedGroup)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'bill_requested' }), update: mockTxGroupUpdate },
+        setting: { findUnique: () => Promise.resolve(billedSetting) },
+        groupSeat: { findFirst: () => Promise.resolve(null) },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'closed' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        status: 'closed',
+        billedTaxRateInHouse: billedSetting.taxRateInHouse,
+        billedTaxRateTakeout: billedSetting.taxRateTakeout,
+        billedTaxInclusive: true,
+      }),
+    }))
+    expect(res.json()).toMatchObject({
+      effectiveTaxRateInHouse: 12,
+      effectiveTaxRateTakeout: 9,
+      effectiveTaxInclusive: true,
+    })
+  })
+
+  it('bill_requested から active へ戻すと税率スナップショットを書き込まない', async () => {
+    const updatedGroup: Group = { id: GROUP_ID, name: 'テスト', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, ...groupTax, createdAt: new Date(), seats: [] }
+    const mockTxGroupUpdate = jest.fn<any>().mockResolvedValue(updatedGroup)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'bill_requested' }), update: mockTxGroupUpdate },
+        setting: { findUnique: jest.fn() },
+        groupSeat: { findFirst: () => Promise.resolve(null) },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'active' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: { status: 'active' },
+    }))
+  })
+
   it('courseId / drinkPlanId を送っても更新データに反映されない（コース適用は POST /:id/course 経由に限定）', async () => {
-    const updatedGroup: Group = { id: GROUP_ID, name: 'テスト', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] }
+    const updatedGroup: Group = { id: GROUP_ID, name: 'テスト', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, ...groupTax, createdAt: new Date(), seats: [] }
     mockSeatFindMany.mockResolvedValue([])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockTxGroupUpdate = jest.fn<any>().mockResolvedValue(updatedGroup)

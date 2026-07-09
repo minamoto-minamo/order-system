@@ -12,8 +12,6 @@ function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
     qty: 1,
     status: 'served' as OrderItemStatus,
     isTakeout: false,
-    taxRate: 10,
-    taxInclusive: false,
     courseId: null,
     isCourseCharge: false,
     isDrinkPlanCharge: false,
@@ -22,33 +20,35 @@ function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
   }
 }
 
+const exclusiveTax = {
+  effectiveTaxRateInHouse: 10,
+  effectiveTaxRateTakeout: 8,
+  effectiveTaxInclusive: false,
+}
+
+const inclusiveTax = {
+  effectiveTaxRateInHouse: 10,
+  effectiveTaxRateTakeout: 8,
+  effectiveTaxInclusive: true,
+}
+
 describe('calculateTaxTotals', () => {
-  it('税込・外税・混在の明細を明細単位で扱う（会計画面のケース）', () => {
+  it('店内・テイクアウトの税率を Group の実効税率で出し分ける', () => {
     const items = [
-      makeItem({ id: 'exclusive', price: 1000, qty: 2, taxRate: 10, taxInclusive: false }),
-      makeItem({ id: 'inclusive', price: 800, qty: 3, taxRate: 10, taxInclusive: true }),
-      makeItem({ id: 'takeout', price: 500, qty: 1, taxRate: 8, taxInclusive: false }),
-      makeItem({ id: 'cancelled', price: 900, qty: 1, status: 'cancelled', taxRate: 10, taxInclusive: false }),
+      makeItem({ id: 'dine-in', price: 1000, qty: 2 }),
+      makeItem({ id: 'takeout', price: 500, qty: 1, isTakeout: true }),
+      makeItem({ id: 'cancelled', price: 900, qty: 1, status: 'cancelled' }),
     ]
 
-    expect(calculateTaxTotals(items)).toEqual({ subtotal: 4900, tax: 240 })
+    expect(calculateTaxTotals(items, exclusiveTax)).toEqual({ subtotal: 2500, tax: 240 })
   })
 
-  it('税込・外税・混在の明細を明細単位で扱う（客用注文履歴のケース）', () => {
+  it('Group が税込の場合、税額は常に0になる', () => {
     const items = [
-      makeItem({ id: 'exclusive', price: 1200, qty: 1, taxRate: 10, taxInclusive: false }),
-      makeItem({ id: 'inclusive', price: 600, qty: 2, taxRate: 10, taxInclusive: true }),
+      makeItem({ id: 'inclusive-1', price: 1000, qty: 1 }),
+      makeItem({ id: 'inclusive-2', price: 500, qty: 2, isTakeout: true }),
     ]
 
-    expect(calculateTaxTotals(items)).toEqual({ subtotal: 2400, tax: 120 })
-  })
-
-  it('全明細が税込の場合、税額は常に0になる', () => {
-    const items = [
-      makeItem({ id: 'inclusive-1', price: 1000, qty: 1, taxInclusive: true }),
-      makeItem({ id: 'inclusive-2', price: 500, qty: 2, taxInclusive: true }),
-    ]
-
-    expect(calculateTaxTotals(items)).toEqual({ subtotal: 2000, tax: 0 })
+    expect(calculateTaxTotals(items, inclusiveTax)).toEqual({ subtotal: 2000, tax: 0 })
   })
 })

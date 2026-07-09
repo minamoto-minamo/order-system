@@ -8,7 +8,7 @@ type DrinkPlanItem = { menuItemId: number }
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
-const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxInclusive?: boolean } | null>>()
+const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<{ taxRateInHouse: { toNumber(): number }; taxRateTakeout?: { toNumber(): number }; taxInclusive?: boolean } | null>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
 
@@ -49,6 +49,38 @@ function mockTx(createFn: (...args: unknown[]) => Promise<unknown>) {
     return cb(tx)
   })
 }
+
+describe('GET /api/customer/groups/:id — 税率設定', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => { app = await buildTestApp() })
+  afterAll(async () => { await app.close() })
+  beforeEach(() => { jest.clearAllMocks() })
+
+  it('Setting が存在しない場合、デフォルト税率へフォールバックせず 500 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      name: 'A-1',
+      guestCount: 2,
+      status: 'active',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      billedTaxRateInHouse: null,
+      billedTaxRateTakeout: null,
+      billedTaxInclusive: null,
+      createdAt: new Date(),
+      seats: [],
+    } as any)
+    mockSettingFindUnique.mockResolvedValue(null)
+
+    const res = await app.inject({
+      method: 'GET', url: `/api/customer/groups/${GROUP_ID}`,
+    })
+
+    expect(res.statusCode).toBe(500)
+    expect(res.json()).toMatchObject({ error: { code: 'common.setting_not_found', message: '店舗設定が見つかりません' } })
+  })
+})
 
 describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円化', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>

@@ -325,6 +325,7 @@ export default function GroupDetail() {
             />
             <BillFooter
               items={items}
+              tax={group}
               groupStatus={group?.status}
               onBillRequest={() => setShowBillConfirm(true)}
               onBillCancel={handleBillCancel}

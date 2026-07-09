@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { toGroup, toOrderItem } from '../lib/mappers.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { getTaxSettingOrThrow, SettingNotFoundError } from '../lib/taxSetting.js'
 
 class SeatConflictError extends Error {}
 class SoldOutError extends Error {}
@@ -129,12 +130,20 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       }
       where.status = statuses.length === 1 ? statuses[0] : { in: statuses }
     }
-    const groups = await prisma.group.findMany({
-      where,
-      include: { seats: true },
-      orderBy: { createdAt: 'asc' },
-    })
-    return groups.map(toGroup)
+    try {
+      const [groups, setting] = await Promise.all([
+        prisma.group.findMany({
+          where,
+          include: { seats: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+        getTaxSettingOrThrow(request.storeId),
+      ])
+      return groups.map(g => toGroup(g, setting))
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
   })
 
   fastify.get('/:id', async (request, reply) => {
@@ -144,7 +153,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       include: { seats: true },
     })
     if (!group) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
-    return toGroup(group)
+    try {
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      return toGroup(group, setting)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
   })
 
   fastify.post('/', { schema: { body: createBodySchema } }, async (request, reply) => {
@@ -201,7 +216,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const { group } = txResult
-    const result = toGroup(group)
+    let result
+    try {
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      result = toGroup(group, setting)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
     fastify.io.to(`store:${request.storeId}`).emit('group:created', result)
 
     // ホール画面の席カードが占有状態をリアルタイムで反映できるよう通知する
@@ -254,6 +276,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           const from = currentGroup.status
           const to = body.status!
           if (!validTransitions[from]?.includes(to)) throw new InvalidTransitionError(from, to)
+          if (to === 'closed') {
+            const setting = await tx.setting.findUnique({ where: { storeId: request.storeId } })
+            if (!setting) throw new SettingNotFoundError()
+            updateData.billedTaxRateInHouse = setting.taxRateInHouse
+            updateData.billedTaxRateTakeout = setting.taxRateTakeout
+            updateData.billedTaxInclusive = setting.taxInclusive
+          }
         } else if (currentGroup.status === 'closed' || currentGroup.status === 'bill_requested') {
           // 会計済み・会計待ちのグループは status 変更以外の更新（人数・名前・席）を許可しない
           throw new GroupStatusError()
@@ -275,7 +304,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         // Serializable にしないと、同一席への同時割当リクエストが両方とも conflict チェックを素通りしてしまう
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-      const result = toGroup(group)
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      const result = toGroup(group, setting)
       fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', result)
 
       const seatIds = body.seatIds ?? group.seats.map(s => s.seatId)
@@ -287,6 +317,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       return result
     } catch (e) {
       if (e instanceof NotFoundError) return sendError(reply, 404, ErrorCodes.Groups.NotFound, 'グループが見つかりません')
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
       if (e instanceof InvalidTransitionError) return sendError(reply, 409, ErrorCodes.Groups.InvalidTransition, `${e.from} から ${e.to} への遷移は許可されていません`, { from: e.from, to: e.to })
       if (e instanceof SeatConflictError) return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
       if (e instanceof GroupStatusError) return sendError(reply, 409, ErrorCodes.Groups.ClosedOrBillRequested, '会計済み・会計待ちのグループは変更できません')
@@ -311,14 +342,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     const drinkPlan = course.drinkPlanId != null
       ? await prisma.drinkPlan.findFirst({ where: { id: course.drinkPlanId, storeId: request.storeId } })
       : null
-
-    const setting = await prisma.setting.findUnique({ where: { storeId: request.storeId } })
-    if (!setting) {
-      fastify.log.error({ storeId: request.storeId }, 'setting not found, cannot determine tax rates')
-      return sendError(reply, 500, ErrorCodes.Groups.SettingNotFound, '店舗設定が見つかりません')
-    }
-    const taxRateInHouse = setting.taxRateInHouse.toNumber()
-    const taxInclusive = setting.taxInclusive ?? false
 
     let txResult
     try {
@@ -347,8 +370,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               qty,
               status: 'served',
               isTakeout: false,
-              taxRate: taxRateInHouse,
-              taxInclusive,
               courseId: course.id,
               isCourseCharge: true,
               isDrinkPlanCharge: false,
@@ -368,8 +389,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               qty: 1,
               status: 'served',
               isTakeout: false,
-              taxRate: taxRateInHouse,
-              taxInclusive,
               courseId: course.id,
               isCourseCharge: true,
               isDrinkPlanCharge: true,
@@ -395,8 +414,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 price: 0,
                 qty: fi.qty * qty,
                 isTakeout: false,
-                taxRate: taxRateInHouse,
-                taxInclusive,
                 courseId: course.id,
                 storeId: request.storeId,
               },
@@ -445,7 +462,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
-    const groupResult = toGroup(updatedGroup)
+    let groupResult
+    try {
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      groupResult = toGroup(updatedGroup, setting)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
     fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', groupResult)
     for (const item of createdItems) {
       fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:created', toOrderItem(item))
@@ -559,7 +583,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const { group, restoredItems, cancelledItems } = txResult
-    const result = toGroup(group)
+    let result
+    try {
+      const setting = await getTaxSettingOrThrow(request.storeId)
+      result = toGroup(group, setting)
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
     fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('group:updated', result)
     for (const item of restoredItems) {
       fastify.io.to(`store:${request.storeId}`).to(`group:${id}`).emit('order:updated', toOrderItem(item))

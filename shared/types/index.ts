@@ -39,6 +39,9 @@ export interface Group {
   sessionId: number
   courseId: number | null
   drinkPlanId: number | null
+  effectiveTaxRateInHouse: number
+  effectiveTaxRateTakeout: number
+  effectiveTaxInclusive: boolean
   createdAt: string
 }
 
@@ -53,8 +56,6 @@ export interface OrderItem {
   qty: number
   status: OrderItemStatus
   isTakeout: boolean
-  taxRate: number
-  taxInclusive: boolean
   courseId: number | null
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean

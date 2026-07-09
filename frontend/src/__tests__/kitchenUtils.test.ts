@@ -9,6 +9,7 @@ const seats: Seat[] = [
 const groups: Group[] = [{
   id: 'uuid-group-1', name: 'G1', guestCount: 2, seatIds: [1, 2], sessionId: 1,
   courseId: null, drinkPlanId: null, createdAt: '2024-01-01T00:00:00.000Z',
+  effectiveTaxRateInHouse: 10, effectiveTaxRateTakeout: 8, effectiveTaxInclusive: false,
   status: 'active',
 }]
 
@@ -18,7 +19,7 @@ const menus = [
 
 const order: OrderItem = {
   id: 'uuid-order-1', groupId: 'uuid-group-1', menuItemId: 10, menuItemName: '枝豆',
-  price: 300, qty: 2, status: 'pending', isTakeout: false, taxRate: 10, taxInclusive: false,
+  price: 300, qty: 2, status: 'pending', isTakeout: false,
   courseId: null, isCourseCharge: false, isDrinkPlanCharge: false,
   orderedAt: '2024-01-01T10:00:00.000Z',
 }

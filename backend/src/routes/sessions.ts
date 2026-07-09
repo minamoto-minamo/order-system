@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { resolveGroupTax } from '../lib/mappers.js'
+import { getTaxSettingOrThrow, SettingNotFoundError } from '../lib/taxSetting.js'
 
 const jstHourFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Tokyo',
@@ -92,6 +94,7 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const session = await prisma.session.findFirst({ where: { id: sessionId, storeId: request.storeId } })
     if (!session) return sendError(reply, 404, ErrorCodes.Sessions.NotFound, 'セッションが見つかりません')
+    if (session.status !== 'closed') return sendError(reply, 409, ErrorCodes.Sessions.ReportNotClosed, 'セッションが締められていません')
 
     const groups = await prisma.group.findMany({
       where: { sessionId },
@@ -100,17 +103,28 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
     const groupIds = groups.map(g => g.id)
     const totalGuests = groups.reduce((s, g) => s + g.guestCount, 0)
 
-    const orderItems = await prisma.orderItem.findMany({
-      where: {
-        groupId: { in: groupIds },
-        status: { not: 'cancelled' },
-      },
-      include: {
-        menuItem: {
-          include: { category: true, subCategory: true },
-        },
-      },
-    })
+    let orderItems
+    let taxSetting
+    try {
+      [orderItems, taxSetting] = await Promise.all([
+        prisma.orderItem.findMany({
+          where: {
+            groupId: { in: groupIds },
+            status: { not: 'cancelled' },
+          },
+          include: {
+            group: true,
+            menuItem: {
+              include: { category: true, subCategory: true },
+            },
+          },
+        }),
+        getTaxSettingOrThrow(request.storeId),
+      ])
+    } catch (e) {
+      if (e instanceof SettingNotFoundError) return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
+      throw e
+    }
 
     const total = orderItems.reduce((s, item) => s + item.price * item.qty, 0)
     const categoryBreakdown: Record<string, number> = {}
@@ -123,14 +137,17 @@ const sessionsRoutes: FastifyPluginAsync = async (fastify) => {
       const { menuItem } = item
       const amount = item.price * item.qty
 
-      if (item.taxInclusive) {
+      const effectiveTax = resolveGroupTax(item.group, taxSetting)
+      const taxRate = item.isTakeout ? effectiveTax.effectiveTaxRateTakeout : effectiveTax.effectiveTaxRateInHouse
+
+      if (effectiveTax.effectiveTaxInclusive) {
         if (!taxBreakdown.inclusive) taxBreakdown.inclusive = { subtotal: 0, tax: 0 }
         taxBreakdown.inclusive.subtotal += amount
       } else {
-        const rate = item.taxRate.toNumber().toString()
+        const rate = taxRate.toString()
         if (!taxBreakdown[rate]) taxBreakdown[rate] = { subtotal: 0, tax: 0 }
         taxBreakdown[rate].subtotal += amount
-        taxBreakdown[rate].tax += Math.floor(amount * item.taxRate.toNumber() / 100)
+        taxBreakdown[rate].tax += Math.floor(amount * taxRate / 100)
       }
 
       const catName = item.isCourseCharge ? 'コース・飲み放題料金' : (menuItem?.category.name ?? '削除済みメニュー')

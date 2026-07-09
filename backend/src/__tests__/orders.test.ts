@@ -141,7 +141,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
     }))
   })
 
-  it('注文作成時点の taxInclusive を OrderItem にスナップショットする', async () => {
+  it('注文作成時に税率・税込設定を OrderItem に保存しない', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
     mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
     mockSettingFindUnique.mockResolvedValue({
@@ -152,8 +152,7 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mockCreate = jest.fn<any>().mockResolvedValue({
       id: 'item-1', groupId: GROUP_ID, menuItemId: 1, menuItemName: '生ビール',
-      price: 600, qty: 1, status: 'pending', isTakeout: false,
-      taxRate: { toNumber: () => 10 }, taxInclusive: true, courseId: null,
+      price: 600, qty: 1, status: 'pending', isTakeout: false, courseId: null,
       isCourseCharge: false, isDrinkPlanCharge: false, orderedAt: new Date(),
     })
     mockTx(mockCreate)
@@ -166,32 +165,8 @@ describe('POST /api/orders — 飲み放題プラン対象商品の0円化', () 
 
     expect(res.statusCode).toBe(201)
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ taxRate: 10, taxInclusive: true }),
+      data: expect.not.objectContaining({ taxRate: expect.anything(), taxInclusive: expect.anything() }),
     }))
-  })
-})
-
-describe('POST /api/orders — Setting未取得時のフォールバック禁止', () => {
-  let app: Awaited<ReturnType<typeof buildTestApp>>
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
-  beforeEach(() => { jest.clearAllMocks() })
-
-  it('店舗のSettingが存在しない場合、税率をデフォルト値にフォールバックせず 500 を返す', async () => {
-    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null, courseId: null })
-    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' }])
-    mockSettingFindUnique.mockResolvedValue(null)
-    const mockCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
-    mockTx(mockCreate)
-
-    const res = await app.inject({
-      method: 'POST', url: '/api/orders',
-      headers: { cookie: `token=${token(app)}` },
-      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
-    })
-
-    expect(res.statusCode).toBe(500)
-    expect(mockCreate).not.toHaveBeenCalled()
   })
 })
 
