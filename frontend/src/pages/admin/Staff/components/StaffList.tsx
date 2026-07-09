@@ -1,4 +1,4 @@
-import { BaseButton } from "@/components";
+import { BaseButton } from "@/components/primitives";
 import { formatDate } from "@/lib/utils";
 import type { StaffMember } from "@order-system/shared";
 import { useTranslation } from "react-i18next";

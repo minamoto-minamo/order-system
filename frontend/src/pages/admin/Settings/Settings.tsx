@@ -1,4 +1,6 @@
-import { AppHeader, BaseButton, LoadError, SubHeader, ToggleButtonGroup } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { BaseButton, ToggleButtonGroup } from "@/components/primitives";
+import { ActionBar, AppHeader } from "@/features/navigation/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
@@ -76,7 +78,7 @@ export default function Settings() {
     return `${closeHour}:${m}`;
   };
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>
@@ -84,7 +86,7 @@ export default function Settings() {
         title={t('settings.title')}
         breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }}
       />
-      <SubHeader
+      <ActionBar
         right={
           <BaseButton
             className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${saved ? 'bg-success-bg text-success-fg' : 'bg-brand text-white'}`}

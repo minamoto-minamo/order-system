@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ToggleButtonGroup } from "@/components";
+import { ToggleButtonGroup } from "@/components/primitives";
 import { PieChart } from "./PieChart";
 import type { ReportData } from "./types";
 

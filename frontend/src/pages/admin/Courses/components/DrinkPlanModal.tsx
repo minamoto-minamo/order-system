@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton, BottomSheetModal, Icon } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { BaseButton, Icon } from "@/components/primitives";
 import { ACTION_ICONS } from "@/lib/icons";
 import type { DrinkPlan, MenuItem, Category, SubCategory } from "@order-system/shared";
 

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Icon } from "@/components/display/Icon";
+import { Icon } from "@/components/primitives";
 import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 

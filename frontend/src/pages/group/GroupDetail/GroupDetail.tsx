@@ -1,4 +1,7 @@
-import { AppHeader, Icon, IconButton, LoadError, TabNavigation } from "@/components";
+import { TabNavigation } from "@/components/composite";
+import { RetryableLoadError } from "@/components/feedback";
+import { Icon, IconButton } from "@/components/primitives";
+import { AppHeader } from "@/features/navigation/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
@@ -271,7 +274,7 @@ export default function GroupDetail() {
     });
   };
 
-  if (loadError) return <LoadError />;
+  if (loadError) return <RetryableLoadError />;
 
   return (
     <>

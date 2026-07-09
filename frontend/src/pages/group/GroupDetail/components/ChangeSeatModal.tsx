@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton, Toast } from "@/components";
+import { Toast } from "@/components/feedback";
+import { BaseButton } from "@/components/primitives";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { isGroupActive } from "@/lib/utils";

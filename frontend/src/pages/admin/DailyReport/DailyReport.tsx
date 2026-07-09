@@ -1,4 +1,5 @@
-import { AppHeader, LoadError } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { AppHeader } from "@/features/navigation/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
@@ -65,7 +66,7 @@ export default function DailyReport() {
   const groupAvg = data && data.groups > 0 ? Math.round(data.total / data.groups) : 0;
   const guestAvg = data && data.guests > 0 ? Math.round(data.total / data.guests) : 0;
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>

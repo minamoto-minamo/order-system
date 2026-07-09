@@ -1,4 +1,5 @@
-import { AppHeader, LoadError, SubHeader } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { ActionBar, AppHeader } from "@/features/navigation/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
@@ -153,13 +154,13 @@ export default function Hall() {
   const canvasH = canvasRows * gridSize;
   const bottomPadding = canCreate ? 152 : 24;
 
-  if (loadError) return <LoadError />;
+  if (loadError) return <RetryableLoadError />;
 
   return (
     <>
       <AppHeader title={t('hall.title')} />
 
-      <SubHeader
+      <ActionBar
         left={
           <div className="flex gap-4">
             {[

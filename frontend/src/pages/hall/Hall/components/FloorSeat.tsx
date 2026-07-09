@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Icon } from "@/components/display/Icon";
+import { Icon } from "@/components/primitives";
 import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Seat, Group } from "@order-system/shared";
 import "./FloorSeat.scss";

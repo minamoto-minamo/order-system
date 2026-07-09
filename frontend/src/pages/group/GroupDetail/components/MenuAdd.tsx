@@ -1,4 +1,6 @@
-import { BaseButton, MenuConfirmModal, MenuQtyStepper, SlideUpFooter, SubCategorySidebar } from "@/components";
+import { MenuConfirmModal, SlideUpFooter } from "@/components/composite";
+import { BaseButton, ZeroStartStepper } from "@/components/primitives";
+import { SubCategorySidebar } from "@/features/menu/components";
 import type { Category, MenuItem, SubCategory } from "@order-system/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -111,7 +113,7 @@ export function MenuAdd({ menus, categories, subCategories, onAdd }: {
                   </div>
                   <div className="text-xs text-muted">¥{item.price.toLocaleString()}</div>
                 </div>
-                <MenuQtyStepper qty={qty} onChange={val => setQty(item.id, val)} disabled={item.soldOut} />
+                <ZeroStartStepper qty={qty} onChange={val => setQty(item.id, val)} disabled={item.soldOut} />
               </div>
             );
           })}

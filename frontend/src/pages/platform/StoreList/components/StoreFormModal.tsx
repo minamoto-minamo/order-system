@@ -1,4 +1,4 @@
-import { FormSheetModal } from "@/components";
+import { FormSheetModal } from "@/components/composite";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 

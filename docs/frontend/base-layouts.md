@@ -10,6 +10,11 @@ tags: [frontend, layout, page]
 
 画面ルートは `frontend/src/App.tsx` で 3 つの layout に振り分けている。見た目の共通化だけでなく、Socket 接続時の通知方針もここで分けている。
 
+## 関連ドキュメント
+
+- [Shared Components ガイド](shared-components.md): `ToastStack`、`NoticeBanner` の役割と使い分け
+- [Feature Components ガイド](feature-components.md): `AppHeader`、`ActionBar`、`NavDrawer` など layout の上に載せる文脈付き UI の扱い
+
 ## Layout 一覧
 
 | Layout               | 主な対象                                       | 自動で提供するもの                                                          | 使わない方がよい場面                                |
@@ -35,7 +40,7 @@ tags: [frontend, layout, page]
 推奨:
 
 - tenant 画面で Socket 接続を前提に運用するページは基本的にこれを使う
-- ページごとの差分は layout ではなく、中で `AppHeader` / `SubHeader` / `FooterBar` を組み合わせて作る
+- ページごとの差分は layout ではなく、中で `AppHeader` / `ActionBar` / `FooterBar` を組み合わせて作る
 
 注意:
 

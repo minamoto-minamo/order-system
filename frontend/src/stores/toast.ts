@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ToastVariant } from '@/components/display/Toast/Toast';
+import type { ToastVariant } from '@/components/feedback/Toast/Toast';
 
 export type ToastItem = {
   id: number;

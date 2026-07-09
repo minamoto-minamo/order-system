@@ -1,7 +1,7 @@
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { ROUTES } from "@/lib/routes";
-import { BottomSheetModal } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
 
 interface QrModalProps {
   show: boolean;

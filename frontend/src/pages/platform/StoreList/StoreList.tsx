@@ -1,4 +1,7 @@
-import { BaseButton, BottomSheetModal, LoadError, SubHeader } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { RetryableLoadError } from "@/components/feedback";
+import { BaseButton } from "@/components/primitives";
+import { ActionBar } from "@/features/navigation/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToastStore } from "@/stores/toast";
@@ -100,7 +103,7 @@ export default function StoreList() {
     ? !form.subdomain.trim() || !form.name.trim() || !form.adminUsername.trim() || !form.adminPassword
     : !form.name.trim();
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <div className="app-shell h-dvh bg-white flex flex-col overflow-hidden">
@@ -114,7 +117,7 @@ export default function StoreList() {
           {t("platform.logout")}
         </BaseButton>
       </div>
-      <SubHeader
+      <ActionBar
         right={
           <BaseButton
             className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-brand text-white"

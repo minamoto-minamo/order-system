@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, NavButton } from "@/components";
+import { AppHeader, NavigationCard } from "@/features/navigation/components";
 import { ROUTES } from "@/lib/routes";
 import { NAV_ICONS } from "@/lib/icons";
 
@@ -25,7 +25,7 @@ export default function AdminMenu() {
         <div className="min-h-full py-6 flex flex-col items-center" style={{ justifyContent: "safe center" }}>
           <div className="w-full max-w-[41rem] flex flex-wrap gap-2.5">
             {menuItems.map((item, i) => (
-              <NavButton
+              <NavigationCard
                 key={item.path}
                 label={item.label}
                 subtitle={item.sub}

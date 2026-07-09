@@ -1,4 +1,7 @@
-import { AppHeader, BaseButton, BottomSheetModal, LoadError, SubHeader } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { RetryableLoadError } from "@/components/feedback";
+import { BaseButton } from "@/components/primitives";
+import { ActionBar, AppHeader } from "@/features/navigation/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
 import { useToastStore } from "@/stores/toast";
@@ -126,7 +129,7 @@ export default function Staff() {
     !form.username.trim() ||
     (modalMode === "add" && !form.password);
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>
@@ -134,7 +137,7 @@ export default function Staff() {
         title={t("admin.staff")}
         breadcrumb={{ label: t("admin.menuTitle"), to: ROUTES.admin }}
       />
-      <SubHeader
+      <ActionBar
         right={
           <BaseButton
             className="border-none rounded-lg px-4 py-1.5 text-note font-medium bg-brand text-white"

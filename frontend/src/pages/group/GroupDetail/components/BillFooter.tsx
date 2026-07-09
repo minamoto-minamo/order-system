@@ -1,4 +1,4 @@
-import { BaseButton } from "@/components";
+import { BaseButton } from "@/components/primitives";
 import { calculateTaxTotals } from "@/lib/taxTotals";
 import type { Group, GroupStatus, OrderItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";

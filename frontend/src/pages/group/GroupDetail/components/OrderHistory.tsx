@@ -1,8 +1,10 @@
-import { BaseButton, Icon, IconButton, OrderSection, StatusBadge } from "@/components";
+import { BaseButton, Icon, IconButton } from "@/components/primitives";
+import { OrderHistorySection } from "@/features/order/components";
 import type { OrderItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 import { partitionOrderItems } from "@/lib/partitionOrderItems";
 import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
+import { OrderStatusBadge } from "./OrderStatusBadge";
 
 function StatusActionButton({ item, onChangeStatus }: { item: OrderItem; onChangeStatus: (id: string) => void }) {
   const { t } = useTranslation();
@@ -31,7 +33,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
 
   return (
     <div className="flex-1 overflow-y-auto pb-5">
-      <OrderSection title={t('group.notServed')}>
+      <OrderHistorySection title={t('group.notServed')}>
         {active.map(item => (
           <div key={item.id} className="px-5 py-3 border-b border-surface flex items-center gap-2.5">
             <div className="flex-1">
@@ -43,7 +45,7 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <StatusBadge status={item.status} />
+                <OrderStatusBadge status={item.status} />
                 <span className="text-label text-muted">¥{item.price.toLocaleString()}</span>
               </div>
             </div>
@@ -57,10 +59,10 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
             </IconButton>
           </div>
         ))}
-      </OrderSection>
+      </OrderHistorySection>
 
       {served.length > 0 && (
-        <OrderSection title={t('group.served')}>
+        <OrderHistorySection title={t('group.served')}>
           {served.map(item => (
             <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2">
               <div className="flex-1">
@@ -80,11 +82,11 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
               </IconButton>
             </div>
           ))}
-        </OrderSection>
+        </OrderHistorySection>
       )}
 
       {courseCharges.length > 0 && (
-        <OrderSection title={t('group.courseTab')}>
+        <OrderHistorySection title={t('group.courseTab')}>
           {courseCharges.map(item => {
             // 飲み放題の課金明細もコース由来の courseId を持つため、付属料理はコース課金明細にだけ表示する
             const dishes = item.isDrinkPlanCharge ? [] : courseDishes.filter(d => d.courseId === item.courseId);
@@ -111,18 +113,18 @@ export function OrderHistory({ items, onChangeStatus, onCancelTap }: {
               </div>
             );
           })}
-        </OrderSection>
+        </OrderHistorySection>
       )}
 
       {cancelled.length > 0 && (
-        <OrderSection title={t('group.cancelledItems')}>
+        <OrderHistorySection title={t('group.cancelledItems')}>
           {cancelled.map(item => (
             <div key={item.id} className="px-5 py-2.5 border-b border-surface flex items-center gap-2 opacity-45">
               <span className="flex-1 text-note text-dim line-through">{item.menuItemName}</span>
               <span className="text-label text-muted">×{item.qty}</span>
             </div>
           ))}
-        </OrderSection>
+        </OrderHistorySection>
       )}
 
     </div>

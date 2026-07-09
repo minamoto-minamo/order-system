@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { Icon } from "@/components/display/Icon";
+import { Icon } from "@/components/primitives";
 
 describe("Icon", () => {
   it("applies mask image, currentColor background, and default size", () => {

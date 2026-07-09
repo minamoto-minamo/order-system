@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BaseButton, Icon, QuantityControl } from "@/components";
+import { BaseButton, Icon, QuantityPicker } from "@/components/primitives";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 import { SYMBOL_ICONS } from "@/lib/icons";
@@ -55,7 +55,7 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-caption text-muted mb-1">{t('group.courseQtyChange')}</div>
-                <QuantityControl value={editingQty} onChange={setEditingQty} min={1} unit="名" />
+                <QuantityPicker value={editingQty} onChange={setEditingQty} min={1} unit="名" />
               </div>
               <div className="flex gap-2">
                 <BaseButton

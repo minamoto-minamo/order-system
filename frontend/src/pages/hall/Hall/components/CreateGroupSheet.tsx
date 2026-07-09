@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { BaseButton, BottomSheetModal, QuantityControl, SlideUpFooter } from "@/components";
+import { BottomSheetModal, SlideUpFooter } from "@/components/composite";
+import { BaseButton, QuantityPicker } from "@/components/primitives";
 
 // グループ作成の下部フッターと人数入力モーダル。
 export function CreateGroupSheet({ canCreate, groupName, guestCount, showModal, onOpenModal, onCloseModal, onGuestCountChange, onCreate }: {
@@ -45,7 +46,7 @@ export function CreateGroupSheet({ canCreate, groupName, guestCount, showModal, 
         </div>
         <div className="mb-6">
           <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-          <QuantityControl value={guestCount} onChange={onGuestCountChange} min={1} unit="名" />
+          <QuantityPicker value={guestCount} onChange={onGuestCountChange} min={1} unit="名" />
         </div>
       </BottomSheetModal>
     </>

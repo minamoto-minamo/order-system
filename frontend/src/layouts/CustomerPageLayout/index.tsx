@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { socket } from "@/lib/socket";
-import { ToastStack } from "@/components/display/Toast/ToastStack";
+import { ToastStack } from "@/components/feedback";
 import { useToastStore } from "@/stores/toast";
 import { useTranslation } from "react-i18next";
 

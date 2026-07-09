@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal, Icon, QuantityControl } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { Icon, QuantityPicker } from "@/components/primitives";
 import { SYMBOL_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
 
@@ -25,7 +26,7 @@ export function CourseConfirmModal({ course, courseQty, setCourseQty, drinkPlans
       <div className="text-xs text-muted mb-4">¥{course.price.toLocaleString()} {t('common.perPerson')}</div>
       <div className="mb-4">
         <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-        <QuantityControl value={courseQty} onChange={setCourseQty} min={1} unit="名" />
+        <QuantityPicker value={courseQty} onChange={setCourseQty} min={1} unit="名" />
       </div>
       {course.drinkPlanId && (() => {
         const plan = drinkPlans.find(p => p.id === course.drinkPlanId);

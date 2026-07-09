@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, LoadError } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { AppHeader } from "@/features/navigation/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
@@ -91,7 +92,7 @@ export default function Courses() {
     } catch (e) { showToast(apiErrorMessage(e, t('common.deleteFailed'))); }
   };
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>

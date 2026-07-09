@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { FooterBar } from "@/components";
+import { FooterBar } from "./FooterBar";
 
 interface Props {
   tableCount: number;

@@ -1,4 +1,5 @@
-import { BaseButton, Icon, Toast } from "@/components";
+import { Toast } from "@/components/feedback";
+import { BaseButton, Icon } from "@/components/primitives";
 import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 

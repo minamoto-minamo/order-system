@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BaseButton, BottomSheetModal, Icon, MenuQtyStepper } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { BaseButton, Icon, ZeroStartStepper } from "@/components/primitives";
 import { ACTION_ICONS } from "@/lib/icons";
 import type { Course, DrinkPlan, MenuItem, Category } from "@order-system/shared";
 
@@ -108,7 +109,7 @@ export function CourseModal({ course, drinkPlans, menus, categories, onSave, onD
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-2 border-b border-surface">
                     <span className={`flex-1 text-note ${qty > 0 ? 'text-ink' : 'text-muted'}`}>{item.name}</span>
-                    <MenuQtyStepper qty={qty} onChange={val => setQty(item.id, val)} />
+                    <ZeroStartStepper qty={qty} onChange={val => setQty(item.id, val)} />
                   </div>
                 );
               })}

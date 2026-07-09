@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Group, OrderItem } from "@order-system/shared";
-import { OrderSection } from "@/components";
+import { OrderHistorySection } from "@/features/order/components";
 import { partitionOrderItems } from "@/lib/partitionOrderItems";
 import { calculateTaxTotals } from "@/lib/taxTotals";
 import { ActiveItemRow, ServedItemRow, type ItemGroup } from "./HistoryRows";
@@ -44,18 +44,18 @@ export function CustomerOrderHistory({
     <>
       {/* 固定フッターの合計に隠れないよう、下端にフッター高さ分の余白を確保する */}
       <div className="flex-1 overflow-y-auto pb-32">
-        <OrderSection>
+        <OrderHistorySection>
           {activeGroups.map(g => <ActiveItemRow key={g.key} group={g} />)}
-        </OrderSection>
+        </OrderHistorySection>
 
         {servedGroups.length > 0 && (
-          <OrderSection title={t('group.served')}>
+          <OrderHistorySection title={t('group.served')}>
             {servedGroups.map(g => <ServedItemRow key={g.key} group={g} />)}
-          </OrderSection>
+          </OrderHistorySection>
         )}
 
         {courseCharges.length > 0 && (
-          <OrderSection title={t('group.courseTab')}>
+          <OrderHistorySection title={t('group.courseTab')}>
             {courseCharges.map(item => (
               <HistoryCourseBlock
                 key={item.id}
@@ -64,7 +64,7 @@ export function CustomerOrderHistory({
                 dishes={item.isDrinkPlanCharge ? [] : courseDishes.filter(d => d.courseId === item.courseId)}
               />
             ))}
-          </OrderSection>
+          </OrderHistorySection>
         )}
       </div>
 

@@ -13,7 +13,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BaseButton, Icon } from "@/components";
+import { BaseButton, Icon } from "@/components/primitives";
 import { ACTION_ICONS } from "@/lib/icons";
 import { useTranslation } from "react-i18next";
 import type { Cat, ModalState, Product } from "./types";

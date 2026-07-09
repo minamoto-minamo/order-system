@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
 
 interface ConfirmModalProps {
   show: boolean;

@@ -1,6 +1,6 @@
 import { Children, isValidElement, type ReactElement } from "react";
-import { MenuQtyStepper } from "@/components/controls/MenuQtyStepper";
-import { Toast } from "@/components/display/Toast/Toast";
+import { ZeroStartStepper } from "@/components/primitives";
+import { Toast } from "@/components/feedback";
 
 describe("Toast", () => {
   it("uses amber tokens by default", () => {
@@ -20,9 +20,9 @@ describe("Toast", () => {
   });
 });
 
-describe("MenuQtyStepper", () => {
+describe("ZeroStartStepper", () => {
   it("keeps a 30px visual circle inside a 44px tap target", () => {
-    const stepper = MenuQtyStepper({ qty: 0, onChange: () => undefined }) as ReactElement;
+    const stepper = ZeroStartStepper({ qty: 0, onChange: () => undefined }) as ReactElement;
     const button = Children.toArray(stepper.props.children).find(isValidElement) as ReactElement;
     const visual = button.props.children as ReactElement;
 

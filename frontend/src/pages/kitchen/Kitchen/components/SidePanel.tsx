@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { getSeatLabels } from "@/lib/utils";
-import { Icon, IconButton } from "@/components";
+import { Icon, IconButton } from "@/components/primitives";
 import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
 import type { Group, Seat } from "@order-system/shared";
 import type { DisplayCat, DisplayOrder } from "./types";

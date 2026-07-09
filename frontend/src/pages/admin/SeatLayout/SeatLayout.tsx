@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, LoadError, SubHeader } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { ActionBar, AppHeader } from "@/features/navigation/components";
 import { api } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useToastStore } from "@/stores/toast";
@@ -290,7 +291,7 @@ export default function SeatLayout() {
     { type: "seat",  icon: SYMBOL_ICONS.seat,  label: t('seatEditor.seat'),  sub: t('seatEditor.seatSub') },
   ];
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>
@@ -298,7 +299,7 @@ export default function SeatLayout() {
           title={t('admin.seats')}
           breadcrumb={{ label: t('admin.menuTitle'), to: ROUTES.admin }}
         />
-        <SubHeader
+        <ActionBar
           right={
             <button
               onClick={handleSave}

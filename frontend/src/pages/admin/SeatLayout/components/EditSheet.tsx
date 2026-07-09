@@ -1,5 +1,5 @@
-import { BaseButton, Icon } from "@/components";
-import { BottomSheet } from "@/components/modal/BottomSheet";
+import { BaseButton, Icon } from "@/components/primitives";
+import { BottomSheet } from "@/components/composite";
 import { ACTION_ICONS } from "@/lib/icons";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";

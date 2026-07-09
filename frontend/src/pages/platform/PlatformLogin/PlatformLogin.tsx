@@ -1,4 +1,4 @@
-import { LoginForm } from "@/components";
+import { LoginForm } from "@/features/auth/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";

@@ -1,4 +1,4 @@
-import { BaseButton } from "@/components";
+import { BaseButton } from "@/components/primitives";
 import type { StaffMember, StaffSession } from "@order-system/shared";
 import { useTranslation } from "react-i18next";
 

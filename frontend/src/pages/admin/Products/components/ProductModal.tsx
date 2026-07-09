@@ -1,4 +1,5 @@
-import { BaseButton, BottomSheetModal, Icon } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { BaseButton, Icon } from "@/components/primitives";
 import { useForm } from "@/hooks/useForm";
 import { ACTION_ICONS } from "@/lib/icons";
 import { useId } from "react";

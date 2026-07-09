@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AppHeader, LoadError, SubHeader, ToggleButtonGroup } from "@/components";
+import { RetryableLoadError } from "@/components/feedback";
+import { ActionBar, AppHeader } from "@/features/navigation/components";
+import { ToggleButtonGroup } from "@/components/primitives";
 import { api } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import { ROUTES } from "@/lib/routes";
@@ -111,7 +113,7 @@ export default function Kitchen() {
   const pendingCount  = orders.filter(o => o.status === 'pending').length;
   const readyCount    = orders.filter(o => o.status === 'ready').length;
 
-  if (loadError) return <LoadError />;
+  if (loadError) return <RetryableLoadError />;
 
   return (
     <>
@@ -133,7 +135,7 @@ export default function Kitchen() {
             </div>
           }
         />
-        <SubHeader
+        <ActionBar
           right={
             <ToggleButtonGroup
               options={[{ key: "ticket", label: t('kitchen.ticketView') }, { key: "card", label: t('kitchen.groupView') }]}

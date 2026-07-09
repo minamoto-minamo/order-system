@@ -1,4 +1,5 @@
-import { MenuQtyStepper, SubCategorySidebar } from "@/components";
+import { ZeroStartStepper } from "@/components/primitives";
+import { SubCategorySidebar } from "@/features/menu/components";
 import type { MenuItem, Category, SubCategory } from "@order-system/shared";
 
 // メニュータブのカテゴリタブ・サブカテゴリサイドバー・商品リスト。
@@ -42,7 +43,7 @@ export function CustomerMenuList({ categories, activeCatId, onSelectCategory, su
                   <div className="text-sm text-ink mb-0.5">{item.name}</div>
                   <div className="text-xs text-muted">¥{item.price.toLocaleString()}</div>
                 </div>
-                <MenuQtyStepper qty={qty} onChange={val => onQtyChange(item.id, val)} />
+                <ZeroStartStepper qty={qty} onChange={val => onQtyChange(item.id, val)} />
               </div>
             );
           })}

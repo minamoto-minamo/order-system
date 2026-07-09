@@ -1,4 +1,6 @@
-import { AppHeader, BaseButton, BottomSheetModal, NavButton } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { BaseButton } from "@/components/primitives";
+import { AppHeader, NavigationCard } from "@/features/navigation/components";
 import { useSessionActions } from "@/hooks/useSessionActions";
 import { useToastStore } from "@/stores/toast";
 import { api } from "@/lib/api";
@@ -96,7 +98,7 @@ export default function Home() {
                   ? t('home.openFirst')
                   : m.sub;
               return (
-                <NavButton
+                <NavigationCard
                   key={m.path}
                   label={m.label}
                   subtitle={subText}

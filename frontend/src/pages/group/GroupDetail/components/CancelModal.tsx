@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BottomSheetModal, QuantityControl } from "@/components";
+import { BottomSheetModal } from "@/components/composite";
+import { QuantityPicker } from "@/components/primitives";
 import type { OrderItem } from "@order-system/shared";
 
 export function CancelModal({ item, disabled, onConfirm, onClose }: {
@@ -32,7 +33,7 @@ export function CancelModal({ item, disabled, onConfirm, onClose }: {
       {isMulti && (
         <div className="mb-6">
           <div className="text-label text-muted mb-4">{t('group.currentQty', { qty: item.qty })}</div>
-          <QuantityControl value={qty} onChange={setQty} min={1} max={item.qty} />
+          <QuantityPicker value={qty} onChange={setQty} min={1} max={item.qty} />
           {qty === item.qty && (
             <div className="text-label text-bill mt-3">{t('group.cancelAll')}</div>
           )}

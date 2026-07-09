@@ -1,4 +1,3 @@
-export * from './layout';
-export * from './modal';
-export * from './controls';
-export * from './display';
+export * from './composite';
+export * from './feedback';
+export * from './primitives';

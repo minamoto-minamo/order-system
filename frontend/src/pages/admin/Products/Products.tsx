@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, InputModal, LoadError } from "@/components";
+import { InputModal } from "@/components/composite";
+import { RetryableLoadError } from "@/components/feedback";
+import { AppHeader } from "@/features/navigation/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
@@ -182,7 +184,7 @@ export default function Products() {
       })()
     : t('productSettings.allProducts');
 
-	  if (loadError) return <LoadError />;
+	  if (loadError) return <RetryableLoadError />;
 
 	  return (
     <>
