@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, InputModal, LoadError, Toast } from "@/components";
+import { AppHeader, InputModal, LoadError } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import type { Category, SubCategory, MenuItem } from "@order-system/shared";
 import { ProductModal } from "./components/ProductModal";
 import { CategorySidebar } from "./components/CategorySidebar";
@@ -15,7 +15,7 @@ import type { Cat, Product, ProductFormData, ModalState } from "./components/typ
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const [cats, setCats]         = useState<Cat[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
@@ -247,7 +247,6 @@ export default function Products() {
           onToggleSoldOut={() => { toggleSoldOut(modal.payload.id); setModal(null); }}
           onDelete={() => { deleteProduct(modal.payload.id); setModal(null); }} />
       )}
-      <Toast message={toast} />
     </>
   );
 }

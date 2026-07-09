@@ -2,9 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores/auth";
 import { useSessionActions } from "@/hooks/useSessionActions";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { BottomSheetModal } from "@/components/modal/BottomSheetModal";
-import { NoticeBanner } from "@/components/display/NoticeBanner";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
@@ -23,7 +22,7 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, setUser } = useAuthStore();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const {
     session,
     isOpen,
@@ -51,7 +50,6 @@ export function NavDrawer({ onClose, isOverTime }: NavDrawerProps) {
 
 	  return (
 	    <div className="fixed inset-0 z-nav">
-	      {toast && <NoticeBanner variant="danger">{toast}</NoticeBanner>}
 	      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="nav-drawer absolute top-0 right-0 bottom-0 w-60 bg-white flex flex-col shadow-xl">
 

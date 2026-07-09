@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-type ToastVariant = 'default' | 'danger';
+export type ToastVariant = 'default' | 'danger';
 
-const VARIANT_CLASSES: Record<ToastVariant, string> = {
+export const VARIANT_CLASSES: Record<ToastVariant, string> = {
   default: "border-amber-border bg-amber-bg text-amber-fg",
   danger: "border-danger-border bg-danger-bg text-danger",
 };

@@ -1,7 +1,7 @@
-import { BaseButton, BottomSheetModal, LoadError, SubHeader, Toast } from "@/components";
+import { BaseButton, BottomSheetModal, LoadError, SubHeader } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { usePlatformAuthStore } from "@/stores/platformAuth";
@@ -29,9 +29,9 @@ export default function StoreList() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
 	  const [editTarget, setEditTarget] = useState<Store | null>(null);
 	  const [toggleTarget, setToggleTarget] = useState<Store | null>(null);
-	  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StoreForm>(EMPTY_FORM);
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
 
 	  useEffect(() => {
 	    api.get<Store[]>(EP.platformStores).then(list => {
@@ -153,7 +153,6 @@ export default function StoreList() {
         primaryAction={{ label: toggleTarget?.isActive ? t("platform.deactivate") : t("platform.activate"), onClick: handleToggleActive }}
       />
 
-      <Toast message={toast} />
     </div>
   );
 }

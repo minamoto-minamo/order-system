@@ -1,6 +1,5 @@
 import { Children, isValidElement, type ReactElement } from "react";
 import { MenuQtyStepper } from "@/components/controls/MenuQtyStepper";
-import { NoticeBanner } from "@/components/display/NoticeBanner";
 import { Toast } from "@/components/display/Toast/Toast";
 
 describe("Toast", () => {
@@ -18,15 +17,6 @@ describe("Toast", () => {
     expect(toast.props.className).toContain("border-danger-border");
     expect(toast.props.className).toContain("bg-danger-bg");
     expect(toast.props.className).toContain("text-danger");
-  });
-});
-
-describe("NoticeBanner", () => {
-  it("passes danger variant to Toast", () => {
-    const banner = NoticeBanner({ variant: "danger", children: "failed" }) as ReactElement;
-
-    expect(banner.type).toBe(Toast);
-    expect(banner.props.variant).toBe("danger");
   });
 });
 

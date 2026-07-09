@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, LoadError, SubHeader, Toast } from "@/components";
+import { AppHeader, LoadError, SubHeader } from "@/components";
 import { api } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/apiError";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
 import { SYMBOL_ICONS } from "@/lib/icons";
@@ -19,7 +19,7 @@ import "./SeatLayout.scss";
 // ── メイン ───────────────────────────────────────────────────
 export default function SeatLayout() {
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const [tables, setTables] = useState<TableData[]>([]);
   const [seats,  setSeats]  = useState<SeatData[]>([]);
   const [cols, setCols] = useState(16);
@@ -370,7 +370,6 @@ export default function SeatLayout() {
           totalSeatCount={seats.length}
         />
 
-      <Toast message={toast} />
     </>
   );
 }

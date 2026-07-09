@@ -1,7 +1,7 @@
-import { AppHeader, BaseButton, BottomSheetModal, LoadError, SubHeader, Toast } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, LoadError, SubHeader } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useForm } from "@/hooks/useForm";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
@@ -34,9 +34,9 @@ export default function Staff() {
   const [sessions, setSessions] = useState<StaffSession[]>([]);
 	  const [sessionsLoading, setSessionsLoading] = useState(false);
 	  const [revokeSessionTarget, setRevokeSessionTarget] = useState<StaffSession | null>(null);
-	  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { values: form, setValue, reset, error: formError, setError: setFormError } = useForm<StaffForm>(EMPTY_FORM);
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
 
 	  useEffect(() => {
 	    api.get<StaffMember[]>(EP.staff).then(list => {
@@ -199,7 +199,6 @@ export default function Staff() {
         primaryAction={{ label: t("staff.devices.revoke"), onClick: handleRevokeSession, variant: "danger" }}
       />
 
-      <Toast message={toast} />
     </>
   );
 }

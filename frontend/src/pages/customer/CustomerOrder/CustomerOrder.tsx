@@ -8,7 +8,8 @@ import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { ACTION_ICONS } from "@/lib/icons";
 import { socket } from "@/lib/socket";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { BaseButton, BottomSheetModal, Icon, IconButton, MenuConfirmModal, NoticeBanner, SlideUpFooter, TabNavigation } from "@/components";
+import { BaseButton, BottomSheetModal, Icon, IconButton, MenuConfirmModal, SlideUpFooter, TabNavigation } from "@/components";
+import { useToastStore } from "@/stores/toast";
 import { CustomerMenuList } from "./components/CustomerMenuList";
 import { CustomerOrderHistory } from "./components/CustomerOrderHistory";
 import type { MenuItem, Category, SubCategory, OrderItem, Group } from "@order-system/shared";
@@ -23,6 +24,7 @@ type CustomerMenusResponse = {
 export default function CustomerOrder() {
   const { t } = useTranslation();
   const { id: groupId = "" } = useParams<{ id: string }>();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [group, setGroup]                   = useState<CustomerGroup | null>(null);
   const [menus, setMenus]                   = useState<MenuItem[]>([]);
@@ -41,9 +43,6 @@ export default function CustomerOrder() {
   const [billing, setBilling]               = useState(false);
   const [confirmCall, setConfirmCall]       = useState(false);
   const [confirmBill, setConfirmBill]       = useState(false);
-  const [successMsg, setSuccessMsg]         = useState<string | null>(null);
-  const [errorMsg, setErrorMsg]             = useState<string | null>(null);
-  const [soldOutNames, setSoldOutNames]     = useState<string[]>([]);
 
   useEffect(() => {
     const fetchAll = () => Promise.all([
@@ -110,8 +109,6 @@ export default function CustomerOrder() {
   const handleSubmit = async () => {
     if (submitting || orderItems.length === 0) return;
     setSubmitting(true);
-    setErrorMsg(null);
-    setSoldOutNames([]);
     try {
       const created = await api.post<OrderItem[]>(EP.customerOrders, {
         groupId,
@@ -121,10 +118,10 @@ export default function CustomerOrder() {
       setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
       setQtys({});
       setConfirmOpen(false);
-      setSuccessMsg(t('customerOrder.orderSuccess'));
-      setTimeout(() => setSuccessMsg(null), 3000);
+      showToast(t('customerOrder.orderSuccess'));
       setTab('history');
     } catch (e) {
+      let soldOutNames: string[] = [];
       if (e instanceof ApiError && e.serverCode === 'customer.orders.sold_out') {
         const details = e.details as { menuItemIds?: number[]; menuItemNames?: string[] } | null;
         const soldOutIds = details?.menuItemIds ?? [];
@@ -133,7 +130,7 @@ export default function CustomerOrder() {
           for (const id of soldOutIds) delete next[id];
           return next;
         });
-        setSoldOutNames(details?.menuItemNames ?? []);
+        soldOutNames = details?.menuItemNames ?? [];
         api.get<CustomerMenusResponse>(EP.customerMenus(groupId)).then(m => {
           setMenus(m.menus);
           setCategories(m.categories);
@@ -141,7 +138,8 @@ export default function CustomerOrder() {
         });
         setConfirmOpen(false);
       }
-      setErrorMsg(apiErrorMessage(e, t('customerOrder.orderFailed')));
+      const errorMsg = apiErrorMessage(e, t('customerOrder.orderFailed'));
+      showToast(`${errorMsg}${soldOutNames.length > 0 ? `（${soldOutNames.join('、')}）` : ''}`, 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -150,13 +148,12 @@ export default function CustomerOrder() {
   const handleBill = async () => {
     if (billing || group?.status !== 'active') return;
     setBilling(true);
-    setErrorMsg(null);
     try {
       await api.post(EP.customerBill(groupId), {});
       setGroup(prev => prev ? { ...prev, status: 'bill_requested' } : prev);
       setConfirmBill(false);
     } catch {
-      setErrorMsg(t('customerOrder.orderFailed'));
+      showToast(t('customerOrder.orderFailed'), 'danger');
     } finally {
       setBilling(false);
     }
@@ -165,14 +162,12 @@ export default function CustomerOrder() {
   const handleCallStaff = async () => {
     if (calling) return;
     setCalling(true);
-    setErrorMsg(null);
     try {
       await api.post(EP.customerCallStaff(groupId), {});
       setConfirmCall(false);
-      setSuccessMsg(t('customerOrder.callStaffSuccess'));
-      setTimeout(() => setSuccessMsg(null), 3000);
+      showToast(t('customerOrder.callStaffSuccess'));
     } catch {
-      setErrorMsg(t('customerOrder.orderFailed'));
+      showToast(t('customerOrder.orderFailed'), 'danger');
     } finally {
       setCalling(false);
     }
@@ -258,17 +253,6 @@ export default function CustomerOrder() {
         />
       ) : (
         <CustomerOrderHistory items={items} />
-      )}
-
-      {successMsg && <NoticeBanner>{successMsg}</NoticeBanner>}
-
-      {errorMsg && (
-        <NoticeBanner variant="danger">
-          <div className="flex flex-col items-center gap-0.5">
-            <span>{errorMsg}</span>
-            {soldOutNames.length > 0 && <span className="text-label opacity-80">{soldOutNames.join('、')}</span>}
-          </div>
-        </NoticeBanner>
       )}
 
       {activeTab === 'menu' && orderItems.length > 0 && (

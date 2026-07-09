@@ -1,12 +1,12 @@
-import { AppHeader, LoadError, NoticeBanner, SubHeader } from "@/components";
+import { AppHeader, LoadError, SubHeader } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { ROUTES } from "@/lib/routes";
 import { socket } from "@/lib/socket";
 import { isGroupActive } from "@/lib/utils";
+import { useBannerStore } from "@/stores/banner";
 import type { Group, OrderItem, Seat, SeatLayoutResponse, SeatTable } from "@order-system/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ import { buildGroupName, getSeatStatus } from "./components/hallUtils";
 export default function Hall() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showBanner = useBannerStore((state) => state.showBanner);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [seatTables, setSeatTables] = useState<SeatTable[]>([]);
   const [canvasCols, setCanvasCols] = useState(16);
@@ -81,7 +81,7 @@ export default function Hall() {
     },
     [SE.orderCancelled]: (id: string) => setReadyOrders(prev => prev.filter(o => o.id !== id)),
     [SE.staffCalled]: (_groupId: string, groupName: string) => {
-      showToast(`${groupName} ${t('hall.staffCalled')}`);
+      showBanner(`${groupName} ${t('hall.staffCalled')}`);
     },
   });
 
@@ -157,7 +157,6 @@ export default function Hall() {
 
   return (
     <>
-      {toast && <NoticeBanner>{toast}</NoticeBanner>}
       <AppHeader title={t('hall.title')} />
 
       <SubHeader

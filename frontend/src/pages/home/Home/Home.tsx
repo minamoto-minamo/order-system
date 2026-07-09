@@ -1,6 +1,6 @@
-import { AppHeader, BaseButton, BottomSheetModal, NavButton, Toast } from "@/components";
+import { AppHeader, BaseButton, BottomSheetModal, NavButton } from "@/components";
 import { useSessionActions } from "@/hooks/useSessionActions";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { api } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/apiError";
 import { EP } from "@/lib/endpoints";
@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 export default function Home() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const {
     session,
     isOpen,
@@ -178,7 +178,6 @@ export default function Home() {
           primaryAction={{ label: t('session.reopen'), onClick: reopenSession }}
         />
 
-        <Toast message={toast} />
       </div>
     </>
   );

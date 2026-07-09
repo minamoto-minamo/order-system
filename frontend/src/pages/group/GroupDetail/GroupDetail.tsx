@@ -1,12 +1,12 @@
-import { AppHeader, Icon, IconButton, LoadError, TabNavigation, Toast } from "@/components";
+import { AppHeader, Icon, IconButton, LoadError, TabNavigation } from "@/components";
 import { useSocketListeners } from "@/hooks/useSocketListeners";
-import { useToast } from "@/hooks/useToast";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ACTION_ICONS, SYMBOL_ICONS } from "@/lib/icons";
 import { SOCKET_EVENTS as SE } from "@/lib/events";
 import { socket } from "@/lib/socket";
 import { getSeatLabels } from "@/lib/utils";
+import { useToastStore } from "@/stores/toast";
 import type { Category, Course, DrinkPlan, Group, MenuItem, OrderItem, Seat, SubCategory } from "@order-system/shared";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import { CourseTab } from "./components/CourseTab";
 import { MenuAdd } from "./components/MenuAdd";
 import { OrderHistory } from "./components/OrderHistory";
 import { QrModal } from "./components/QrModal";
+import { showAddedOrderToasts } from "./toastUtils";
 
 // ── メイン ───────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ export default function GroupDetail() {
   const [cancelTarget, setCancelTarget] = useState<OrderItem | null>(null);
   const [showBillConfirm, setShowBillConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const { toast: addedToast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const [loadError, setLoadError] = useState(false);
   const [submittingAction, setSubmittingAction] = useState<SubmittingAction | null>(null);
   const submittingRef = useRef(false);
@@ -205,8 +206,11 @@ export default function GroupDetail() {
         });
         // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
         setItems(prev => [...prev, ...created.filter(c => !prev.some(i => i.id === c.id))]);
-        const names = orderItems.map(({ item, qty }) => `${item.name} ×${qty}`).join('、');
-        showToast(t('group.addedToastMsg', { name: names }));
+        showAddedOrderToasts(
+          orderItems,
+          (name) => t('group.addedToastMsg', { name }),
+          showToast,
+        );
         setTab('history');
       } catch {
         showToast(t('group.addOrderFailed'));
@@ -354,8 +358,6 @@ export default function GroupDetail() {
           onClose={() => setCancelTarget(null)}
         />
       )}
-
-      <Toast message={addedToast} />
 
       <ConfirmModal
         show={showBillConfirm}

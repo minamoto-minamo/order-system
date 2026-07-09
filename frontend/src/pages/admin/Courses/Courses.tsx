@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AppHeader, LoadError, Toast } from "@/components";
+import { AppHeader, LoadError } from "@/components";
 import { apiErrorMessage } from "@/lib/apiError";
 import { api } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import { EP } from "@/lib/endpoints";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import type { Course, DrinkPlan, MenuItem, Category, SubCategory } from "@order-system/shared";
 import { DrinkPlanModal } from "./components/DrinkPlanModal";
 import { CourseModal } from "./components/CourseModal";
@@ -14,7 +14,7 @@ import { CourseSection } from "./components/CourseSection";
 
 export default function Courses() {
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
 
   const [drinkPlans, setDrinkPlans]       = useState<DrinkPlan[]>([]);
   const [courses, setCourses]             = useState<Course[]>([]);
@@ -137,7 +137,6 @@ export default function Courses() {
         />
       )}
 
-      <Toast message={toast} />
     </>
   );
 }

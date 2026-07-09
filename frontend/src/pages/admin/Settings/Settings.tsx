@@ -1,10 +1,10 @@
-import { AppHeader, BaseButton, LoadError, SubHeader, ToggleButtonGroup, Toast } from "@/components";
+import { AppHeader, BaseButton, LoadError, SubHeader, ToggleButtonGroup } from "@/components";
 import { api } from "@/lib/api";
 import { EP } from "@/lib/endpoints";
 import { ROUTES } from "@/lib/routes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useToast } from "@/hooks/useToast";
+import { useToastStore } from "@/stores/toast";
 import { apiErrorMessage } from "@/lib/apiError";
 import { Section, SettingRow } from "./components/SettingRow";
 import { SettingHint } from "./components/SettingHint";
@@ -18,7 +18,7 @@ function clamp(value: string, min: number, max: number): string {
 // ── メイン ────────────────────────────────────────────────────
 export default function Settings() {
   const { t } = useTranslation();
-  const { toast, showToast } = useToast();
+  const showToast = useToastStore((state) => state.showToast);
   const [storeName, setStoreName] = useState("居酒屋");
   const [closeHour, setCloseHour] = useState("23");
   const [closeMin, setCloseMin] = useState("00");
@@ -215,7 +215,6 @@ export default function Settings() {
         </Section>
 
       </div>
-      <Toast message={toast} />
     </>
   );
 }
