@@ -1,25 +1,26 @@
+import { CustomerPageLayout, PageLayout, PlatformPageLayout } from '@/layouts'
 import { api } from '@/lib/api'
 import { EP } from '@/lib/endpoints'
-import { ROUTES } from '@/lib/routes'
-import { socket } from '@/lib/socket'
 import { SOCKET_EVENTS as SE } from '@/lib/events'
 import { isPlatformAdminHost } from '@/lib/platform'
-import Login from '@/pages/login/Login/Login'
-import Home from '@/pages/home/Home/Home'
+import { ROUTES } from '@/lib/routes'
+import { socket } from '@/lib/socket'
 import AdminMenu from '@/pages/admin/AdminMenu/AdminMenu'
+import Courses from '@/pages/admin/Courses/Courses'
 import DailyReport from '@/pages/admin/DailyReport/DailyReport'
 import Products from '@/pages/admin/Products/Products'
 import SeatLayout from '@/pages/admin/SeatLayout/SeatLayout'
 import Settings from '@/pages/admin/Settings/Settings'
 import Staff from '@/pages/admin/Staff/Staff'
-import Courses from '@/pages/admin/Courses/Courses'
+import CustomerOrder from '@/pages/customer/CustomerOrder/CustomerOrder'
+import NotFound from '@/pages/error/NotFound'
 import GroupDetail from '@/pages/group/GroupDetail/GroupDetail'
 import Hall from '@/pages/hall/Hall/Hall'
+import Home from '@/pages/home/Home/Home'
 import Kitchen from '@/pages/kitchen/Kitchen/Kitchen'
-import CustomerOrder from '@/pages/customer/CustomerOrder/CustomerOrder'
+import Login from '@/pages/login/Login/Login'
 import PlatformLogin from '@/pages/platform/PlatformLogin/PlatformLogin'
 import StoreList from '@/pages/platform/StoreList/StoreList'
-import NotFound from '@/pages/error/NotFound'
 import type { AuthUser } from '@/stores/auth'
 import { useAuthStore } from '@/stores/auth'
 import type { PlatformAdmin } from '@/stores/platformAuth'
@@ -27,7 +28,6 @@ import { usePlatformAuthStore } from '@/stores/platformAuth'
 import { useSessionStore } from '@/stores/session'
 import type { Session } from '@order-system/shared'
 import { useEffect } from 'react'
-import { PageLayout } from '@/components/layout/PageLayout'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 function RequireAuth({ children, adminOnly = false, requireSession = false }: { children: React.ReactNode; adminOnly?: boolean; requireSession?: boolean }) {
@@ -42,7 +42,7 @@ function RequireAuth({ children, adminOnly = false, requireSession = false }: { 
 function RequirePlatformAuth({ children }: { children: React.ReactNode }) {
   const { admin } = usePlatformAuthStore()
   if (!admin) return <Navigate to={ROUTES.platformLogin} replace />
-  return <>{children}</>
+  return <PlatformPageLayout>{children}</PlatformPageLayout>
 }
 
 export default function App() {
@@ -51,19 +51,19 @@ export default function App() {
   const { setSession } = useSessionStore()
   const { admin, initialized: platformInitialized, setAdmin, setInitialized: setPlatformInitialized } = usePlatformAuthStore()
 
-	  useEffect(() => {
-	    if (isPlatform) {
-	      // 認証確認は失敗時も未ログイン扱いで初期化を進める
-	      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
-	        .then(setAdmin)
+  useEffect(() => {
+    if (isPlatform) {
+      // 認証確認は失敗時も未ログイン扱いで初期化を進める
+      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
+        .then(setAdmin)
         .finally(() => setPlatformInitialized(true))
       return
     }
 
-	    Promise.all([
-	      // 認証・現セッション確認は失敗時も未ログイン/セッションなし扱いで初期化を進める
-	      api.get<AuthUser>(EP.authMe).catch(() => null),
-	      api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
+    Promise.all([
+      // 認証・現セッション確認は失敗時も未ログイン/セッションなし扱いで初期化を進める
+      api.get<AuthUser>(EP.authMe).catch(() => null),
+      api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
     ]).then(([u, s]) => {
       setUser(u)
       setSession(s)
@@ -105,7 +105,7 @@ export default function App() {
       <Route path={ROUTES.adminSettings} element={<RequireAuth adminOnly><Settings /></RequireAuth>} />
       <Route path={ROUTES.adminStaff} element={<RequireAuth adminOnly><Staff /></RequireAuth>} />
       <Route path={ROUTES.adminCourses} element={<RequireAuth adminOnly><Courses /></RequireAuth>} />
-      <Route path={ROUTES.customerOrderPattern} element={<CustomerOrder />} />
+      <Route path={ROUTES.customerOrderPattern} element={<CustomerPageLayout><CustomerOrder /></CustomerPageLayout>} />
       <Route path="*" element={user ? <Navigate to={ROUTES.root} replace /> : <NotFound />} />
     </Routes>
   )
