@@ -161,7 +161,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       return Promise.all(
         body.items.map(item => {
           const isPlanItem = planMenuItemIds?.has(item.menuItemId) ?? false
-          // 飲み放題対象商品は price を 0 にするため、解除時に復元できるよう元価格を originalPrice に退避する
+          // 注文時点の MenuItem 単価を保持し、飲み放題解除時の復元にも使う
           const originalPrice = menuItemMap.get(item.menuItemId)!.price
           return tx.orderItem.create({
             data: {
@@ -169,7 +169,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
               menuItemId: item.menuItemId,
               menuItemName: menuItemMap.get(item.menuItemId)!.name,
               price: isPlanItem ? 0 : originalPrice,
-              originalPrice: isPlanItem ? originalPrice : null,
+              originalPrice,
               qty: item.qty,
               isTakeout: false,
               courseId: null,

@@ -233,20 +233,21 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         menuItemId: 10,
         menuItemName: '唐揚げ',
         price: 0,
+        originalPrice: 500,
         qty: 6,
         courseId: 1,
       }),
     }))
   })
 
-  it('飲み放題プランを適用すると既存の対象商品の注文も遡って 0 円になり、元価格が originalPrice に退避される', async () => {
+  it('飲み放題プランを適用すると既存の対象商品の注文も遡って 0 円になり、originalPrice は書き換えない', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: null, drinkPlanId: null })
     mockCourseFindFirst.mockResolvedValue({ id: 1, name: 'ディナーコース', price: 0, drinkPlanId: 5, foodItems: [] })
     mockDrinkPlanFindFirst.mockResolvedValue({ id: 5, name: '飲み放題プラン', price: 0 })
     mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 }, taxRateTakeout: { toNumber: () => 8 }, taxInclusive: false })
     const updatedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: 1, drinkPlanId: 5, createdAt: new Date(), seats: [] as { seatId: number }[] }
     const existingItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
-    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({ ...existingItem, price: 0, originalPrice: 500 })
+    const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({ ...existingItem, price: 0 })
     const mockOrderItemFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>().mockResolvedValue([existingItem])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
@@ -268,7 +269,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     }))
     expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'existing-1' },
-      data: { price: 0, originalPrice: 500 },
+      data: { price: 0 },
     }))
   })
 
@@ -281,7 +282,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     const drinkItem = { id: 'drink-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 0, originalPrice: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
       .mockImplementation(async (args: any) =>
-        args.where.id === 'old-charge' ? { ...oldChargeItem, status: 'cancelled' } : { ...drinkItem, price: 500, originalPrice: null })
+        args.where.id === 'old-charge' ? { ...oldChargeItem, status: 'cancelled' } : { ...drinkItem, price: 500 })
     const mockNewChargeItem = { id: 'new-charge', groupId: GROUP_ID, menuItemId: null, menuItemName: '新コース', price: 4000, qty: 2, status: 'served', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: 2, isCourseCharge: true, isDrinkPlanCharge: false, orderedAt: new Date() }
     const mockOrderItemCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(mockNewChargeItem)
     const mockOrderItemFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
@@ -312,7 +313,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     }))
     expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'drink-1' },
-      data: { price: 500, originalPrice: null },
+      data: { price: 500 },
     }))
     expect(mockOrderItemCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ menuItemName: '新コース', price: 4000, courseId: 2 }),
@@ -470,8 +471,8 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
   it('飲み放題プランを解除すると対象商品の価格が originalPrice（注文時点の価格スナップショット）に復元される', async () => {
     const clearedGroup = { id: GROUP_ID, name: 'A席', guestCount: 2, status: 'active', sessionId: 1, courseId: null, drinkPlanId: null, createdAt: new Date(), seats: [] as { seatId: number }[] }
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 })
-    const restoredItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, originalPrice: null, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
-    // originalPrice はゼロ化時にスナップショットされた注文時点の価格（現在のメニュー価格とは独立）
+    const restoredItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, originalPrice: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
+    // originalPrice は注文時点の価格スナップショット（現在のメニュー価格とは独立）
     const targetItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, price: 0, originalPrice: 500 }
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(restoredItem)
     const mockOrderItemFindManyInTx = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
@@ -492,7 +493,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
     expect(res.statusCode).toBe(200)
     expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'existing-1' },
-      data: { price: 500, originalPrice: null },
+      data: { price: 500 },
     }))
   })
 
@@ -501,7 +502,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 })
     // 注文時点は500円だったが、その後メニュー価格が600円に改定されたケース
     const targetItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, price: 0, originalPrice: 500 }
-    const restoredItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, originalPrice: null, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
+    const restoredItem = { id: 'existing-1', groupId: GROUP_ID, menuItemId: 20, menuItemName: 'ビール', price: 500, originalPrice: 500, qty: 1, status: 'pending', isTakeout: false, taxRate: { toNumber: () => 10 }, courseId: null, orderedAt: new Date() }
     const mockOrderItemUpdateInTx = jest.fn<(...args: unknown[]) => Promise<unknown>>()
       .mockResolvedValue(restoredItem)
     const mockOrderItemFindManyInTx = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
@@ -523,7 +524,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
     // 復元額は現在のメニュー価格(600円)ではなく originalPrice(500円)
     expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'existing-1' },
-      data: { price: 500, originalPrice: null },
+      data: { price: 500 },
     }))
   })
 })

@@ -16,6 +16,7 @@ tags: [accounting, tax, reporting]
 - 会計確定（`Group.status === 'closed'`）時の税率（`taxRateInHouse` / `taxRateTakeout` / `taxInclusive`）を `Group.billedTaxRate*` / `billedTaxInclusive` にスナップショット保存する。未会計中は現在の `Setting` を反映する。
 - 税額計算はフロントエンドで `Math.floor(price * qty * effectiveTaxRate / 100)` で実施する。
 - `OrderItem` は `isTakeout` フラグを持ち、実効税率の選択（内食/テイクアウト）に使用する。
+- `OrderItem.originalPrice` は `menuItemId != null` の明細が常に持つ注文作成時点の `MenuItem` 単価で、飲み放題ゼロ化時の復元にも使う。コース料金・飲み放題料金などの定額課金明細（`menuItemId == null`）は `null` のままにする。
 - 日次クロージング（営業締め）処理の仕様を明示する（計算タイミング、集計窓）。
 
 ## 集計

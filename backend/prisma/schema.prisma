@@ -270,8 +270,8 @@ model OrderItem {
   menuItemId     Int?
   menuItemName   String
   price          Int
-  // 飲み放題適用で price を 0 に上書きする直前の元価格。コース/飲み放題解除時の復元に使う
-  // （復元先を「解除時点のメニュー価格」ではなく「注文時点の価格」にするためのスナップショット）
+  // MenuItem に紐づく明細（menuItemId != null）が常に持つ注文作成時点の MenuItem 単価。
+  // 飲み放題ゼロ化時の復元にも使う。定額課金明細（menuItemId == null）は null のまま。
   originalPrice  Int?
   qty            Int
   status         OrderItemStatus @default(pending)

@@ -85,10 +85,11 @@ async function unapplyCourse(
         },
       })
       for (const target of targets) {
-        // originalPrice はゼロ化時点の注文価格スナップショット。現在のメニュー価格ではなくこちらで復元する
+        // originalPrice は注文時点の価格スナップショット。現在のメニュー価格ではなくこちらで復元する
+        const restoredPrice = target.originalPrice
         const updated = await tx.orderItem.update({
           where: { id: target.id },
-          data: { price: target.originalPrice ?? target.price, originalPrice: null },
+          data: { price: restoredPrice ?? target.price },
         })
         restoredItems.push(updated)
       }
@@ -412,6 +413,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 menuItemName: menuItem.name,
                 // コース料金に含まれるため個別の料理は0円で登録する
                 price: 0,
+                originalPrice: menuItem.price,
                 qty: fi.qty * qty,
                 isTakeout: false,
                 courseId: course.id,
@@ -437,11 +439,10 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 status: { not: 'cancelled' },
               },
             })
-            // 解除時に注文時点の価格へ復元できるよう、ゼロ化前の price を originalPrice に退避する
             for (const target of targets) {
               const zeroed = await tx.orderItem.update({
                 where: { id: target.id },
-                data: { price: 0, originalPrice: target.price },
+                data: { price: 0 },
               })
               updatedOrderItems.push(zeroed)
             }
