@@ -27,17 +27,25 @@ tags: [websocket, socketio, realtime, events]
 - `menu:created` — メニュー品目作成時にブロードキャスト。payload: `MenuItem`
 - `menu:updated` — メニュー品目更新時にブロードキャスト（`soldOut` 変更時は `menu:soldout` と同時に発火）。payload: `MenuItem`
 - `menu:deleted` — メニュー品目削除時にブロードキャスト。payload: `menuItemId: number`
+- `course:created` — コース作成時にブロードキャスト。payload: `Course`
+- `course:updated` — コース更新時にブロードキャスト。payload: `Course`
+- `course:deleted` — コース削除時にブロードキャスト。payload: `courseId: number`
+- `drinkPlan:created` — ドリンクプラン作成時にブロードキャスト。payload: `DrinkPlan`
+- `drinkPlan:updated` — ドリンクプラン更新時にブロードキャスト。payload: `DrinkPlan`
+- `drinkPlan:deleted` — ドリンクプラン削除時にブロードキャスト。payload: `drinkPlanId: number`
 - `seatLayout:updated` — 席レイアウト保存時にブロードキャスト。payload: `SeatLayoutResponse`
 - `session:updated` — 営業セッションの開始/終了時にブロードキャスト。payload: `Session`
-- `settings:updated` — 店舗設定変更時にブロードキャスト。payload: `Setting`
+- `settings:updated` — 店舗設定変更時にブロードキャスト。payload: `PublicSetting`（`storeName` / `closingTime` のみ。未認証の客用ソケットにも配信されるため税率等の内部設定値は含まない）
 - `staff:called` — 顧客がスタッフ呼び出しをした際にブロードキャスト。payload: `(groupId: string, groupName: string)`
+- `error` — Socket 経由の操作（`order:complete` / `order:serve`）が失敗した際に発生元クライアントへ送信。payload: `ApiErrorPayload`
 
 ## Client → Server
 
+- `group:join` — 客用ゲスト接続が自グループの更新を受信するために join する。payload: `groupId: string`（UUID）。サーバー側で対象グループが自 storeId に属するか検証してから join する
 - `order:complete` — キッチンが調理完了を報告（`pending` → `ready` に遷移）。payload: `itemId: string`（UUID）
 - `order:serve` — ホールが提供完了を報告（`ready` → `served` に遷移）。payload: `itemId: string`（UUID）
 
-注文作成は REST `POST /api/orders` 経由で行う。Socket では行わない。
+注文作成は REST `POST /api/orders`（スタッフ）または `POST /api/customer/orders`（客）経由で行う。Socket では行わない。
 
 ## 関連
 

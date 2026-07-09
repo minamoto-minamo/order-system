@@ -22,24 +22,25 @@ tags: [hall]
 ## UI 要素
 
 - Seat grid（label, status badge）
+- ステータス件数バー（空席 / 着席 / 提供待ち / 会計リクエスト）
 - 複数選択、Create group ボタン
-- Guest count modal
-- 閉店時刻の警告バナー
+- Guest count modal（`CreateGroupSheet`）
+- 閉店時刻の警告バナー（`AppHeader` 共通機能）
+- スタッフ呼び出しバナー（`staff:called` 受信時に表示）
 
 ## アクション
 
-- 席取得 → `GET /api/seats`
+- 席レイアウト取得 → `GET /api/seat-layout`
 - グループ作成 → `POST /api/groups`
-- Socket イベントで UI 更新: `group:created`, `seat:updated`
+- Socket イベントで UI 更新: `group:created`, `group:updated`, `seat:created`, `seat:updated`, `seatLayout:updated`, `staff:called`
 
 ## 連携する API・Socket
 
-- `GET /api/seats`
-- `GET /api/seat-tables` — テーブル枠の取得
+- `GET /api/seat-layout` — 席レイアウト一括取得（席・テーブル枠・グリッドサイズ）
 - `GET /api/groups?status=active,bill_requested` — アクティブグループ一覧
 - `GET /api/orders?status=ready` — 提供待ち注文数の取得
 - `POST /api/groups`
-- Socket 購読: `group:created`, `group:updated`, `seat:updated`, `order:created`, `order:updated`, `order:cancelled`
+- Socket 購読: `group:created`, `group:updated`, `seat:created`, `seat:updated`, `seatLayout:updated`, `order:created`, `order:updated`, `order:cancelled`, `staff:called`
 
 参照: [Seats API](../api/endpoints/seats.md) / [Seat Layout API](../api/endpoints/seat-layout.md) / [Groups API](../api/endpoints/groups.md) / [Orders API](../api/endpoints/orders.md) / [WebSocket イベント](../api/websockets.md)
 

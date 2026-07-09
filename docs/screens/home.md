@@ -21,10 +21,9 @@ tags: [common]
 
 ## UI 要素
 
-- Mode buttons: Hall / Kitchen / Admin
+- Mode buttons: Hall / Kitchen / Admin（Admin は admin ロール以外は disabled）
 - Session badge: status（open / closed）と開始時刻
 - Action buttons: Start session / Close session / Reopen
-- Admin link（small）
 
 ## アクション
 

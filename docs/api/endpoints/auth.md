@@ -83,6 +83,8 @@ Response 200:
 
 `refresh_token` cookie があればそのデバイスのリフレッシュトークンのみ無効化する（他デバイスのセッションには影響しない）。ログアウトでこのデバイスの refresh token を無効化し、両 cookie をクリアする。
 
+加えて、同一ユーザーに紐づく Socket.io 接続（room: `user:${userId}`）を強制切断する。`token` cookie が失効していても、`refresh_token` からユーザーを特定できる場合は切断を実行する。
+
 ## トークンの取り扱い
 
 - アクセストークン（`token`）は JWT。有効期限は環境変数 `ACCESS_TOKEN_EXPIRES_IN`（デフォルト `15m`）で固定。

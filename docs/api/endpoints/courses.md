@@ -56,6 +56,8 @@ tags: [courses, api]
 - `drinkPlanId` は省略可（null で飲み放題なし。詳細は [Drink Plans](./drink-plans.md) を参照）
 
 Response 201: 作成したコースオブジェクト
+Response 422: `courses.save.menu_not_found` — `foodItems[].menuItemId` に存在しない、または他店舗のメニューが含まれる場合
+Response 422: `courses.save.drink_plan_not_found` — `drinkPlanId` に存在しない、または他店舗の飲み放題プランを指定した場合
 
 ## PUT /api/courses/:id
 
@@ -71,6 +73,9 @@ Request body（全フィールド省略可）:
 ```
 
 - `foodItems` を指定すると全件置き換え
+Response 404: `courses.detail.not_found`
+Response 422: `courses.save.drink_plan_not_found` — `drinkPlanId` を変更する場合に、存在しない、または他店舗の飲み放題プランを指定したとき
+Response 422: `courses.save.menu_not_found` — `foodItems` を変更する場合に、存在しない、または他店舗のメニューが含まれるとき
 
 ## DELETE /api/courses/:id
 

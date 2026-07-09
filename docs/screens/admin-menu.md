@@ -2,7 +2,7 @@
 type: Screen
 id: S400
 title: 管理者メニュー
-description: 商品設定・席設定・レポート・設定・スタッフの各管理画面へ遷移する管理者ダッシュボード。
+description: 商品設定・コース設定・席設定・レポート・設定・スタッフの各管理画面へ遷移する管理者ダッシュボード。
 resource: frontend/src/pages/admin/AdminMenu/AdminMenu.tsx
 tags: [admin]
 ---
@@ -17,16 +17,16 @@ tags: [admin]
 
 ## 概要
 
-商品設定・席設定・レポート・設定・スタッフへのリンクを提供するダッシュボード。
+商品設定・コース設定・席設定・レポート・設定・スタッフへのリンクを提供するダッシュボード。
 
 ## UI 要素
 
 - 各管理機能のカード / リンク
-- Quick status widgets（現在セッション、アラート）
 
 各画面への遷移先:
 
 - [商品設定](admin-products.md)
+- [コース設定](admin-courses.md)
 - [席レイアウト設定](admin-seats.md)
 - [日次レポート](admin-report.md)
 - [詳細設定](admin-settings.md)

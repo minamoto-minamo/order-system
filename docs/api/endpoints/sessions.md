@@ -12,7 +12,7 @@ tags: [sessions, api]
 営業セッション（営業開始 / 終了 / 現在セッション取得）に関する API。フロント実装者・バックエンド実装者向け。
 
 - Base: `/api/sessions`
-- Auth: 要認証（全エンドポイント）。POST / PUT は admin 限定
+- Auth: 要認証（全エンドポイント）。POST / PUT / `GET /:id/report` は admin 限定
 
 ## エンドポイント
 
@@ -85,10 +85,18 @@ Socket emit: `session:updated`（作成した Session オブジェクト）。�
 
 ## PUT /api/sessions/:id（admin）
 
-Request:
+`status` に `"closed"` を指定してセッションを締める他、締めたセッションを `"open"` に戻す（再開）用途でも使う。
+
+Request（締める）:
 
 ```json
 { "status": "closed" }
+```
+
+Request（再開）:
+
+```json
+{ "status": "open" }
 ```
 
 Response 200: 更新後の Session オブジェクト
@@ -101,6 +109,18 @@ Response 409 — `closed` への遷移でアクティブなグループが残っ
     "code": "sessions.close.active_groups_exist",
     "message": "active_groups_exist",
     "details": { "count": 3 }
+  }
+}
+```
+
+Response 409 — `open` への遷移で他に open なセッションが既にある場合:
+
+```json
+{
+  "error": {
+    "code": "sessions.create.already_open",
+    "message": "既に営業中のセッションがあります",
+    "details": null
   }
 }
 ```
@@ -119,4 +139,4 @@ Response 404:
 
 Socket emit: `session:updated`（更新後の Session オブジェクト）。グループ数チェックとセッション更新はトランザクション内で行う。
 
-POST でセッションを開始でき、PUT で閉じられる。既に open なセッションがある場合は 409 を返す。同時リクエストでも二重開始しない。クライアント側はローカルキャッシュを持たず都度 GET で取得してよい。
+POST でセッションを開始でき、PUT で締める・再開できる。既に open なセッションがある場合は 409 を返す。同時リクエストでも二重開始しない。クライアント側はローカルキャッシュを持たず都度 GET で取得してよい。

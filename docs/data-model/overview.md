@@ -21,11 +21,11 @@ Prisma schema 準拠。
 - **Category / SubCategory / MenuItem**: メニュー構成。`storeId` を持つ。
 - **DrinkPlan / DrinkPlanItem**: ドリンクプランと対象メニュー。`DrinkPlanItem` は中間テーブルのため `storeId` なし、親経由でスコープする。
 - **Course / CourseFoodItem**: コースメニューと含まれる料理。`CourseFoodItem` も同様に `storeId` なし。
-- **Group / GroupSeat**: 来店グループと席割当て。`GroupSeat` は複合 PK の中間テーブルのため `storeId` なし。
-- **OrderItem**: 注文明細。Order モデルは存在せず、明細が直接 Group に紐づく。`storeId` を持つ。
+- **Group / GroupSeat**: 来店グループと席割当て。`GroupSeat` は複合 PK の中間テーブルのため `storeId` なし。`status` が `closed` に遷移する時点（会計確定時）の税率・税込設定を `billedTaxRateInHouse` / `billedTaxRateTakeout` / `billedTaxInclusive` にスナップショットする（注文作成時点ではまだ未確定）。
+- **OrderItem**: 注文明細。Order モデルは存在せず、明細が直接 Group に紐づく。`storeId` を持つ。`menuItemId` を持つ明細は注文作成時点の `MenuItem.price` を `originalPrice` に常時スナップショットする（コース/飲み放題のゼロ化解除時の価格復元に使用）。`isCourseCharge` / `isDrinkPlanCharge` はコース・飲み放題の定額課金明細かどうかを表す。
 - **Staff**: スタッフ、権限。`storeId` を持つ。`username` は店舗ごとにユニーク（`@@unique([storeId, username])`）。
 - **RefreshToken**: リフレッシュトークン（使い捨てローテーション、親子チェーンで再利用検知）。`staffId` 経由で常に一意のため `storeId` なし。
-- **Setting**: アプリ設定（税率・店舗情報・リフレッシュトークン方式）。`storeId Int @unique` で店舗ごとに 1 行（one-to-one）。
+- **Setting**: アプリ設定（税率・税込/税別モード・店舗情報・リフレッシュトークン方式）。`storeId Int @unique` で店舗ごとに 1 行（one-to-one）。`taxInclusive` で消費税の税込表示モードを切り替える。
 
 モデル別のフィールド・カスケード・インデックスは [prisma-summary.md](prisma-summary.md) を参照する。
 
@@ -80,6 +80,7 @@ erDiagram
       string status
       datetime openedAt
       datetime closedAt
+      int seatUsageRate "nullable、close時に座席使用率をスナップショット保存"
     }
     GROUP {
       String id PK "UUID"
@@ -101,9 +102,13 @@ erDiagram
       int menuItemId FK "nullable"
       string menuItemName
       int price
+      int originalPrice "nullable、注文時点のMenuItem単価スナップショット"
       int qty
       string status
       boolean isTakeout
+      Int courseId FK "nullable"
+      boolean isCourseCharge
+      boolean isDrinkPlanCharge
       datetime orderedAt
     }
     SEAT_TABLE {
@@ -151,6 +156,7 @@ erDiagram
     DRINK_PLAN {
       Int id PK
       string name
+      int price "定額課金時の一人あたり料金"
     }
     DRINK_PLAN_ITEM {
       Int drinkPlanId FK
@@ -182,6 +188,7 @@ erDiagram
       string closingTime
       Decimal taxRateInHouse
       Decimal taxRateTakeout
+      boolean taxInclusive
       int canvasCols
       int canvasRows
       int gridSize

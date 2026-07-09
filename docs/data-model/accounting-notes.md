@@ -14,7 +14,7 @@ tags: [accounting, tax, reporting]
 
 - 金額は整数（最小通貨単位）で保存する（例: JPY は 円、USD は セント）。
 - 会計確定（`Group.status === 'closed'`）時の税率（`taxRateInHouse` / `taxRateTakeout` / `taxInclusive`）を `Group.billedTaxRate*` / `billedTaxInclusive` にスナップショット保存する。未会計中は現在の `Setting` を反映する。
-- 税額計算はフロントエンドで `Math.floor(price * qty * effectiveTaxRate / 100)` で実施する。
+- 税額計算はフロントエンドで `Math.floor(price * qty * effectiveTaxRate / 100)` で実施する。`effectiveTaxInclusive`（税込モード）が `true` の場合、`price` に税額が含まれているため明細ごとの税額計算はスキップし 0 円扱いにする（内税分を別途表示しない）。
 - `OrderItem` は `isTakeout` フラグを持ち、実効税率の選択（内食/テイクアウト）に使用する。
 - `OrderItem.originalPrice` は `menuItemId != null` の明細が常に持つ注文作成時点の `MenuItem` 単価で、飲み放題ゼロ化時の復元にも使う。コース料金・飲み放題料金などの定額課金明細（`menuItemId == null`）は `null` のままにする。
 - 日次クロージング（営業締め）処理の仕様を明示する（計算タイミング、集計窓）。

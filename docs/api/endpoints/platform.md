@@ -3,7 +3,7 @@ type: API Endpoint Group
 id: E013
 title: Platform (マルチテナント管理)
 description: プラットフォーム運営側が店舗（テナント）を作成・管理するための API。テナント向け API とは別軸の PlatformAdmin が使う。
-resource: backend/src/routes/customer.ts
+resource: backend/src/routes/platformAuth.ts, backend/src/routes/platformStores.ts
 tags: [platform, multitenant, api, admin]
 ---
 
@@ -38,6 +38,7 @@ Host ヘッダーから店舗を解決する（`backend/src/lib/store.ts` の `r
 - `GET /api/platform/stores/:id` — 店舗詳細
 - `POST /api/platform/stores` — 店舗作成（店舗・初期設定・初期管理者スタッフを一括作成）
 - `PUT /api/platform/stores/:id` — 店舗更新（`name` / `isActive` のみ）
+- `DELETE /api/platform/stores/:id` — 店舗削除（関連データを含めて完全削除）
 
 ## POST /api/platform/auth/login
 
@@ -66,6 +67,18 @@ Response 401:
 ```
 
 ログイン試行はレート制限あり（本番: 1分あたり5回、開発: 1000回）。
+
+Response 429:
+
+```json
+{
+  "error": {
+    "code": "auth.login.rate_limited",
+    "message": "ログイン試行回数が多すぎます。1分後に再試行してください。",
+    "details": null
+  }
+}
+```
 
 ## GET /api/platform/auth/me
 
@@ -96,6 +109,11 @@ Response 200:
   }
 ]
 ```
+
+## GET /api/platform/stores/:id
+
+Response 200: 上記と同形式の Store オブジェクト1件
+Response 404: `platform_stores.detail.not_found`
 
 ## POST /api/platform/stores
 
@@ -136,7 +154,23 @@ Request（全フィールド省略可）:
 { "name": "新店舗名", "isActive": false }
 ```
 
-`subdomain` は不変（このエンドポイントでは変更不可）。存在しない場合は 404。
+`subdomain` は不変（このエンドポイントでは変更不可）。
+
+Response 200: 更新後の Store オブジェクト
+Response 404: `platform_stores.detail.not_found`
+
+## DELETE /api/platform/stores/:id
+
+店舗と関連データを完全に削除する。存在しない場合は 404。
+
+削除手順:
+
+1. 先に `Store.isActive` を `false` に更新する（`resolveStoreContext` が非アクティブな店舗を `unknown` 扱いにするため、以降そのテナントへのリクエストは Host 解決の時点で 404 になる）
+2. `OrderItem` → `Group` → `Session` → `Course` → `DrinkPlan` → `MenuItem` → `SubCategory` → `Category` → `Seat` → `SeatTable` → `Staff` → `Setting` → `Store` の順に単一トランザクションで削除する（`GroupSeat` / `CourseFoodItem` / `DrinkPlanItem` / `RefreshToken` は `onDelete: Cascade` で自動削除）
+3. 削除トランザクションが失敗した場合は `isActive` を `true` に戻し、元の例外を再送出する（500 相当）
+
+Response 204: No Content
+Response 404: `platform_stores.detail.not_found`
 
 ## Notes
 

@@ -38,7 +38,7 @@ tags: [kitchen]
 - `GET /api/menus`
 - `GET /api/categories`
 - `GET /api/subcategories`
-- Socket 受信: `order:created`, `order:updated`, `order:cancelled`, `group:created`, `group:updated`, `seat:updated`, `menu:soldout`
+- Socket 受信: `order:created`, `order:updated`, `order:cancelled`, `group:created`, `group:updated`, `seat:updated`, `menu:soldout`, `menu:created`, `menu:updated`, `menu:deleted`
 - Client 送信: `order:complete`, `order:serve`
 
 参照: [Orders API](../api/endpoints/orders.md) / [Groups API](../api/endpoints/groups.md) / [Seats API](../api/endpoints/seats.md) / [Menus API](../api/endpoints/menus.md) / [WebSocket イベント](../api/websockets.md)

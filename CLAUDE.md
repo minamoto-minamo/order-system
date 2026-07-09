@@ -57,7 +57,7 @@ env ファイルは `env/` ディレクトリで管理。
 
 ```txt
 env/backend.env.example  → env/backend.env   # NODE_ENV, DATABASE_URL, JWT_SECRET, BASE_DOMAIN など
-env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビルド時のみ）
+env/frontend.env.example → env/frontend.env  # VITE_BACKEND_URL（本番ビルド時のみ）
 ```
 
 - backend は起動時に `../env/backend.env` を dotenv で自動ロード
@@ -71,6 +71,7 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 | S100 | ホーム               | `/`                                       | 全員       |
 | S101 | ログイン             | `/login`                                  | 全員       |
 | S102 | グループ詳細         | `/hall/group/:id` `/kitchen/group/:id`    | 共通       |
+| S103 | 客用注文             | `/order/:id`                              | 客         |
 | S200 | ホール               | `/hall`                                   | ホール店員 |
 | S300 | キッチン             | `/kitchen`                                | キッチン   |
 | S400 | 管理者メニュー       | `/admin`                                  | 管理者     |
@@ -79,5 +80,8 @@ env/frontend.env.example → env/frontend.env  # VITE_API_BASE_URL（本番ビ�
 | S403 | 日次レポート         | `/admin/report`                           | 管理者     |
 | S404 | 詳細設定             | `/admin/settings`                         | 管理者     |
 | S405 | スタッフ管理         | `/admin/staff`                            | 管理者     |
+| S406 | コース設定           | `/admin/courses`                          | 管理者     |
+| S500 | プラットフォーム管理者ログイン | `/platform/login`                | Platform |
+| S501 | プラットフォーム店舗管理 | `/platform/stores`                      | Platform |
 
 詳細仕様は `docs/screens/`、ドキュメント一覧は `docs/index.md` を参照。

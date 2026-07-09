@@ -5,7 +5,7 @@ description: REST API 全体の契約。バージョン・認証・エラー形�
 tags: [api, rest, contract, versioning]
 ---
 
-本 API のバージョンは v1。すべてのエンドポイントは `/api` を基点とする。認証は Bearer token (JWT) による。
+本 API のバージョンは v1。すべてのエンドポイントは `/api` を基点とする。認証は JWT による。アクセストークン・リフレッシュトークンとも httpOnly cookie（`token` / `refresh_token`）で送受信し、Authorization ヘッダーは使わない。
 
 エラーは HTTP status と次の JSON body で返す。
 
@@ -39,9 +39,9 @@ tags: [api, rest, contract, versioning]
 
 ## 共通規約
 
-時刻は ISO 8601 (UTC) で表す。リソース ID はプレフィックス付き（例: `g_1`, `m_1`）。ステータス変更を伴う操作は 200 または 204 を返し、body に最新リソースを含める。
+時刻は ISO 8601 (UTC) で表す。リソース ID にプレフィックスは付与しない。マスタ系（Store, Session, SeatTable, Seat, Category, SubCategory, MenuItem, DrinkPlan, Course 等）は自動採番の数値 ID、Group / OrderItem / Staff / PlatformAdmin / RefreshToken は UUID 文字列を用いる。ステータス変更を伴う操作は 200 または 204 を返し、body に最新リソースを含める。
 
-ページネーションはクエリ `?page=1&perPage=50` で指定し、レスポンスに `meta: { total, page, perPage }` を含める。
+一覧系エンドポイントにページネーションは実装していない。常に全件を配列で返す。
 
 ## HTTP ステータス
 
@@ -52,7 +52,32 @@ tags: [api, rest, contract, versioning]
 - `409` — conflict
 - `422` — semantic validation error
 - `429` — rate limited
+- `503` — service unavailable
 - `500` — internal server error
+
+## GET /api/health
+
+疎通確認用エンドポイント。認証不要。`<BASE_DOMAIN>` 自身へのアクセスでのみ利用でき、店舗サブドメインや `admin.<BASE_DOMAIN>` では通常使わない。
+
+Response 200:
+
+```json
+{ "status": "ok" }
+```
+
+アプリケーション起動後に DB へ `SELECT 1` を実行できることを確認してから成功を返す。DB に到達できない場合は 503 を返す。
+
+Response 503:
+
+```json
+{
+  "error": {
+    "code": "common.health.database_unavailable",
+    "message": "database unavailable",
+    "details": null
+  }
+}
+```
 
 ## バージョニング
 

@@ -2,14 +2,14 @@
 type: API Endpoint Group
 id: E010
 title: Settings
-description: アプリケーション設定（店舗情報・税率・営業時間・リフレッシュトークン方式）の取得・更新 API。
+description: アプリケーション設定（店舗情報・税率・税込モード・営業時間・リフレッシュトークン方式）の取得・更新 API。
 resource: backend/src/routes/settings.ts
 tags: [settings, api]
 ---
 
 # Settings
 
-アプリケーション設定（店舗情報、税率、営業時間）に関する API。管理 UI 実装者・バックエンド実装者向け。設定更新は admin ロールでのみ可能。
+アプリケーション設定（店舗情報、税率、税込モード、営業時間）に関する API。管理 UI 実装者・バックエンド実装者向け。設定更新は admin ロールでのみ可能。
 
 - Base: `/api/settings`
 - Auth: JWT cookie（GET は全員、PUT は admin 限定）
@@ -29,6 +29,7 @@ tags: [settings, api]
   "closingTime": "23:00",
   "taxRateInHouse": 10.5,
   "taxRateTakeout": 8,
+  "taxInclusive": false,
   "refreshTokenAutoExtend": true,
   "refreshTokenExpiresMinutes": 1440
 }
@@ -36,6 +37,7 @@ tags: [settings, api]
 
 - `closingTime`: `"HH:MM"` 形式
 - `taxRateInHouse` / `taxRateTakeout`: 数値（%、小数点以下2桁まで対応）
+- `taxInclusive`: 税込モード。`true` = 表示・計上価格を税込として扱う（レポート集計では税率区分ではなく `inclusive` キーにまとめられ、`tax` は常に 0）、`false` = 税別（現行のデフォルト）。`GET /api/customer/settings`（[Customer](./customer.md)）にはこのフィールドは含まれない
 - `refreshTokenAutoExtend`: リフレッシュトークンの有効期限方式。`true` = 自動延長（ローテーションのたびに now 起点で延長）、`false` = 固定期限（最初のログイン時刻起点で固定）
 - `refreshTokenExpiresMinutes`: リフレッシュトークンの有効期限（分）。5〜43200（30日）
 
@@ -49,6 +51,7 @@ Request body（全フィールド省略可）:
   "closingTime": "00:00",
   "taxRateInHouse": 10,
   "taxRateTakeout": 8,
+  "taxInclusive": true,
   "refreshTokenAutoExtend": false,
   "refreshTokenExpiresMinutes": 60
 }

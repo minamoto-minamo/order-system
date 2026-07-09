@@ -28,11 +28,13 @@ tags: [drink-plans, api]
   {
     "id": 1,
     "name": "飲み放題プラン",
+    "price": 1500,
     "menuItemIds": [10, 11, 12]
   }
 ]
 ```
 
+- `price`: プラン料金
 - `menuItemIds`: このプランで注文可能なメニューアイテムの ID 一覧
 
 ## POST /api/drink-plans
@@ -40,13 +42,15 @@ tags: [drink-plans, api]
 ```json
 {
   "name": "飲み放題プラン",
+  "price": 1500,
   "menuItemIds": [10, 11, 12]
 }
 ```
 
-- `name`, `menuItemIds` は必須
+- `name`, `price`, `menuItemIds` は必須
 
 Response 201: 作成したプランオブジェクト
+Response 422: `drink_plans.save.menu_not_found` — `menuItemIds` に存在しない、または他店舗のメニューが含まれる場合
 
 ## PUT /api/drink-plans/:id
 
@@ -55,11 +59,14 @@ Request body（全フィールド省略可）:
 ```json
 {
   "name": "プレミアム飲み放題",
+  "price": 2000,
   "menuItemIds": [10, 11, 12, 13]
 }
 ```
 
 - `menuItemIds` を指定すると全件置き換え
+Response 404: `drink_plans.detail.not_found`
+Response 422: `drink_plans.save.menu_not_found` — `menuItemIds` を変更する場合に、存在しない、または他店舗のメニューが含まれるとき
 
 ## DELETE /api/drink-plans/:id
 

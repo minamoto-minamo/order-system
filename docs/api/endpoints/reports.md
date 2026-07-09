@@ -12,7 +12,7 @@ tags: [reports, api]
 セッション単位の売上レポート出力 API。管理 UI 実装者・バックエンド実装者・経営向け。セッションの操作自体は [Sessions](./sessions.md) を参照。
 
 - Base: `/api/sessions/:id/report`
-- Auth: login required（JWT cookie）
+- Auth: admin 限定（JWT cookie）
 
 ## GET /api/sessions/:id/report
 
@@ -47,6 +47,8 @@ Response 200:
 - 集計対象は `status != 'cancelled'` の注文のみ。集計結果は対象セッションの注文・グループと一致し、キャンセル済み注文は含まれない。
 - `seatUsageRate` は全席数に対する利用席数の割合（%）。
 - `taxBreakdown`: 税率（%、文字列キー）ごとの税抜合計（`subtotal`）と税額（`tax`）。税額は切り捨て。
-- 削除済みメニューの注文は `categoryName: "削除済みメニュー"` として集計に含まれる（集計から欠落しない）。
+  - 会計確定時点で税込モードだった明細は `"inclusive"` キーに集計される（`subtotal` は税込金額の合計、`tax` は常に 0）。税率は会計確定時点のグループ単位スナップショット（`Group.billedTaxRateInHouse` / `billedTaxRateTakeout` / `billedTaxInclusive`。未確定の場合は店舗設定 `Setting` の値）で判定する。
+- 削除済みメニューの注文は `categoryName: "削除済みメニュー"` として集計に含まれる（集計から欠落しない）。コース・飲み放題の定額課金明細は `categoryName: "コース・飲み放題料金"` として集計される。
 - 存在しないセッション ID は 404。
 - セッションが `closed` でない場合は 409。
+- 店舗設定（`Setting`）が見つからない場合は 500（`common.setting_not_found`）。

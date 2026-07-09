@@ -25,11 +25,12 @@ tags: [admin]
 
 ## 連携する API・Socket
 
-- `GET/POST/PUT/DELETE /api/seats`, `/api/seat-tables`
+- `GET/PUT /api/seat-layout`（テーブル・席をまとめて一括保存。個別の `/api/seats` CRUD は本画面では使用しない）
+- Socket: `seatLayout:updated`（保存後にホール画面へ配信）
 
-参照: [Seats API](../api/endpoints/seats.md) / [Seat Layout API](../api/endpoints/seat-layout.md)
+参照: [Seat Layout API](../api/endpoints/seat-layout.md)
 
 ## 満たすべき条件
 
-- 保存後、`GET /api/seats` の結果に変更が反映される。
+- 保存後、`GET /api/seat-layout` の結果に変更が反映される。
 - 使用中の席は削除不可。

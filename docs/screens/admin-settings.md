@@ -21,7 +21,7 @@ Setting レコードを編集する。保存時に `settings:updated` を即時�
 
 ## UI 要素
 
-- Form: storeName, closingTime, taxRateInHouse, taxRateTakeout
+- Form: storeName, closingTime, taxInclusive（税込/税別トグル）, taxRateInHouse, taxRateTakeout（taxInclusive時は入力不可）, refreshTokenAutoExtend（自動延長/固定期限トグル）, refreshTokenExpiresMinutes
 - Save button
 
 ## 連携する API・Socket
