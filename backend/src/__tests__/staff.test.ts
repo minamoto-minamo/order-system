@@ -1,9 +1,10 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import Fastify from 'fastify'
 
-const mockFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: string; username: string; role: string } | null>>()
+const mockFindFirst =
+  jest.fn<(...args: unknown[]) => Promise<{ id: string; username: string; role: string } | null>>()
 const mockDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockListActiveSessions = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
 const mockRevokeTokenById = jest.fn<(...args: unknown[]) => Promise<boolean>>()
@@ -37,14 +38,18 @@ const STORE_ID = 1
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
+      reply.status(401).send({
+        error: { code: 'auth.session.required', message: '認証が必要です', details: null },
+      })
     }
   })
   await app.register(staffRoutes, { prefix: '/api/staff' })
@@ -68,7 +73,13 @@ describe('DELETE /api/staff/:id — 自己削除ガード', () => {
   })
 
   function token(userId: string) {
-    return app.jwt.sign({ type: 'staff' as const, userId, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('自分自身のIDで DELETE すると 422 を返す', async () => {
@@ -112,7 +123,13 @@ describe('GET /api/staff/:id/sessions', () => {
   })
 
   function token(userId: string) {
-    return app.jwt.sign({ type: 'staff' as const, userId, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('対象スタッフが存在しない場合は 404 を返す', async () => {
@@ -127,7 +144,13 @@ describe('GET /api/staff/:id/sessions', () => {
   })
 
   it('admin 以外は 403 を返す', async () => {
-    const staffToken = app.jwt.sign({ type: 'staff' as const, userId: OTHER_ID, username: 'staff', role: 'staff', storeId: STORE_ID })
+    const staffToken = app.jwt.sign({
+      type: 'staff' as const,
+      userId: OTHER_ID,
+      username: 'staff',
+      role: 'staff',
+      storeId: STORE_ID,
+    })
     const res = await app.inject({
       method: 'GET',
       url: `/api/staff/${OTHER_ID}/sessions`,
@@ -157,13 +180,15 @@ describe('GET /api/staff/:id/sessions', () => {
     expect(res.statusCode).toBe(200)
     expect(mockListActiveSessions).toHaveBeenCalledWith(OTHER_ID)
     const body = res.json()
-    expect(body).toEqual([{
-      id: 'session-1',
-      issuedAt: '2024-06-01T12:00:00.000Z',
-      expiresAt: '2024-06-02T12:00:00.000Z',
-      userAgent: 'Mozilla/5.0',
-      ipAddress: '127.0.0.1',
-    }])
+    expect(body).toEqual([
+      {
+        id: 'session-1',
+        issuedAt: '2024-06-01T12:00:00.000Z',
+        expiresAt: '2024-06-02T12:00:00.000Z',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '127.0.0.1',
+      },
+    ])
     expect(JSON.stringify(body)).not.toContain('tokenHash')
   })
 })
@@ -184,7 +209,13 @@ describe('DELETE /api/staff/:id/sessions/:sessionId', () => {
   })
 
   function token(userId: string) {
-    return app.jwt.sign({ type: 'staff' as const, userId, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('対象スタッフが存在しない場合は 404 を返す', async () => {

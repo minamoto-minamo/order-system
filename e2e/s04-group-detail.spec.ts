@@ -1,9 +1,9 @@
-import { resetDb, prisma, disconnect } from './helpers/db'
-import { loginAs } from './helpers/auth'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
-import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { loginAs } from './helpers/auth'
+import { disconnect, prisma, resetDb } from './helpers/db'
+import { SEED } from './helpers/seeds'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -58,7 +58,9 @@ test('メニュータブを開いてメニューが表示される', async ({ pa
 
 test('メニューから注文追加 → 注文履歴に表示される', async ({ page }) => {
   const { group } = await setupGroup()
-  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, takeout: { in: ['dine_in', 'both'] }, storeId: getStore().id } })
+  const menu = await prisma.menuItem.findFirst({
+    where: { soldOut: false, takeout: { in: ['dine_in', 'both'] }, storeId: getStore().id },
+  })
   if (!menu) test.skip()
 
   await page.goto(ROUTES.hallGroup(group.id))
@@ -99,7 +101,9 @@ test('退店ボタンでモーダルが開く', async ({ page }) => {
 
 test('注文を追加してキャンセルできる', async ({ page }) => {
   const { group } = await setupGroup()
-  const menu = await prisma.menuItem.findFirst({ where: { soldOut: false, storeId: getStore().id } })
+  const menu = await prisma.menuItem.findFirst({
+    where: { soldOut: false, storeId: getStore().id },
+  })
   if (!menu) test.skip()
 
   await prisma.orderItem.create({

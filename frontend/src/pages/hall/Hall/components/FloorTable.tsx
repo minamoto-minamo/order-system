@@ -1,19 +1,44 @@
-import type { SeatTable, Seat, Group } from "@order-system/shared";
-import { isGroupActive } from "@/lib/utils";
+import type { Group, Seat, SeatTable } from '@order-system/shared'
+import { isGroupActive } from '@/lib/utils'
 
-export function FloorTable({ table, seats, groups, isSelected, onTap }: {
-  table: SeatTable; seats: Seat[]; groups: Group[]; isSelected: boolean; onTap: (table: SeatTable) => void;
+export function FloorTable({
+  table,
+  seats,
+  groups,
+  isSelected,
+  onTap,
+}: {
+  table: SeatTable
+  seats: Seat[]
+  groups: Group[]
+  isSelected: boolean
+  onTap: (table: SeatTable) => void
 }) {
-  const tableSeats = seats.filter(s => s.tableId === table.id);
-  const hasOccupied = tableSeats.some(s => groups.some(g => isGroupActive(g) && g.seatIds.includes(s.id)));
+  const tableSeats = seats.filter((s) => s.tableId === table.id)
+  const hasOccupied = tableSeats.some((s) =>
+    groups.some((g) => isGroupActive(g) && g.seatIds.includes(s.id)),
+  )
+  const activate = () => onTap(table)
   return (
     <>
       <div
         className={`absolute z-1 rounded-lg border-[1.5px] border-dashed ${
-          isSelected ? 'bg-info-bg border-info' : hasOccupied ? 'bg-surface border-line' : 'tappable bg-white border-divider'
+          isSelected
+            ? 'bg-info-bg border-info'
+            : hasOccupied
+              ? 'bg-surface border-line'
+              : 'tappable bg-white border-divider'
         }`}
         style={{ left: table.x, top: table.y, width: table.w, height: table.h }}
-        onClick={() => onTap(table)}
+        role="button"
+        tabIndex={0}
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            activate()
+          }
+        }}
       />
       <span
         className={`absolute z-20 text-micro pointer-events-none ${isSelected ? 'text-info' : 'text-dim'}`}
@@ -22,5 +47,5 @@ export function FloorTable({ table, seats, groups, isSelected, onTap }: {
         {table.label}
       </span>
     </>
-  );
+  )
 }

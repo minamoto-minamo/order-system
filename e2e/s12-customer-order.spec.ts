@@ -1,8 +1,8 @@
-import { resetDb, prisma, disconnect } from './helpers/db'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
-import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { disconnect, prisma, resetDb } from './helpers/db'
+import { SEED } from './helpers/seeds'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -58,7 +58,13 @@ test('会計リクエスト済みグループでは最初からメニュータ�
   const storeId = getStore().id
   const session = await prisma.session.create({ data: { status: 'open', storeId } })
   const group = await prisma.group.create({
-    data: { name: 'テストグループ', guestCount: 2, sessionId: session.id, storeId, status: 'bill_requested' },
+    data: {
+      name: 'テストグループ',
+      guestCount: 2,
+      sessionId: session.id,
+      storeId,
+      status: 'bill_requested',
+    },
   })
 
   await page.goto(ROUTES.customerOrder(group.id))

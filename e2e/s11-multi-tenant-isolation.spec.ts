@@ -1,9 +1,14 @@
-import { test, expect } from '@playwright/test'
-import { resetDb, disconnect } from './helpers/db'
-import { loginAs } from './helpers/auth'
-import { createTestStore, deleteTestStore, findStoreIdBySubdomain, type TestStore } from './helpers/store'
-import { ROUTES } from '../frontend/src/lib/routes'
+import { expect, test } from '@playwright/test'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { loginAs } from './helpers/auth'
+import { disconnect, resetDb } from './helpers/db'
+import {
+  createTestStore,
+  deleteTestStore,
+  findStoreIdBySubdomain,
+  type TestStore,
+} from './helpers/store'
 
 const ADMIN_HOST = 'http://admin.localhost:5173'
 
@@ -43,7 +48,7 @@ test('store1 で作成したスタッフが store2 の一覧に見えない', as
 test('store1 で発行された Cookie を store2 ホストへ直接送っても 401 になる', async ({ page }) => {
   await loginAs(page, 'admin', { host: storeA.baseURL })
   const cookies = await page.context().cookies()
-  const token = cookies.find(c => c.name === 'token')?.value
+  const token = cookies.find((c) => c.name === 'token')?.value
   expect(token).toBeTruthy()
 
   const res = await page.request.get(`${storeB.baseURL}/api/auth/me`, {
@@ -57,7 +62,9 @@ test('存在しないサブドメインへの API アクセスは 404', async ({
   expect(res.status()).toBe(404)
 })
 
-test('admin.localhost からプラットフォーム管理者としてログインし、店舗を作成すると即座にその店舗へログインできる', async ({ page }) => {
+test('admin.localhost からプラットフォーム管理者としてログインし、店舗を作成すると即座にその店舗へログインできる', async ({
+  page,
+}) => {
   const storeCSubdomain = `e2e-worker${test.info().parallelIndex}-c`
 
   // 前回実行のクラッシュ等で同名店舗が残っている場合に備え、事前に削除しておく
@@ -80,9 +87,12 @@ test('admin.localhost からプラットフォーム管理者としてログイ�
     await modal.getByRole('button', { name: ja.common.save }).click()
     await expect(page.getByText(storeCSubdomain)).toBeVisible()
 
-    const loginRes = await page.request.post(`http://${storeCSubdomain}.localhost:5173/api/auth/login`, {
-      data: { username: 'store3admin', password: 'store3admin1234' },
-    })
+    const loginRes = await page.request.post(
+      `http://${storeCSubdomain}.localhost:5173/api/auth/login`,
+      {
+        data: { username: 'store3admin', password: 'store3admin1234' },
+      },
+    )
     expect(loginRes.status()).toBe(200)
   } finally {
     const createdId = await findStoreIdBySubdomain(storeCSubdomain)
@@ -90,7 +100,9 @@ test('admin.localhost からプラットフォーム管理者としてログイ�
   }
 })
 
-test('admin.localhost からテナント API を叩くと 404、逆にテナントホストからプラットフォーム API を叩くと 404', async ({ page }) => {
+test('admin.localhost からテナント API を叩くと 404、逆にテナントホストからプラットフォーム API を叩くと 404', async ({
+  page,
+}) => {
   const fromAdmin = await page.request.get(`${ADMIN_HOST}/api/settings`)
   expect(fromAdmin.status()).toBe(404)
 

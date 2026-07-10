@@ -1,10 +1,10 @@
-import ja from './locales/ja';
+import ja from './locales/ja'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
-    defaultNS: 'translation';
+    defaultNS: 'translation'
     resources: {
-      translation: typeof ja;
-    };
+      translation: typeof ja
+    }
   }
 }

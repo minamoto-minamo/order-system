@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -8,10 +8,18 @@ export function Section({ title, children }: { title: string; children: ReactNod
       </div>
       {children}
     </div>
-  );
+  )
 }
 
-export function SettingRow({ label, sub, children }: { label: string; sub?: string; children: ReactNode }) {
+export function SettingRow({
+  label,
+  sub,
+  children,
+}: {
+  label: string
+  sub?: string
+  children: ReactNode
+}) {
   return (
     <div className="px-5 py-3.5 border-b border-surface flex flex-col gap-2">
       <div>
@@ -20,5 +28,5 @@ export function SettingRow({ label, sub, children }: { label: string; sub?: stri
       </div>
       <div className="self-end">{children}</div>
     </div>
-  );
+  )
 }

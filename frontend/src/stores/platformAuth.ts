@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { PlatformAdmin } from '@order-system/shared'
+import { create } from 'zustand'
 
 export type { PlatformAdmin }
 

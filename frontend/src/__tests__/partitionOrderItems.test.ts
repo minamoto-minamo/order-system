@@ -1,5 +1,5 @@
-import { partitionOrderItems } from '../lib/partitionOrderItems'
 import type { OrderItem, OrderItemStatus } from '@order-system/shared'
+import { partitionOrderItems } from '../lib/partitionOrderItems'
 
 function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
   return {
@@ -27,9 +27,9 @@ describe('partitionOrderItems', () => {
       makeItem({ id: 'd', status: 'cancelled' }),
     ]
     const result = partitionOrderItems(items)
-    expect(result.active.map(i => i.id)).toEqual(['a', 'b'])
-    expect(result.served.map(i => i.id)).toEqual(['c'])
-    expect(result.cancelled.map(i => i.id)).toEqual(['d'])
+    expect(result.active.map((i) => i.id)).toEqual(['a', 'b'])
+    expect(result.served.map((i) => i.id)).toEqual(['c'])
+    expect(result.cancelled.map((i) => i.id)).toEqual(['d'])
   })
 
   it('コース付属料理はステータスに関わらず courseDishes にだけ入る', () => {
@@ -38,15 +38,13 @@ describe('partitionOrderItems', () => {
       makeItem({ id: 'dish-served', courseId: 10, price: 0, status: 'served' }),
     ]
     const result = partitionOrderItems(items)
-    expect(result.courseDishes.map(i => i.id)).toEqual(['dish-pending', 'dish-served'])
+    expect(result.courseDishes.map((i) => i.id)).toEqual(['dish-pending', 'dish-served'])
     expect(result.active).toEqual([])
     expect(result.served).toEqual([])
   })
 
   it('キャンセル済みのコース付属料理はどこにも表示しない', () => {
-    const items = [
-      makeItem({ id: 'dish-cancelled', courseId: 10, price: 0, status: 'cancelled' }),
-    ]
+    const items = [makeItem({ id: 'dish-cancelled', courseId: 10, price: 0, status: 'cancelled' })]
     const result = partitionOrderItems(items)
     expect(result.courseDishes).toEqual([])
     expect(result.cancelled).toEqual([])
@@ -55,11 +53,17 @@ describe('partitionOrderItems', () => {
   it('課金明細は courseCharges に、キャンセル済み課金明細は cancelled に入る', () => {
     const items = [
       makeItem({ id: 'charge', courseId: 10, isCourseCharge: true, status: 'served' }),
-      makeItem({ id: 'plan-charge', courseId: 10, isCourseCharge: true, isDrinkPlanCharge: true, status: 'served' }),
+      makeItem({
+        id: 'plan-charge',
+        courseId: 10,
+        isCourseCharge: true,
+        isDrinkPlanCharge: true,
+        status: 'served',
+      }),
       makeItem({ id: 'old-charge', courseId: 11, isCourseCharge: true, status: 'cancelled' }),
     ]
     const result = partitionOrderItems(items)
-    expect(result.courseCharges.map(i => i.id)).toEqual(['charge', 'plan-charge'])
-    expect(result.cancelled.map(i => i.id)).toEqual(['old-charge'])
+    expect(result.courseCharges.map((i) => i.id)).toEqual(['charge', 'plan-charge'])
+    expect(result.cancelled.map((i) => i.id)).toEqual(['old-charge'])
   })
 })

@@ -1,5 +1,5 @@
-import { getSeatStatus, buildGroupName } from '../pages/hall/Hall/components/hallUtils'
-import type { Seat, SeatTable, Group } from '@order-system/shared'
+import type { Group, Seat, SeatTable } from '@order-system/shared'
+import { buildGroupName, getSeatStatus } from '../pages/hall/Hall/components/hallUtils'
 
 const seats: Seat[] = [
   { id: 1, label: 'S1', type: 'counter', x: 0, y: 0, tableId: null },
@@ -8,14 +8,20 @@ const seats: Seat[] = [
   { id: 4, label: 'T1-2', type: 'table', x: 1, y: 1, tableId: 10 },
 ]
 
-const tables: SeatTable[] = [
-  { id: 10, label: '卓1', x: 0, y: 1, w: 2, h: 1 },
-]
+const tables: SeatTable[] = [{ id: 10, label: '卓1', x: 0, y: 1, w: 2, h: 1 }]
 
 const baseGroup: Group = {
-  id: 'uuid-group-1', name: 'G1', guestCount: 2, seatIds: [], sessionId: 1,
-  courseId: null, drinkPlanId: null, createdAt: '2024-01-01T00:00:00.000Z',
-  effectiveTaxRateInHouse: 10, effectiveTaxRateTakeout: 8, effectiveTaxInclusive: false,
+  id: 'uuid-group-1',
+  name: 'G1',
+  guestCount: 2,
+  seatIds: [],
+  sessionId: 1,
+  courseId: null,
+  drinkPlanId: null,
+  createdAt: '2024-01-01T00:00:00.000Z',
+  effectiveTaxRateInHouse: 10,
+  effectiveTaxRateTakeout: 8,
+  effectiveTaxInclusive: false,
   status: 'active',
 }
 

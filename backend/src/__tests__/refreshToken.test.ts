@@ -1,4 +1,4 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const mockFindUniqueToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockUpdateManyToken = jest.fn<(...args: unknown[]) => Promise<{ count: number }>>()
@@ -44,15 +44,25 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
   },
 }))
 
-const { hashToken, rotateRefreshToken, verifyRefreshToken, issueRefreshToken, revokeTokenByRaw, revokeTokenById, listActiveSessions } =
-  await import('../lib/refreshToken.js')
+const {
+  hashToken,
+  rotateRefreshToken,
+  verifyRefreshToken,
+  issueRefreshToken,
+  revokeTokenByRaw,
+  revokeTokenById,
+  listActiveSessions,
+} = await import('../lib/refreshToken.js')
 
 const STAFF_ID = 'staff-1'
 const STORE_ID = 1
 
 beforeEach(() => {
   jest.clearAllMocks()
-  mockFindUniqueSetting.mockResolvedValue({ refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 1440 })
+  mockFindUniqueSetting.mockResolvedValue({
+    refreshTokenAutoExtend: true,
+    refreshTokenExpiresMinutes: 1440,
+  })
   mockFindUniqueStaff.mockResolvedValue({ storeId: STORE_ID })
 })
 
@@ -68,7 +78,10 @@ describe('hashToken', () => {
 
 describe('issueRefreshToken', () => {
   it('自動延長方式では now + expiresMinutes を expiresAt にする', async () => {
-    mockFindUniqueSetting.mockResolvedValue({ refreshTokenAutoExtend: true, refreshTokenExpiresMinutes: 60 })
+    mockFindUniqueSetting.mockResolvedValue({
+      refreshTokenAutoExtend: true,
+      refreshTokenExpiresMinutes: 60,
+    })
     mockCreateToken.mockImplementation(async (args: unknown) => {
       const data = (args as { data: { expiresAt: Date; familyIssuedAt: Date } }).data
       return { id: 'new-id', expiresAt: data.expiresAt }
@@ -81,7 +94,10 @@ describe('issueRefreshToken', () => {
   })
 
   it('固定期限方式でもログイン発行時は familyIssuedAt = now のため now + expiresMinutes を expiresAt にする', async () => {
-    mockFindUniqueSetting.mockResolvedValue({ refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 60 })
+    mockFindUniqueSetting.mockResolvedValue({
+      refreshTokenAutoExtend: false,
+      refreshTokenExpiresMinutes: 60,
+    })
     mockCreateToken.mockImplementation(async (args: unknown) => {
       const data = (args as { data: { expiresAt: Date; familyIssuedAt: Date } }).data
       return { id: 'new-id', expiresAt: data.expiresAt }
@@ -103,8 +119,11 @@ describe('rotateRefreshToken', () => {
 
   it('トークンの所有 staff が別店舗に所属する場合は invalid を返す（storeId 不一致）', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindUniqueStaff.mockResolvedValue({ storeId: STORE_ID + 1 })
     const result = await rotateRefreshToken(STORE_ID, 'raw')
@@ -114,8 +133,11 @@ describe('rotateRefreshToken', () => {
 
   it('トークンの所有 staff が既に存在しない場合は invalid を返す', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindUniqueStaff.mockResolvedValue(null)
     const result = await rotateRefreshToken(STORE_ID, 'raw')
@@ -124,8 +146,11 @@ describe('rotateRefreshToken', () => {
 
   it('未使用トークンが期限切れの場合は expired を返す', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-      expiresAt: new Date(Date.now() - 1000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 1000),
+      familyIssuedAt: new Date(),
     })
     const result = await rotateRefreshToken(STORE_ID, 'raw')
     expect(result).toEqual({ status: 'expired' })
@@ -135,31 +160,56 @@ describe('rotateRefreshToken', () => {
   it('未使用トークンが有効な場合は revoke して子トークンを発行し rotated を返す', async () => {
     const familyIssuedAt = new Date(Date.now() - 60_000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt,
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt,
     })
     mockUpdateManyToken.mockResolvedValue({ count: 1 })
-    mockCreateToken.mockResolvedValue({ id: 'child-1', expiresAt: new Date(Date.now() + 1440 * 60_000) })
+    mockCreateToken.mockResolvedValue({
+      id: 'child-1',
+      expiresAt: new Date(Date.now() + 1440 * 60_000),
+    })
 
-    const result = await rotateRefreshToken(STORE_ID, 'raw', { userAgent: 'UA', ipAddress: '127.0.0.1' })
+    const result = await rotateRefreshToken(STORE_ID, 'raw', {
+      userAgent: 'UA',
+      ipAddress: '127.0.0.1',
+    })
 
     expect(result.status).toBe('rotated')
     if (result.status === 'rotated') {
       expect(result.staffId).toBe(STAFF_ID)
       expect(result.token.id).toBe('child-1')
     }
-    expect(mockUpdateManyToken).toHaveBeenCalledWith({ where: { id: 'row-1', revokedAt: null }, data: { revokedAt: expect.any(Date) } })
-    expect(mockCreateToken).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ parentId: 'row-1', familyIssuedAt, userAgent: 'UA', ipAddress: '127.0.0.1' }),
-    }))
+    expect(mockUpdateManyToken).toHaveBeenCalledWith({
+      where: { id: 'row-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    })
+    expect(mockCreateToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          parentId: 'row-1',
+          familyIssuedAt,
+          userAgent: 'UA',
+          ipAddress: '127.0.0.1',
+        }),
+      }),
+    )
   })
 
   it('固定期限方式で rotate した場合、子の expiresAt は now ではなく familyIssuedAt（ログイン時刻）起点で計算される', async () => {
-    mockFindUniqueSetting.mockResolvedValue({ refreshTokenAutoExtend: false, refreshTokenExpiresMinutes: 60 })
+    mockFindUniqueSetting.mockResolvedValue({
+      refreshTokenAutoExtend: false,
+      refreshTokenExpiresMinutes: 60,
+    })
     const familyIssuedAt = new Date(Date.now() - 30 * 60_000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt,
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt,
     })
     mockUpdateManyToken.mockResolvedValue({ count: 1 })
     mockCreateToken.mockImplementation(async (args: unknown) => {
@@ -180,8 +230,11 @@ describe('rotateRefreshToken', () => {
   it('猶予期間内に使用済みトークンが再提示され子が存在する場合は reused を返す（cookie 再発行なし）', async () => {
     const revokedAt = new Date(Date.now() - 1000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindFirstToken.mockResolvedValue({ id: 'child-1' })
 
@@ -194,8 +247,11 @@ describe('rotateRefreshToken', () => {
   it('子が存在し猶予期間を超えて再提示された場合は reuse-detected とし全トークンを無効化する', async () => {
     const revokedAt = new Date(Date.now() - 60_000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindFirstToken.mockResolvedValue({ id: 'child-1' })
 
@@ -211,8 +267,11 @@ describe('rotateRefreshToken', () => {
   it('子が存在しない revoked トークン（個別強制ログアウト済み等）が再提示された場合は他端末に影響せず invalid を返す', async () => {
     const revokedAt = new Date(Date.now() - 1000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindFirstToken.mockResolvedValue(null)
 
@@ -225,8 +284,11 @@ describe('rotateRefreshToken', () => {
   it('子が存在しない revoked トークンは猶予期間を超えていても invalid を返す（reuse-detected にならない）', async () => {
     const revokedAt = new Date(Date.now() - 60_000)
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt,
-      expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt,
+      expiresAt: new Date(Date.now() + 60_000),
+      familyIssuedAt: new Date(),
     })
     mockFindFirstToken.mockResolvedValue(null)
 
@@ -240,12 +302,18 @@ describe('rotateRefreshToken', () => {
     const revokedAt = new Date(Date.now() - 1000)
     mockFindUniqueToken
       .mockResolvedValueOnce({
-        id: 'row-1', staffId: STAFF_ID, revokedAt: null,
-        expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+        id: 'row-1',
+        staffId: STAFF_ID,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        familyIssuedAt: new Date(),
       })
       .mockResolvedValueOnce({
-        id: 'row-1', staffId: STAFF_ID, revokedAt,
-        expiresAt: new Date(Date.now() + 60_000), familyIssuedAt: new Date(),
+        id: 'row-1',
+        staffId: STAFF_ID,
+        revokedAt,
+        expiresAt: new Date(Date.now() + 60_000),
+        familyIssuedAt: new Date(),
       })
     mockUpdateManyToken.mockResolvedValue({ count: 0 })
     mockFindFirstToken.mockResolvedValue({ id: 'child-1' })
@@ -266,7 +334,9 @@ describe('verifyRefreshToken', () => {
 
   it('既に revoke 済みの場合は invalid を返す', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: new Date(),
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: new Date(),
       expiresAt: new Date(Date.now() + 60_000),
     })
     const result = await verifyRefreshToken('raw')
@@ -275,7 +345,9 @@ describe('verifyRefreshToken', () => {
 
   it('期限切れの場合は expired を返す', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
       expiresAt: new Date(Date.now() - 1000),
     })
     const result = await verifyRefreshToken('raw')
@@ -284,7 +356,9 @@ describe('verifyRefreshToken', () => {
 
   it('未失効・未失効期限内の場合は valid を返し、DBを書き換えない', async () => {
     mockFindUniqueToken.mockResolvedValue({
-      id: 'row-1', staffId: STAFF_ID, revokedAt: null,
+      id: 'row-1',
+      staffId: STAFF_ID,
+      revokedAt: null,
       expiresAt: new Date(Date.now() + 60_000),
     })
     const result = await verifyRefreshToken('raw')

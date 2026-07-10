@@ -1,13 +1,16 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import Fastify from 'fastify'
 
-const mockStoreFindUnique = jest.fn<(...args: unknown[]) => Promise<{
-  id: number
-  subdomain: string
-  isActive: boolean
-} | null>>()
+const mockStoreFindUnique =
+  jest.fn<
+    (...args: unknown[]) => Promise<{
+      id: number
+      subdomain: string
+      isActive: boolean
+    } | null>
+  >()
 const mockStoreUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStoreDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockTransaction = jest.fn<(ops: Promise<unknown>[]) => Promise<unknown>>()
@@ -73,9 +76,18 @@ describe('DELETE /api/platform/stores/:id', () => {
     jest.clearAllMocks()
     mockTransaction.mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops))
     for (const mock of [
-      mockOrderItemDeleteMany, mockGroupDeleteMany, mockSessionDeleteMany, mockCourseDeleteMany,
-      mockDrinkPlanDeleteMany, mockMenuItemDeleteMany, mockSubCategoryDeleteMany, mockCategoryDeleteMany,
-      mockSeatDeleteMany, mockSeatTableDeleteMany, mockStaffDeleteMany, mockSettingDeleteMany,
+      mockOrderItemDeleteMany,
+      mockGroupDeleteMany,
+      mockSessionDeleteMany,
+      mockCourseDeleteMany,
+      mockDrinkPlanDeleteMany,
+      mockMenuItemDeleteMany,
+      mockSubCategoryDeleteMany,
+      mockCategoryDeleteMany,
+      mockSeatDeleteMany,
+      mockSeatTableDeleteMany,
+      mockStaffDeleteMany,
+      mockSettingDeleteMany,
     ]) {
       mock.mockResolvedValue({ count: 0 })
     }
@@ -84,7 +96,11 @@ describe('DELETE /api/platform/stores/:id', () => {
   })
 
   function platformCookie() {
-    const token = app.jwt.sign({ type: 'platform' as const, adminId: 'admin-1', username: 'platform-admin' })
+    const token = app.jwt.sign({
+      type: 'platform' as const,
+      adminId: 'admin-1',
+      username: 'platform-admin',
+    })
     return `platform_token=${token}`
   }
 
@@ -116,7 +132,10 @@ describe('DELETE /api/platform/stores/:id', () => {
     })
 
     expect(res.statusCode).toBe(204)
-    expect(mockStoreUpdate).toHaveBeenCalledWith({ where: { id: STORE_ID }, data: { isActive: false } })
+    expect(mockStoreUpdate).toHaveBeenCalledWith({
+      where: { id: STORE_ID },
+      data: { isActive: false },
+    })
     expect(mockTransaction).toHaveBeenCalledTimes(1)
     expect(mockOrderItemDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockGroupDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })

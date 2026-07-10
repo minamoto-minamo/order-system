@@ -13,7 +13,9 @@ export async function resetDb(storeId: number) {
   await prisma.refreshToken.deleteMany({ where: { staff: { storeId } } })
   await prisma.menuItem.updateMany({ where: { storeId }, data: { soldOut: false } })
   // フィクスチャの admin/staff 以外は、テスト中に作成された残骸として削除する
-  await prisma.staff.deleteMany({ where: { storeId, username: { notIn: [CREDS.admin.username, CREDS.staff.username] } } })
+  await prisma.staff.deleteMany({
+    where: { storeId, username: { notIn: [CREDS.admin.username, CREDS.staff.username] } },
+  })
 }
 
 export async function disconnect() {

@@ -1,10 +1,10 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes } from 'react'
 
 interface NavigationCardProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  label: string;
-  subtitle?: string;
-  icon?: string;
-  animationDelay?: number;
+  label: string
+  subtitle?: string
+  icon?: string
+  animationDelay?: number
 }
 
 export function NavigationCard({
@@ -13,18 +13,28 @@ export function NavigationCard({
   icon,
   animationDelay,
   disabled,
-  className = "",
+  className = '',
   style,
   ...props
 }: NavigationCardProps) {
   const stateClass = disabled
-    ? "bg-surface-deep border-line border-l-faint"
-    : "bg-white border-brand-border border-l-brand";
+    ? 'bg-surface-deep border-line border-l-faint'
+    : 'bg-white border-brand-border border-l-brand'
   return (
     <button
-      className={["tappable rounded-[10px] px-5.5 py-5 text-left w-full border border-l-4 flex items-center gap-4", stateClass, className].filter(Boolean).join(" ")}
+      className={[
+        'tappable rounded-[10px] px-5.5 py-5 text-left w-full border border-l-4 flex items-center gap-4',
+        stateClass,
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       disabled={disabled}
-      style={animationDelay !== undefined ? { animation: `fadeIn 0.4s ease ${animationDelay}s both`, ...style } : style}
+      style={
+        animationDelay !== undefined
+          ? { animation: `fadeIn 0.4s ease ${animationDelay}s both`, ...style }
+          : style
+      }
       {...props}
     >
       {icon && <img src={icon} alt="" className="h-8 w-8 object-contain shrink-0" />}
@@ -33,5 +43,5 @@ export function NavigationCard({
         {subtitle && <div className="text-xs text-muted font-light">{subtitle}</div>}
       </div>
     </button>
-  );
+  )
 }

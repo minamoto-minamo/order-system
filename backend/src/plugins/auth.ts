@@ -1,11 +1,11 @@
-import fp from 'fastify-plugin'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
-import type { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify'
-import { prisma } from '../lib/prisma.js'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import fp from 'fastify-plugin'
 import { parseDurationSeconds } from '../lib/config.js'
-import { rotateRefreshToken } from '../lib/refreshToken.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { prisma } from '../lib/prisma.js'
+import { rotateRefreshToken } from '../lib/refreshToken.js'
 
 export type JwtPayload =
   | { type: 'staff'; userId: string; username: string; role: string; storeId: number }
@@ -19,7 +19,8 @@ declare module '@fastify/jwt' {
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
-  if (!request.user || request.user.type !== 'staff') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
+  if (request.user?.type !== 'staff')
+    return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
   if (request.user.role !== 'admin') {
     return sendError(reply, 403, ErrorCodes.Auth.Forbidden, '権限がありません')
   }
@@ -30,7 +31,8 @@ export async function requirePlatformAdmin(request: FastifyRequest, reply: Fasti
   if (!token) return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
   try {
     const payload = request.server.jwt.verify<JwtPayload>(token)
-    if (payload.type !== 'platform') return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
+    if (payload.type !== 'platform')
+      return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     request.user = payload
   } catch {
     return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
@@ -93,7 +95,8 @@ export default fp(async (fastify) => {
       request.url === '/api/auth/logout' ||
       request.url === '/api/health' ||
       request.url.startsWith('/api/customer/')
-    ) return
+    )
+      return
 
     try {
       await request.jwtVerify()
@@ -124,13 +127,21 @@ export default fp(async (fastify) => {
       return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     }
 
-    const staff = await prisma.staff.findFirst({ where: { id: outcome.staffId, storeId: request.storeId } })
+    const staff = await prisma.staff.findFirst({
+      where: { id: outcome.staffId, storeId: request.storeId },
+    })
     if (!staff) {
       clearAuthCookies(reply)
       return sendError(reply, 401, ErrorCodes.Auth.Required, '認証が必要です')
     }
 
-    const payload: JwtPayload = { type: 'staff', userId: staff.id, username: staff.username, role: staff.role, storeId: staff.storeId }
+    const payload: JwtPayload = {
+      type: 'staff',
+      userId: staff.id,
+      username: staff.username,
+      role: staff.role,
+      storeId: staff.storeId,
+    }
     const accessToken = signAccessToken(fastify, payload)
     request.user = payload
     setAccessCookie(reply, accessToken)

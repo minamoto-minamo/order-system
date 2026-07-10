@@ -37,7 +37,10 @@ export function hashToken(raw: string): string {
   return crypto.createHash('sha256').update(raw).digest('hex')
 }
 
-async function getRefreshSetting(client: PrismaOrTx, storeId: number): Promise<{ autoExtend: boolean; expiresMinutes: number }> {
+async function getRefreshSetting(
+  client: PrismaOrTx,
+  storeId: number,
+): Promise<{ autoExtend: boolean; expiresMinutes: number }> {
   const setting = await client.setting.findUnique({ where: { storeId } })
   return {
     autoExtend: setting?.refreshTokenAutoExtend ?? DEFAULT_REFRESH_AUTO_EXTEND,
@@ -72,11 +75,19 @@ async function createToken(
   return { raw, id: created.id, expiresAt: created.expiresAt }
 }
 
-export async function issueRefreshToken(storeId: number, staffId: string, meta: SessionMeta = {}): Promise<IssuedToken> {
+export async function issueRefreshToken(
+  storeId: number,
+  staffId: string,
+  meta: SessionMeta = {},
+): Promise<IssuedToken> {
   return createToken(prisma, storeId, staffId, meta)
 }
 
-export async function rotateRefreshToken(storeId: number, rawToken: string, meta: SessionMeta = {}): Promise<RotateOutcome> {
+export async function rotateRefreshToken(
+  storeId: number,
+  rawToken: string,
+  meta: SessionMeta = {},
+): Promise<RotateOutcome> {
   const hash = hashToken(rawToken)
   const now = new Date()
 
@@ -86,7 +97,10 @@ export async function rotateRefreshToken(storeId: number, rawToken: string, meta
 
     // トークン自体はstoreIdを持たないため、呼び出し元のHost由来storeIdとstaffの所属storeIdが
     // 一致するかをここで自己完結して検証する（呼び出し側の二重チェックに依存しない）
-    const staff = await tx.staff.findUnique({ where: { id: row.staffId }, select: { storeId: true } })
+    const staff = await tx.staff.findUnique({
+      where: { id: row.staffId },
+      select: { storeId: true },
+    })
     if (!staff || staff.storeId !== storeId) return { status: 'invalid' }
 
     if (row.revokedAt === null) {
@@ -111,7 +125,10 @@ export async function rotateRefreshToken(storeId: number, rawToken: string, meta
       // 最新状態を読み直し、以降の「使用済みトークン提示」ロジックに合流させる
     }
 
-    const current = row.revokedAt !== null ? row : await tx.refreshToken.findUnique({ where: { tokenHash: hash } })
+    const current =
+      row.revokedAt !== null
+        ? row
+        : await tx.refreshToken.findUnique({ where: { tokenHash: hash } })
     if (!current || current.revokedAt === null) return { status: 'invalid' }
 
     const child = await tx.refreshToken.findFirst({ where: { parentId: current.id } })

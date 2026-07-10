@@ -1,8 +1,8 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import bcrypt from 'bcryptjs'
+import Fastify from 'fastify'
 
 process.env.JWT_SECRET = 'test-secret'
 process.env.ACCESS_TOKEN_EXPIRES_IN = '15m'
@@ -36,17 +36,28 @@ function buildMockIo() {
 async function buildTestApp(io = buildMockIo()) {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   app.decorate('io', { in: io.inFn } as never)
   await app.register(cookie)
-  await app.register(jwt, { secret: 'test-secret', cookie: { cookieName: 'token', signed: false } })
+  await app.register(jwt, {
+    secret: 'test-secret',
+    cookie: { cookieName: 'token', signed: false },
+  })
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.ready()
   return app
 }
 
 const PASSWORD_HASH = bcrypt.hashSync('correct-password', 4)
-const STAFF = { id: 'staff-1', username: 'taro', role: 'staff', storeId: STORE_ID, passwordHash: PASSWORD_HASH }
+const STAFF = {
+  id: 'staff-1',
+  username: 'taro',
+  role: 'staff',
+  storeId: STORE_ID,
+  passwordHash: PASSWORD_HASH,
+}
 const DUMMY_PASSWORD_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8O.MSTGeVWmSVmDsBiAGXH6XHJXxYm'
 
 beforeEach(() => {
@@ -62,15 +73,20 @@ describe('POST /api/auth/login', () => {
     mockIssueRefreshToken.mockResolvedValue({ raw: 'new-raw-token', id: 'token-1', expiresAt })
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/login',
+      method: 'POST',
+      url: '/api/auth/login',
       payload: { username: 'taro', password: 'correct-password' },
     })
 
     expect(res.statusCode).toBe(200)
-    expect(mockIssueRefreshToken).toHaveBeenCalledWith(STAFF.storeId, STAFF.id, expect.objectContaining({ userAgent: expect.anything() }))
+    expect(mockIssueRefreshToken).toHaveBeenCalledWith(
+      STAFF.storeId,
+      STAFF.id,
+      expect.objectContaining({ userAgent: expect.anything() }),
+    )
     const setCookies = res.cookies
-    expect(setCookies.find(c => c.name === 'token')).toBeTruthy()
-    expect(setCookies.find(c => c.name === 'refresh_token')?.value).toBe('new-raw-token')
+    expect(setCookies.find((c) => c.name === 'token')).toBeTruthy()
+    expect(setCookies.find((c) => c.name === 'refresh_token')?.value).toBe('new-raw-token')
     await app.close()
   })
 
@@ -80,7 +96,8 @@ describe('POST /api/auth/login', () => {
     const compareSpy = jest.spyOn(bcrypt, 'compare')
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/login',
+      method: 'POST',
+      url: '/api/auth/login',
       payload: { username: 'taro', password: 'wrong-password' },
     })
 
@@ -97,7 +114,8 @@ describe('POST /api/auth/login', () => {
     const compareSpy = jest.spyOn(bcrypt, 'compare')
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/login',
+      method: 'POST',
+      url: '/api/auth/login',
       payload: { username: 'missing', password: 'wrong-password' },
     })
 
@@ -114,15 +132,16 @@ describe('POST /api/auth/logout', () => {
     const app = await buildTestApp()
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/logout',
+      method: 'POST',
+      url: '/api/auth/logout',
       headers: { cookie: 'refresh_token=raw-token-value' },
     })
 
     expect(res.statusCode).toBe(200)
     expect(mockRevokeTokenByRaw).toHaveBeenCalledWith('raw-token-value')
     const setCookies = res.cookies
-    expect(setCookies.find(c => c.name === 'token')?.value).toBe('')
-    expect(setCookies.find(c => c.name === 'refresh_token')?.value).toBe('')
+    expect(setCookies.find((c) => c.name === 'token')?.value).toBe('')
+    expect(setCookies.find((c) => c.name === 'refresh_token')?.value).toBe('')
     await app.close()
   })
 
@@ -142,7 +161,8 @@ describe('POST /api/auth/logout', () => {
     mockVerifyRefreshToken.mockResolvedValue({ status: 'valid', staffId: 'staff-1' })
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/logout',
+      method: 'POST',
+      url: '/api/auth/logout',
       headers: { cookie: 'refresh_token=raw-token-value' },
     })
 
@@ -157,11 +177,18 @@ describe('POST /api/auth/logout', () => {
     const app = await buildTestApp(io)
     const accessApp = Fastify({ logger: false })
     await accessApp.register(jwt, { secret: 'test-secret' })
-    const accessToken = accessApp.jwt.sign({ type: 'staff', userId: 'staff-2', username: 'taro', role: 'staff', storeId: STORE_ID })
+    const accessToken = accessApp.jwt.sign({
+      type: 'staff',
+      userId: 'staff-2',
+      username: 'taro',
+      role: 'staff',
+      storeId: STORE_ID,
+    })
     await accessApp.close()
 
     const res = await app.inject({
-      method: 'POST', url: '/api/auth/logout',
+      method: 'POST',
+      url: '/api/auth/logout',
       headers: { cookie: `token=${accessToken}` },
     })
 

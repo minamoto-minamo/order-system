@@ -1,5 +1,5 @@
-import { existsSync, copyFileSync, readFileSync, writeFileSync } from 'fs'
 import { randomBytes } from 'crypto'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'fs'
 
 const files = [
   { src: 'env/backend.env.example', dest: 'env/backend.env' },

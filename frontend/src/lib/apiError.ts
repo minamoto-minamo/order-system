@@ -24,7 +24,9 @@ export function toApiError(status: number, statusText: string, body: unknown): A
   const serverMessage = b && typeof b.error?.message === 'string' ? b.error.message : null
   const serverCode = b && typeof b.error?.code === 'string' ? b.error.code : null
   const details =
-    b && typeof b.error === 'object' && b.error !== null && 'details' in b.error ? b.error.details : null
+    b && typeof b.error === 'object' && b.error !== null && 'details' in b.error
+      ? b.error.details
+      : null
   return new ApiError(status, serverMessage, statusText, serverCode, details)
 }
 

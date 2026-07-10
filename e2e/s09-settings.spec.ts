@@ -1,9 +1,9 @@
-import { resetDb, disconnect } from './helpers/db'
-import { loginAs } from './helpers/auth'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
-import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { loginAs } from './helpers/auth'
+import { disconnect, resetDb } from './helpers/db'
+import { SEED } from './helpers/seeds'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -53,7 +53,9 @@ test('店舗名を変更して保存できる', async ({ page }) => {
   await expect(page.getByText(ja.common.saved)).toBeVisible()
 })
 
-test('税率に上限を超える値を入力するとフォーカスを外した時点で上限にクランプされる', async ({ page }) => {
+test('税率に上限を超える値を入力するとフォーカスを外した時点で上限にクランプされる', async ({
+  page,
+}) => {
   await page.goto(ROUTES.adminSettings)
   const taxDineIn = page.locator('input[type="number"]').nth(1)
   await taxDineIn.fill('150')
@@ -61,7 +63,9 @@ test('税率に上限を超える値を入力するとフォーカスを外し�
   await expect(taxDineIn).toHaveValue('100')
 })
 
-test('税率に下限を下回る値を入力するとフォーカスを外した時点で下限にクランプされる', async ({ page }) => {
+test('税率に下限を下回る値を入力するとフォーカスを外した時点で下限にクランプされる', async ({
+  page,
+}) => {
   await page.goto(ROUTES.adminSettings)
   const taxTakeout = page.locator('input[type="number"]').nth(2)
   await taxTakeout.fill('-5')

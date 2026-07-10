@@ -1,6 +1,6 @@
+import cors from '@fastify/cors'
 import type { FastifyPluginAsync } from 'fastify'
 import fp from 'fastify-plugin'
-import cors from '@fastify/cors'
 import { corsOriginValidator } from '../lib/config.js'
 
 const corsPlugin: FastifyPluginAsync = async (fastify) => {

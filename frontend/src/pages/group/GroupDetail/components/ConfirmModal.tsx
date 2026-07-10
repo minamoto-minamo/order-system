@@ -1,18 +1,18 @@
-import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/composite";
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BottomSheetModal } from '@/components/composite'
 
 interface ConfirmModalProps {
-  show: boolean;
-  title?: string;
-  description?: string;
-  confirmLabel: string;
-  cancelLabel?: string;
-  variant?: "default" | "danger";
-  disabled?: boolean;
-  onConfirm: () => void;
-  onClose: () => void;
-  children?: ReactNode;
+  show: boolean
+  title?: string
+  description?: string
+  confirmLabel: string
+  cancelLabel?: string
+  variant?: 'default' | 'danger'
+  disabled?: boolean
+  onConfirm: () => void
+  onClose: () => void
+  children?: ReactNode
 }
 
 export function ConfirmModal({
@@ -21,23 +21,23 @@ export function ConfirmModal({
   description,
   confirmLabel,
   cancelLabel,
-  variant = "default",
+  variant = 'default',
   disabled,
   onConfirm,
   onClose,
   children,
 }: ConfirmModalProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <BottomSheetModal
       show={show}
       title={title}
       description={description}
       onClose={onClose}
-      secondaryAction={{ label: cancelLabel ?? t("common.cancel"), onClick: onClose }}
+      secondaryAction={{ label: cancelLabel ?? t('common.cancel'), onClick: onClose }}
       primaryAction={{ label: confirmLabel, onClick: onConfirm, variant, disabled }}
     >
       {children}
     </BottomSheetModal>
-  );
+  )
 }

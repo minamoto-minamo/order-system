@@ -1,1 +1,1 @@
-export { OrderHistorySection } from './OrderHistorySection';
+export { OrderHistorySection } from './OrderHistorySection'

@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
 interface ActionBarProps {
-  left?: ReactNode;
-  right?: ReactNode;
+  left?: ReactNode
+  right?: ReactNode
 }
 
 export function ActionBar({ left, right }: ActionBarProps) {
@@ -11,5 +11,5 @@ export function ActionBar({ left, right }: ActionBarProps) {
       <div className="flex items-center gap-2">{left}</div>
       <div className="flex items-center gap-2">{right}</div>
     </div>
-  );
+  )
 }

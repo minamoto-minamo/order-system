@@ -1,45 +1,45 @@
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
   arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BaseButton, Icon } from "@/components/primitives";
-import { ACTION_ICONS } from "@/lib/icons";
-import { useTranslation } from "react-i18next";
-import type { Cat, ModalState, Product } from "./types";
-import { toMeta } from "./types";
+import { useTranslation } from 'react-i18next'
+import { BaseButton, Icon } from '@/components/primitives'
+import { ACTION_ICONS } from '@/lib/icons'
+import type { Cat, ModalState, Product } from './types'
+import { toMeta } from './types'
 
 interface ProductListProps {
-  cats: Cat[];
-  visibleProducts: Product[];
-  selectedLabel: string;
-  selectedSubId: number | null;
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
-  onCollapseSidebar: () => void;
-  onReorder: (ids: number[]) => void;
-  setModal: (modal: ModalState) => void;
+  cats: Cat[]
+  visibleProducts: Product[]
+  selectedLabel: string
+  selectedSubId: number | null
+  sidebarOpen: boolean
+  onToggleSidebar: () => void
+  onCollapseSidebar: () => void
+  onReorder: (ids: number[]) => void
+  setModal: (modal: ModalState) => void
 }
 
 interface RowProps {
-  p: Product;
-  cats: Cat[];
-  isDragEnabled: boolean;
-  setModal: (modal: ModalState) => void;
+  p: Product
+  cats: Cat[]
+  isDragEnabled: boolean
+  setModal: (modal: ModalState) => void
 }
 
 function SortableProductRow({ p, cats, isDragEnabled, setModal }: RowProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: p.id,
     disabled: !isDragEnabled,
@@ -47,8 +47,8 @@ function SortableProductRow({ p, cats, isDragEnabled, setModal }: RowProps) {
   const style = isDragEnabled
     ? { transform: CSS.Transform.toString(transform), transition }
     : undefined
-  const cat = cats.find(c => c.id === p.catId);
-  const sub = cat?.subs.find(s => s.id === p.subId);
+  const cat = cats.find((c) => c.id === p.catId)
+  const sub = cat?.subs.find((s) => s.id === p.subId)
   return (
     <div
       ref={setNodeRef}
@@ -60,18 +60,23 @@ function SortableProductRow({ p, cats, isDragEnabled, setModal }: RowProps) {
           className="w-5 h-7 flex items-center justify-center text-muted text-note shrink-0 touch-none cursor-grab"
           {...attributes}
           {...listeners}
-          onClick={e => e.stopPropagation()}
-        >⠿</span>
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          ⠿
+        </span>
       )}
-      <div
-        className="flex-1 flex items-center gap-2 tappable"
-        onClick={() => setModal({ type: "editProduct", payload: p })}
+      <button
+        type="button"
+        className="flex-1 flex items-center gap-2 tappable text-left"
+        onClick={() => setModal({ type: 'editProduct', payload: p })}
       >
         <div className="flex-1">
           <div className="text-sm text-ink mb-0.75">
             {p.name}
             {p.soldOut && (
-              <span className="ml-2 text-caption text-danger bg-danger-bg border border-danger-border px-1.5 py-px rounded-full">{t('productSettings.soldOut')}</span>
+              <span className="ml-2 text-caption text-danger bg-danger-bg border border-danger-border px-1.5 py-px rounded-full">
+                {t('productSettings.soldOut')}
+              </span>
             )}
           </div>
           <div className="flex gap-1.5 items-center flex-wrap">
@@ -82,20 +87,24 @@ function SortableProductRow({ p, cats, isDragEnabled, setModal }: RowProps) {
               </span>
             )}
             {(() => {
-              const m = toMeta(p.takeout);
+              const m = toMeta(p.takeout)
               return (
-                <span className="text-caption px-1.5 py-px rounded-full border"
-                  style={{ color: m.color, background: m.bg, borderColor: m.border }}>{t(m.labelKey)}</span>
-              );
+                <span
+                  className="text-caption px-1.5 py-px rounded-full border"
+                  style={{ color: m.color, background: m.bg, borderColor: m.border }}
+                >
+                  {t(m.labelKey)}
+                </span>
+              )
             })()}
           </div>
         </div>
         <span className="w-7 h-7 flex items-center justify-center text-muted text-note shrink-0">
           <Icon src={ACTION_ICONS.gear} />
         </span>
-      </div>
+      </button>
     </div>
-  );
+  )
 }
 
 export function ProductList({
@@ -109,21 +118,21 @@ export function ProductList({
   onReorder,
   setModal,
 }: ProductListProps) {
-  const { t } = useTranslation();
-  const isDragEnabled = selectedSubId !== null;
+  const { t } = useTranslation()
+  const isDragEnabled = selectedSubId !== null
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = visibleProducts.findIndex(p => p.id === active.id)
-    const newIndex = visibleProducts.findIndex(p => p.id === over.id)
+    const oldIndex = visibleProducts.findIndex((p) => p.id === active.id)
+    const newIndex = visibleProducts.findIndex((p) => p.id === over.id)
     const newOrder = arrayMove(visibleProducts, oldIndex, newIndex)
-    onReorder(newOrder.map(p => p.id))
+    onReorder(newOrder.map((p) => p.id))
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" onClick={onCollapseSidebar}>
+    <div className="flex-1 flex flex-col overflow-hidden" onPointerDown={onCollapseSidebar}>
       {/* 商品エリアヘッダー */}
       <div className="px-3 py-3 border-b border-divider flex items-center gap-2 bg-white shrink-0">
         <BaseButton
@@ -134,12 +143,13 @@ export function ProductList({
         </BaseButton>
         <div className="text-note text-dim flex-1">
           {selectedLabel}
-          <span className="text-label text-muted ml-1.5">
-            {visibleProducts.length}件
-          </span>
+          <span className="text-label text-muted ml-1.5">{visibleProducts.length}件</span>
         </div>
-        <BaseButton variant="primary" className="rounded-[7px] px-3 py-1.5 text-xs whitespace-nowrap shrink-0"
-          onClick={() => setModal({ type: "addProduct" })}>
+        <BaseButton
+          variant="primary"
+          className="rounded-[7px] px-3 py-1.5 text-xs whitespace-nowrap shrink-0"
+          onClick={() => setModal({ type: 'addProduct' })}
+        >
           {t('productSettings.addProductBtn')}
         </BaseButton>
       </div>
@@ -152,8 +162,11 @@ export function ProductList({
               {t('productSettings.noProducts')}
             </div>
           )}
-          <SortableContext items={visibleProducts.map(p => p.id)} strategy={verticalListSortingStrategy}>
-            {visibleProducts.map(p => (
+          <SortableContext
+            items={visibleProducts.map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {visibleProducts.map((p) => (
               <SortableProductRow
                 key={p.id}
                 p={p}
@@ -166,5 +179,5 @@ export function ProductList({
         </div>
       </DndContext>
     </div>
-  );
+  )
 }

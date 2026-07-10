@@ -1,14 +1,14 @@
+import type { ClientToServerEvents, ServerToClientEvents } from '@order-system/shared'
 import type { FastifyPluginAsync } from 'fastify'
 import fp from 'fastify-plugin'
 import { Server } from 'socket.io'
-import type { ServerToClientEvents, ClientToServerEvents } from '@order-system/shared'
-import { prisma } from '../lib/prisma.js'
-import { toOrderItem } from '../lib/mappers.js'
 import { corsOriginValidator, parseDurationSeconds } from '../lib/config.js'
-import { resolveStoreContext } from '../lib/store.js'
-import { verifyRefreshToken } from '../lib/refreshToken.js'
-import type { JwtPayload } from './auth.js'
 import { ErrorCodes, errorBody } from '../lib/errors.js'
+import { toOrderItem } from '../lib/mappers.js'
+import { prisma } from '../lib/prisma.js'
+import { verifyRefreshToken } from '../lib/refreshToken.js'
+import { resolveStoreContext } from '../lib/store.js'
+import type { JwtPayload } from './auth.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -45,10 +45,14 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     // @fastify/jwt のヘルパーは HTTP リクエストオブジェクト前提なので生ヘッダーから手動パース
     const cookieHeader = socket.handshake.headers.cookie ?? ''
     const cookies = new Map(
-      cookieHeader.split(';').map(c => c.trim()).filter(Boolean).map(c => {
-        const i = c.indexOf('=')
-        return [c.slice(0, i), c.slice(i + 1)] as const
-      })
+      cookieHeader
+        .split(';')
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .map((c) => {
+          const i = c.indexOf('=')
+          return [c.slice(0, i), c.slice(i + 1)] as const
+        }),
     )
 
     const applyAuth = (payload: JwtPayload, exp: number) => {
@@ -83,12 +87,20 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       const outcome = await verifyRefreshToken(rawRefreshToken)
       if (outcome.status !== 'valid') return next()
 
-      const staff = await prisma.staff.findFirst({ where: { id: outcome.staffId, storeId: context.storeId } })
+      const staff = await prisma.staff.findFirst({
+        where: { id: outcome.staffId, storeId: context.storeId },
+      })
       if (!staff) return next()
 
       const expiresInSeconds = parseDurationSeconds(process.env.ACCESS_TOKEN_EXPIRES_IN ?? '15m')
       applyAuth(
-        { type: 'staff', userId: staff.id, username: staff.username, role: staff.role, storeId: staff.storeId },
+        {
+          type: 'staff',
+          userId: staff.id,
+          username: staff.username,
+          role: staff.role,
+          storeId: staff.storeId,
+        },
         Math.floor(Date.now() / 1000) + expiresInSeconds,
       )
       next()
@@ -113,16 +125,21 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     // アクセストークン失効後も接続を維持したまま認証済み扱いになり続けないよう、
     // 有効期限で切断してクライアントの自動再接続時に再認証させる
     if (socket.data.authenticated && socket.data.expiresAt) {
-      const timer = setTimeout(() => {
-        socket.disconnect(true)
-      }, Math.max(socket.data.expiresAt - Date.now(), 0))
+      const timer = setTimeout(
+        () => {
+          socket.disconnect(true)
+        },
+        Math.max(socket.data.expiresAt - Date.now(), 0),
+      )
       socket.on('disconnect', () => clearTimeout(timer))
     }
 
     // 客用ゲスト接続が自グループの更新のみ受信できるよう、group が自分の storeId に属することを検証してから join する
     socket.on('group:join', async (groupId) => {
       try {
-        const group = await prisma.group.findFirst({ where: { id: groupId, storeId: socket.data.storeId } })
+        const group = await prisma.group.findFirst({
+          where: { id: groupId, storeId: socket.data.storeId },
+        })
         if (!group) return
         socket.join(`group:${groupId}`)
       } catch (e) {
@@ -138,17 +155,22 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           include: { group: { include: { session: true } } },
         })
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
-        if (!order || order.status !== 'pending') return
+        if (order?.status !== 'pending') return
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
         if (order.group.status === 'closed' || order.group.session.status === 'closed') return
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'ready' },
         })
-        io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
+        io.to(`store:${socket.data.storeId}`)
+          .to(`group:${updated.groupId}`)
+          .emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error({ err: e, itemId }, 'order:complete error')
-        socket.emit('error', errorBody(ErrorCodes.Socket.OrderCompleteFailed, '注文完了の処理に失敗しました').error)
+        socket.emit(
+          'error',
+          errorBody(ErrorCodes.Socket.OrderCompleteFailed, '注文完了の処理に失敗しました').error,
+        )
       }
     })
 
@@ -160,17 +182,22 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           include: { group: { include: { session: true } } },
         })
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける
-        if (!order || order.status !== 'ready') return
+        if (order?.status !== 'ready') return
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
         if (order.group.status === 'closed' || order.group.session.status === 'closed') return
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'served' },
         })
-        io.to(`store:${socket.data.storeId}`).to(`group:${updated.groupId}`).emit('order:updated', toOrderItem(updated))
+        io.to(`store:${socket.data.storeId}`)
+          .to(`group:${updated.groupId}`)
+          .emit('order:updated', toOrderItem(updated))
       } catch (e) {
         fastify.log.error({ err: e, itemId }, 'order:serve error')
-        socket.emit('error', errorBody(ErrorCodes.Socket.OrderServeFailed, '提供完了の処理に失敗しました').error)
+        socket.emit(
+          'error',
+          errorBody(ErrorCodes.Socket.OrderServeFailed, '提供完了の処理に失敗しました').error,
+        )
       }
     })
 

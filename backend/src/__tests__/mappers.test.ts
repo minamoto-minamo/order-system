@@ -1,4 +1,4 @@
-import { toGroup, toCourse, toDrinkPlan, toOrderItem, toStaffSession } from '../lib/mappers.js'
+import { toCourse, toDrinkPlan, toGroup, toOrderItem, toStaffSession } from '../lib/mappers.js'
 
 const setting = {
   taxRateInHouse: { toNumber: () => 10 },
@@ -44,12 +44,17 @@ describe('toGroup', () => {
   })
 
   it('billedTax があるときは Setting より優先して実効税率にする', () => {
-    expect(toGroup({
-      ...base,
-      billedTaxRateInHouse: { toNumber: () => 12 },
-      billedTaxRateTakeout: { toNumber: () => 9 },
-      billedTaxInclusive: true,
-    }, setting)).toMatchObject({
+    expect(
+      toGroup(
+        {
+          ...base,
+          billedTaxRateInHouse: { toNumber: () => 12 },
+          billedTaxRateTakeout: { toNumber: () => 9 },
+          billedTaxInclusive: true,
+        },
+        setting,
+      ),
+    ).toMatchObject({
       effectiveTaxRateInHouse: 12,
       effectiveTaxRateTakeout: 9,
       effectiveTaxInclusive: true,
@@ -64,22 +69,38 @@ describe('toCourse', () => {
       name: 'コースA',
       price: 3000,
       drinkPlanId: 2,
-      foodItems: [{ menuItemId: 10, qty: 1 }, { menuItemId: 11, qty: 2 }],
+      foodItems: [
+        { menuItemId: 10, qty: 1 },
+        { menuItemId: 11, qty: 2 },
+      ],
     }
     expect(toCourse(input)).toEqual({
       id: 5,
       name: 'コースA',
       price: 3000,
       drinkPlanId: 2,
-      foodItems: [{ menuItemId: 10, qty: 1 }, { menuItemId: 11, qty: 2 }],
+      foodItems: [
+        { menuItemId: 10, qty: 1 },
+        { menuItemId: 11, qty: 2 },
+      ],
     })
   })
 })
 
 describe('toDrinkPlan', () => {
   it('items を menuItemIds に変換する', () => {
-    const input = { id: 1, name: 'ドリンク飲み放題', price: 2000, items: [{ menuItemId: 7 }, { menuItemId: 8 }] }
-    expect(toDrinkPlan(input)).toEqual({ id: 1, name: 'ドリンク飲み放題', price: 2000, menuItemIds: [7, 8] })
+    const input = {
+      id: 1,
+      name: 'ドリンク飲み放題',
+      price: 2000,
+      items: [{ menuItemId: 7 }, { menuItemId: 8 }],
+    }
+    expect(toDrinkPlan(input)).toEqual({
+      id: 1,
+      name: 'ドリンク飲み放題',
+      price: 2000,
+      menuItemIds: [7, 8],
+    })
   })
 })
 
@@ -125,7 +146,9 @@ describe('toOrderItem', () => {
   })
 
   it('isDrinkPlanCharge を変換する', () => {
-    expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({ isDrinkPlanCharge: true })
+    expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({
+      isDrinkPlanCharge: true,
+    })
   })
 })
 
@@ -148,12 +171,14 @@ describe('toStaffSession', () => {
   })
 
   it('userAgent / ipAddress が null のとき null のまま変換する', () => {
-    expect(toStaffSession({
-      id: 'uuid-token-2',
-      issuedAt: new Date('2024-06-01T12:00:00.000Z'),
-      expiresAt: new Date('2024-06-02T12:00:00.000Z'),
-      userAgent: null,
-      ipAddress: null,
-    })).toMatchObject({ userAgent: null, ipAddress: null })
+    expect(
+      toStaffSession({
+        id: 'uuid-token-2',
+        issuedAt: new Date('2024-06-01T12:00:00.000Z'),
+        expiresAt: new Date('2024-06-02T12:00:00.000Z'),
+        userAgent: null,
+        ipAddress: null,
+      }),
+    ).toMatchObject({ userAgent: null, ipAddress: null })
   })
 })

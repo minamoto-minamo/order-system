@@ -1,9 +1,9 @@
-import { resetDb, prisma, disconnect } from './helpers/db'
-import { loginAs } from './helpers/auth'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
-import { SEED } from './helpers/seeds'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { loginAs } from './helpers/auth'
+import { disconnect, prisma, resetDb } from './helpers/db'
+import { SEED } from './helpers/seeds'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -88,5 +88,10 @@ test('品切れトグルを切り替えられる', async ({ page }) => {
   await page.getByText(SEED.menuItems.beer).first().click()
   await page.getByRole('button', { name: ja.productSettings.soldOut }).click()
   // モーダルが閉じた後、商品行に品切れバッジが表示される
-  await expect(page.locator('.tappable').filter({ hasText: SEED.menuItems.beer }).getByText(ja.productSettings.soldOut)).toBeVisible()
+  await expect(
+    page
+      .locator('.tappable')
+      .filter({ hasText: SEED.menuItems.beer })
+      .getByText(ja.productSettings.soldOut),
+  ).toBeVisible()
 })

@@ -1,3 +1,6 @@
+import type { Session } from '@order-system/shared'
+import { useEffect } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { CustomerPageLayout, PageLayout, PlatformPageLayout } from '@/layouts'
 import { api } from '@/lib/api'
 import { EP } from '@/lib/endpoints'
@@ -26,11 +29,16 @@ import { useAuthStore } from '@/stores/auth'
 import type { PlatformAdmin } from '@/stores/platformAuth'
 import { usePlatformAuthStore } from '@/stores/platformAuth'
 import { useSessionStore } from '@/stores/session'
-import type { Session } from '@order-system/shared'
-import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
 
-function RequireAuth({ children, adminOnly = false, requireSession = false }: { children: React.ReactNode; adminOnly?: boolean; requireSession?: boolean }) {
+function RequireAuth({
+  children,
+  adminOnly = false,
+  requireSession = false,
+}: {
+  children: React.ReactNode
+  adminOnly?: boolean
+  requireSession?: boolean
+}) {
   const { user } = useAuthStore()
   const { session } = useSessionStore()
   if (!user) return <Navigate to={ROUTES.login} replace />
@@ -49,12 +57,19 @@ export default function App() {
   const isPlatform = isPlatformAdminHost()
   const { user, initialized, setUser, setInitialized } = useAuthStore()
   const { setSession } = useSessionStore()
-  const { admin, initialized: platformInitialized, setAdmin, setInitialized: setPlatformInitialized } = usePlatformAuthStore()
+  const {
+    admin,
+    initialized: platformInitialized,
+    setAdmin,
+    setInitialized: setPlatformInitialized,
+  } = usePlatformAuthStore()
 
   useEffect(() => {
     if (isPlatform) {
       // 認証確認は失敗時も未ログイン扱いで初期化を進める
-      api.get<PlatformAdmin>(EP.platformAuthMe).catch(() => null)
+      api
+        .get<PlatformAdmin>(EP.platformAuthMe)
+        .catch(() => null)
         .then(setAdmin)
         .finally(() => setPlatformInitialized(true))
       return
@@ -64,14 +79,18 @@ export default function App() {
       // 認証・現セッション確認は失敗時も未ログイン/セッションなし扱いで初期化を進める
       api.get<AuthUser>(EP.authMe).catch(() => null),
       api.get<Session | null>(EP.sessionsCurrent).catch(() => null),
-    ]).then(([u, s]) => {
-      setUser(u)
-      setSession(s)
-    }).finally(() => setInitialized(true))
+    ])
+      .then(([u, s]) => {
+        setUser(u)
+        setSession(s)
+      })
+      .finally(() => setInitialized(true))
 
     const onSessionUpdated = (s: Session) => setSession(s)
     socket.on(SE.sessionUpdated, onSessionUpdated)
-    return () => { socket.off(SE.sessionUpdated, onSessionUpdated) }
+    return () => {
+      socket.off(SE.sessionUpdated, onSessionUpdated)
+    }
   }, [isPlatform, setUser, setInitialized, setSession, setAdmin, setPlatformInitialized])
 
   if (isPlatform) {
@@ -80,9 +99,22 @@ export default function App() {
 
     return (
       <Routes>
-        <Route path={ROUTES.platformLogin} element={admin ? <Navigate to={ROUTES.platformStores} replace /> : <PlatformLogin />} />
-        <Route path={ROUTES.platformStores} element={<RequirePlatformAuth><StoreList /></RequirePlatformAuth>} />
-        <Route path="*" element={<Navigate to={admin ? ROUTES.platformStores : ROUTES.platformLogin} replace />} />
+        <Route
+          path={ROUTES.platformLogin}
+          element={admin ? <Navigate to={ROUTES.platformStores} replace /> : <PlatformLogin />}
+        />
+        <Route
+          path={ROUTES.platformStores}
+          element={
+            <RequirePlatformAuth>
+              <StoreList />
+            </RequirePlatformAuth>
+          }
+        />
+        <Route
+          path="*"
+          element={<Navigate to={admin ? ROUTES.platformStores : ROUTES.platformLogin} replace />}
+        />
       </Routes>
     )
   }
@@ -92,20 +124,114 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path={ROUTES.login} element={user ? <Navigate to={ROUTES.root} replace /> : <Login />} />
-      <Route path={ROUTES.root} element={<RequireAuth><Home /></RequireAuth>} />
-      <Route path={ROUTES.hall} element={<RequireAuth requireSession><Hall /></RequireAuth>} />
-      <Route path={ROUTES.hallGroupPattern} element={<RequireAuth requireSession><GroupDetail /></RequireAuth>} />
-      <Route path={ROUTES.kitchen} element={<RequireAuth requireSession><Kitchen /></RequireAuth>} />
-      <Route path={ROUTES.kitchenGroupPattern} element={<RequireAuth requireSession><GroupDetail /></RequireAuth>} />
-      <Route path={ROUTES.admin} element={<RequireAuth adminOnly><AdminMenu /></RequireAuth>} />
-      <Route path={ROUTES.adminSeats} element={<RequireAuth adminOnly><SeatLayout /></RequireAuth>} />
-      <Route path={ROUTES.adminProducts} element={<RequireAuth adminOnly><Products /></RequireAuth>} />
-      <Route path={ROUTES.adminReport} element={<RequireAuth adminOnly><DailyReport /></RequireAuth>} />
-      <Route path={ROUTES.adminSettings} element={<RequireAuth adminOnly><Settings /></RequireAuth>} />
-      <Route path={ROUTES.adminStaff} element={<RequireAuth adminOnly><Staff /></RequireAuth>} />
-      <Route path={ROUTES.adminCourses} element={<RequireAuth adminOnly><Courses /></RequireAuth>} />
-      <Route path={ROUTES.customerOrderPattern} element={<CustomerPageLayout><CustomerOrder /></CustomerPageLayout>} />
+      <Route
+        path={ROUTES.login}
+        element={user ? <Navigate to={ROUTES.root} replace /> : <Login />}
+      />
+      <Route
+        path={ROUTES.root}
+        element={
+          <RequireAuth>
+            <Home />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.hall}
+        element={
+          <RequireAuth requireSession>
+            <Hall />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.hallGroupPattern}
+        element={
+          <RequireAuth requireSession>
+            <GroupDetail />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.kitchen}
+        element={
+          <RequireAuth requireSession>
+            <Kitchen />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.kitchenGroupPattern}
+        element={
+          <RequireAuth requireSession>
+            <GroupDetail />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.admin}
+        element={
+          <RequireAuth adminOnly>
+            <AdminMenu />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminSeats}
+        element={
+          <RequireAuth adminOnly>
+            <SeatLayout />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminProducts}
+        element={
+          <RequireAuth adminOnly>
+            <Products />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminReport}
+        element={
+          <RequireAuth adminOnly>
+            <DailyReport />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminSettings}
+        element={
+          <RequireAuth adminOnly>
+            <Settings />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminStaff}
+        element={
+          <RequireAuth adminOnly>
+            <Staff />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.adminCourses}
+        element={
+          <RequireAuth adminOnly>
+            <Courses />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path={ROUTES.customerOrderPattern}
+        element={
+          <CustomerPageLayout>
+            <CustomerOrder />
+          </CustomerPageLayout>
+        }
+      />
       <Route path="*" element={user ? <Navigate to={ROUTES.root} replace /> : <NotFound />} />
     </Routes>
   )

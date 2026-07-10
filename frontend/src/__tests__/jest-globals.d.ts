@@ -1,3 +1,3 @@
-declare module "@jest/globals" {
-  export const jest: any;
+declare module '@jest/globals' {
+  export const jest: any
 }

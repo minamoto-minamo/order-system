@@ -126,34 +126,34 @@ export interface Setting {
 export type PublicSetting = Pick<Setting, 'storeName' | 'closingTime'>
 
 export interface ServerToClientEvents {
-  'order:created':       (item: OrderItem) => void
-  'order:updated':       (item: OrderItem) => void
-  'order:cancelled':     (itemId: string)  => void
-  'group:created':       (group: Group)    => void
-  'group:updated':       (group: Group)    => void
-  'seat:created':        (seat: Seat)      => void
-  'seat:updated':        (seat: Seat)      => void
-  'menu:soldout':        (menuItemId: number, soldOut: boolean) => void
-  'menu:created':        (item: MenuItem)  => void
-  'menu:updated':        (item: MenuItem)  => void
-  'menu:deleted':        (menuItemId: number) => void
-  'course:created':      (course: Course) => void
-  'course:updated':      (course: Course) => void
-  'course:deleted':      (courseId: number) => void
-  'drinkPlan:created':   (drinkPlan: DrinkPlan) => void
-  'drinkPlan:updated':   (drinkPlan: DrinkPlan) => void
-  'drinkPlan:deleted':   (drinkPlanId: number) => void
-  'seatLayout:updated':  (layout: SeatLayoutResponse) => void
-  'session:updated':     (session: Session) => void
-  'settings:updated':    (setting: PublicSetting) => void
-  'staff:called':        (groupId: string, groupName: string) => void
-  'error':               (payload: ApiErrorPayload) => void
+  'order:created': (item: OrderItem) => void
+  'order:updated': (item: OrderItem) => void
+  'order:cancelled': (itemId: string) => void
+  'group:created': (group: Group) => void
+  'group:updated': (group: Group) => void
+  'seat:created': (seat: Seat) => void
+  'seat:updated': (seat: Seat) => void
+  'menu:soldout': (menuItemId: number, soldOut: boolean) => void
+  'menu:created': (item: MenuItem) => void
+  'menu:updated': (item: MenuItem) => void
+  'menu:deleted': (menuItemId: number) => void
+  'course:created': (course: Course) => void
+  'course:updated': (course: Course) => void
+  'course:deleted': (courseId: number) => void
+  'drinkPlan:created': (drinkPlan: DrinkPlan) => void
+  'drinkPlan:updated': (drinkPlan: DrinkPlan) => void
+  'drinkPlan:deleted': (drinkPlanId: number) => void
+  'seatLayout:updated': (layout: SeatLayoutResponse) => void
+  'session:updated': (session: Session) => void
+  'settings:updated': (setting: PublicSetting) => void
+  'staff:called': (groupId: string, groupName: string) => void
+  error: (payload: ApiErrorPayload) => void
 }
 
 export interface ClientToServerEvents {
   'order:complete': (itemId: string) => void
-  'order:serve':    (itemId: string) => void
-  'group:join':     (groupId: string) => void
+  'order:serve': (itemId: string) => void
+  'group:join': (groupId: string) => void
 }
 
 // ============================================================

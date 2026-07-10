@@ -1,31 +1,40 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
-import { Prisma } from '@prisma/client'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { Prisma } from '@prisma/client'
+import Fastify from 'fastify'
 
 const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
-const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
+const mockGroupFindFirst =
+  jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
 const mockDrinkPlanDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
-const mockTransaction = jest.fn<(
-  callback: (tx: {
-    course: { findFirst: typeof mockCourseFindFirst };
-    group: { findFirst: typeof mockGroupFindFirst };
-    drinkPlan: { findFirst: typeof mockDrinkPlanFindFirst; delete: typeof mockDrinkPlanDelete };
-  }) => Promise<unknown>,
-  options?: unknown,
-) => Promise<unknown>>()
+const mockTransaction =
+  jest.fn<
+    (
+      callback: (tx: {
+        course: { findFirst: typeof mockCourseFindFirst }
+        group: { findFirst: typeof mockGroupFindFirst }
+        drinkPlan: { findFirst: typeof mockDrinkPlanFindFirst; delete: typeof mockDrinkPlanDelete }
+      }) => Promise<unknown>,
+      options?: unknown,
+    ) => Promise<unknown>
+  >()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     $transaction: mockTransaction,
     course: { findFirst: mockCourseFindFirst },
     group: { findFirst: mockGroupFindFirst },
-    drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete, create: mockDrinkPlanCreate, update: mockDrinkPlanUpdate },
+    drinkPlan: {
+      findFirst: mockDrinkPlanFindFirst,
+      delete: mockDrinkPlanDelete,
+      create: mockDrinkPlanCreate,
+      update: mockDrinkPlanUpdate,
+    },
     menuItem: { count: mockMenuItemCount },
   },
 }))
@@ -41,14 +50,18 @@ const mockIoEmit = jest.fn()
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
+      reply.status(401).send({
+        error: { code: 'auth.session.required', message: '認証が必要です', details: null },
+      })
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,19 +74,31 @@ async function buildTestApp() {
 describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
 
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
   beforeEach(() => {
     jest.clearAllMocks()
-    mockTransaction.mockImplementation(async (callback) => callback({
-      course: { findFirst: mockCourseFindFirst },
-      group: { findFirst: mockGroupFindFirst },
-      drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete },
-    }))
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        course: { findFirst: mockCourseFindFirst },
+        group: { findFirst: mockGroupFindFirst },
+        drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete },
+      }),
+    )
   })
 
   function token() {
-    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('active グループが使用中なら 409 を返す', async () => {
@@ -86,9 +111,13 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '使用中の飲み放題プランは削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '使用中の飲み放題プランは削除できません' },
+    })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
-    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
   })
 
   it('bill_requested グループが使用中なら 409 を返す', async () => {
@@ -101,7 +130,9 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '使用中の飲み放題プランは削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '使用中の飲み放題プランは削除できません' },
+    })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 
@@ -114,7 +145,9 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: 'コースから参照されているため削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: 'コースから参照されているため削除できません' },
+    })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
   })
 
@@ -131,7 +164,9 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     expect(res.statusCode).toBe(204)
     expect(mockDrinkPlanDelete).toHaveBeenCalledWith({ where: { id: 1 } })
     expect(mockIoEmit).toHaveBeenCalledWith('drinkPlan:deleted', 1)
-    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
@@ -147,31 +182,49 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   })
 
   it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
-    mockTransaction.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError(
-      'Transaction failed due to a write conflict',
-      { code: 'P2034', clientVersion: '5.17.0' },
-    ))
+    mockTransaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', {
+        code: 'P2034',
+        clientVersion: '5.17.0',
+      }),
+    )
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/drink-plans/1',
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '使用中の飲み放題プランは削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '使用中の飲み放題プランは削除できません' },
+    })
     expect(mockDrinkPlanDelete).not.toHaveBeenCalled()
-    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
   })
 })
 
 describe('POST /api/drink-plans — storeId 検証', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
 
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
-  beforeEach(() => { jest.clearAllMocks() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
 
   function token() {
-    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('他店舗の menuItemId を含む場合は 422 を返す', async () => {
@@ -189,7 +242,12 @@ describe('POST /api/drink-plans — storeId 検証', () => {
 
   it('自店舗の menuItemId のみなら作成できる', async () => {
     mockMenuItemCount.mockResolvedValue(2)
-    mockDrinkPlanCreate.mockResolvedValue({ id: 1, name: '飲み放題A', price: 3000, items: [{ menuItemId: 1 }, { menuItemId: 2 }] })
+    mockDrinkPlanCreate.mockResolvedValue({
+      id: 1,
+      name: '飲み放題A',
+      price: 3000,
+      items: [{ menuItemId: 1 }, { menuItemId: 2 }],
+    })
     const res = await app.inject({
       method: 'POST',
       url: '/api/drink-plans',
@@ -205,12 +263,24 @@ describe('POST /api/drink-plans — storeId 検証', () => {
 describe('PUT /api/drink-plans/:id — storeId 検証', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
 
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
-  beforeEach(() => { jest.clearAllMocks() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
 
   function token() {
-    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('他店舗の menuItemId を含む場合は 422 を返す', async () => {
@@ -237,6 +307,9 @@ describe('PUT /api/drink-plans/:id — storeId 検証', () => {
       payload: { name: '飲み放題B', price: 3500 },
     })
     expect(res.statusCode).toBe(200)
-    expect(mockIoEmit).toHaveBeenCalledWith('drinkPlan:updated', expect.objectContaining({ id: 1, name: '飲み放題B' }))
+    expect(mockIoEmit).toHaveBeenCalledWith(
+      'drinkPlan:updated',
+      expect.objectContaining({ id: 1, name: '飲み放題B' }),
+    )
   })
 })

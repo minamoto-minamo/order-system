@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { AuthUser } from '@order-system/shared'
+import { create } from 'zustand'
 
 export type { AuthUser }
 

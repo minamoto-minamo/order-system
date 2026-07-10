@@ -1,37 +1,37 @@
-import { LoginForm } from "@/features/auth/components";
-import { api } from "@/lib/api";
-import { EP } from "@/lib/endpoints";
-import { ROUTES } from "@/lib/routes";
-import type { PlatformAdmin } from "@/stores/platformAuth";
-import { usePlatformAuthStore } from "@/stores/platformAuth";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { LoginForm } from '@/features/auth/components'
+import { api } from '@/lib/api'
+import { EP } from '@/lib/endpoints'
+import { ROUTES } from '@/lib/routes'
+import type { PlatformAdmin } from '@/stores/platformAuth'
+import { usePlatformAuthStore } from '@/stores/platformAuth'
 
 export default function PlatformLogin() {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  const { setAdmin } = usePlatformAuthStore();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { setAdmin } = usePlatformAuthStore()
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (username: string, password: string) => {
-    setError(null);
+    setError(null)
     if (!username || !password) {
-      setError(t('platform.errorRequired'));
-      return;
+      setError(t('platform.errorRequired'))
+      return
     }
-    setLoading(true);
+    setLoading(true)
     try {
-      const admin = await api.post<PlatformAdmin>(EP.platformAuthLogin, { username, password });
-      setAdmin(admin);
-      navigate(ROUTES.platformStores, { replace: true });
+      const admin = await api.post<PlatformAdmin>(EP.platformAuthLogin, { username, password })
+      setAdmin(admin)
+      navigate(ROUTES.platformStores, { replace: true })
     } catch {
-      setError(t('platform.errorInvalid'));
+      setError(t('platform.errorInvalid'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <LoginForm
@@ -44,5 +44,5 @@ export default function PlatformLogin() {
       loading={loading}
       onSubmit={handleSubmit}
     />
-  );
+  )
 }

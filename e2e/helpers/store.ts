@@ -25,8 +25,8 @@ export async function createTestStore(subdomain: string): Promise<TestStore> {
   try {
     // 前回実行のクラッシュ等で同名店舗が残っている場合に備え、作成前に削除しておく
     const listRes = await ctx.get('/api/platform/stores')
-    const stores = await listRes.json() as Array<{ id: number; subdomain: string }>
-    const existing = stores.find(s => s.subdomain === subdomain)
+    const stores = (await listRes.json()) as Array<{ id: number; subdomain: string }>
+    const existing = stores.find((s) => s.subdomain === subdomain)
     if (existing) {
       await ctx.delete(`/api/platform/stores/${existing.id}`)
     }
@@ -40,9 +40,13 @@ export async function createTestStore(subdomain: string): Promise<TestStore> {
       },
     })
     if (!createRes.ok()) throw new Error(`テスト店舗の作成に失敗しました: ${createRes.status()}`)
-    const store = await createRes.json() as { id: number; subdomain: string }
+    const store = (await createRes.json()) as { id: number; subdomain: string }
 
-    return { id: store.id, subdomain: store.subdomain, baseURL: `http://${subdomain}.localhost:5173` }
+    return {
+      id: store.id,
+      subdomain: store.subdomain,
+      baseURL: `http://${subdomain}.localhost:5173`,
+    }
   } finally {
     await ctx.dispose()
   }
@@ -61,8 +65,8 @@ export async function findStoreIdBySubdomain(subdomain: string): Promise<number 
   const ctx = await platformContext()
   try {
     const listRes = await ctx.get('/api/platform/stores')
-    const stores = await listRes.json() as Array<{ id: number; subdomain: string }>
-    return stores.find(s => s.subdomain === subdomain)?.id ?? null
+    const stores = (await listRes.json()) as Array<{ id: number; subdomain: string }>
+    return stores.find((s) => s.subdomain === subdomain)?.id ?? null
   } finally {
     await ctx.dispose()
   }

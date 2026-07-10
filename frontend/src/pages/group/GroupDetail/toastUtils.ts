@@ -1,6 +1,6 @@
-import type { MenuItem } from "@order-system/shared";
+import type { MenuItem } from '@order-system/shared'
 
-const TOAST_STAGGER_MS = 150;
+const TOAST_STAGGER_MS = 150
 
 export function showAddedOrderToasts(
   orderItems: { item: Pick<MenuItem, 'name'>; qty: number }[],
@@ -9,7 +9,7 @@ export function showAddedOrderToasts(
 ) {
   orderItems.forEach(({ item, qty }, index) => {
     window.setTimeout(() => {
-      showToast(formatMessage(`${item.name} ×${qty}`));
-    }, index * TOAST_STAGGER_MS);
-  });
+      showToast(formatMessage(`${item.name} ×${qty}`))
+    }, index * TOAST_STAGGER_MS)
+  })
 }

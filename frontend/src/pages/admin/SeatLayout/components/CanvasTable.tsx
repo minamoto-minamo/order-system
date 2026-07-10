@@ -1,11 +1,11 @@
-import type { TableData } from "./types";
+import type { TableData } from './types'
 
 interface Props {
-  table: TableData;
-  isSelected: boolean;
-  onPointerDown: (e: React.PointerEvent, kind: "table" | "seat", id: number) => void;
-  onClick: (kind: "table" | "seat", id: number) => void;
-  onResizeStart: (e: React.PointerEvent, id: number) => void;
+  table: TableData
+  isSelected: boolean
+  onPointerDown: (e: React.PointerEvent, kind: 'table' | 'seat', id: number) => void
+  onClick: (kind: 'table' | 'seat', id: number) => void
+  onResizeStart: (e: React.PointerEvent, id: number) => void
 }
 
 export function CanvasTable({ table, isSelected, onPointerDown, onClick, onResizeStart }: Props) {
@@ -13,15 +13,29 @@ export function CanvasTable({ table, isSelected, onPointerDown, onClick, onResiz
     <>
       <div
         className={`draggable absolute rounded-lg z-1 border-[1.5px] ${isSelected ? 'bg-info-bg border-solid border-info' : 'bg-surface border-dashed border-line'}`}
-        onPointerDown={(e) => onPointerDown(e, "table", table.id)}
-        onClick={(e) => { e.stopPropagation(); onClick("table", table.id); }}
+        role="button"
+        tabIndex={0}
+        onPointerDown={(e) => onPointerDown(e, 'table', table.id)}
+        onClick={(e) => {
+          e.stopPropagation()
+          onClick('table', table.id)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick('table', table.id)
+          }
+        }}
         style={{ left: table.x, top: table.y, width: table.w, height: table.h }}
       >
         {isSelected && (
           <div
             className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 border-r-2 border-b-2 border-info rounded-sm"
             style={{ cursor: 'se-resize' }}
-            onPointerDown={(e) => { e.stopPropagation(); onResizeStart(e, table.id); }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              onResizeStart(e, table.id)
+            }}
           />
         )}
       </div>
@@ -32,5 +46,5 @@ export function CanvasTable({ table, isSelected, onPointerDown, onClick, onResiz
         {table.label}
       </span>
     </>
-  );
+  )
 }

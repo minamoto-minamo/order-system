@@ -1,19 +1,20 @@
 /** 境界付きの数量入力（− 数値 ＋ 単位） */
 
 interface QuantityPickerProps {
-  value: number;
-  onChange: (value: number) => void;
-  min?: number; // デフォルト 1
-  max?: number; // 未指定で上限なし
-  unit?: string; // 「名」「個」など
+  value: number
+  onChange: (value: number) => void
+  min?: number // デフォルト 1
+  max?: number // 未指定で上限なし
+  unit?: string // 「名」「個」など
 }
 
 export function QuantityPicker({ value, onChange, min = 1, max, unit }: QuantityPickerProps) {
-  const dec = () => onChange(Math.max(min, value - 1));
-  const inc = () => onChange(max === undefined ? value + 1 : Math.min(max, value + 1));
+  const dec = () => onChange(Math.max(min, value - 1))
+  const inc = () => onChange(max === undefined ? value + 1 : Math.min(max, value + 1))
   return (
     <div className="flex items-center gap-4">
       <button
+        type="button"
         onClick={dec}
         className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim cursor-pointer flex items-center justify-center"
       >
@@ -21,6 +22,7 @@ export function QuantityPicker({ value, onChange, min = 1, max, unit }: Quantity
       </button>
       <span className="text-2xl font-medium text-ink min-w-10 text-center">{value}</span>
       <button
+        type="button"
         onClick={inc}
         className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim cursor-pointer flex items-center justify-center"
       >
@@ -28,5 +30,5 @@ export function QuantityPicker({ value, onChange, min = 1, max, unit }: Quantity
       </button>
       {unit && <span className="text-note text-muted">{unit}</span>}
     </div>
-  );
+  )
 }

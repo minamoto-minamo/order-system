@@ -1,8 +1,8 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import bcrypt from 'bcryptjs'
+import Fastify from 'fastify'
 
 process.env.JWT_SECRET = 'test-secret'
 
@@ -17,7 +17,10 @@ const { default: platformAuthRoutes } = await import('../routes/platformAuth.js'
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   await app.register(cookie)
-  await app.register(jwt, { secret: 'test-secret', cookie: { cookieName: 'platform_token', signed: false } })
+  await app.register(jwt, {
+    secret: 'test-secret',
+    cookie: { cookieName: 'platform_token', signed: false },
+  })
   await app.register(platformAuthRoutes, { prefix: '/api/platform/auth' })
   await app.ready()
   return app
@@ -38,7 +41,8 @@ describe('POST /api/platform/auth/login', () => {
     const compareSpy = jest.spyOn(bcrypt, 'compare')
 
     const res = await app.inject({
-      method: 'POST', url: '/api/platform/auth/login',
+      method: 'POST',
+      url: '/api/platform/auth/login',
       payload: { username: 'platform-admin', password: 'wrong-password' },
     })
 
@@ -54,7 +58,8 @@ describe('POST /api/platform/auth/login', () => {
     const compareSpy = jest.spyOn(bcrypt, 'compare')
 
     const res = await app.inject({
-      method: 'POST', url: '/api/platform/auth/login',
+      method: 'POST',
+      url: '/api/platform/auth/login',
       payload: { username: 'missing', password: 'wrong-password' },
     })
 

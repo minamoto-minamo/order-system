@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.7" stroke-linejoin="round">
+  <title>QRコード</title>
   <rect x="3.5" y="3.5" width="6.5" height="6.5"/>
   <rect x="14" y="3.5" width="6.5" height="6.5"/>
   <rect x="3.5" y="14" width="6.5" height="6.5"/>

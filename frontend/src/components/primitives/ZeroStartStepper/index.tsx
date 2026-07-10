@@ -1,12 +1,12 @@
 /** 0 から始める個数ステッパー。qty===0 では − と数値を隠し ＋ のみ表示する */
 
-import { BaseButton } from "../button";
+import { BaseButton } from '../button'
 
 interface ZeroStartStepperProps {
-  qty: number;
-  onChange: (qty: number) => void;
+  qty: number
+  onChange: (qty: number) => void
   /** ＋ ボタンの disabled（品切れ等）。− ボタンには適用しない */
-  disabled?: boolean;
+  disabled?: boolean
 }
 
 export function ZeroStartStepper({ qty, onChange, disabled }: ZeroStartStepperProps) {
@@ -30,12 +30,14 @@ export function ZeroStartStepper({ qty, onChange, disabled }: ZeroStartStepperPr
         onClick={() => onChange(qty + 1)}
         disabled={disabled}
       >
-        <span className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
-          qty > 0 ? "border-brand bg-brand text-white" : "border-line bg-white text-dim"
-        }`}>
+        <span
+          className={`w-7.5 h-7.5 rounded-full border text-base flex items-center justify-center ${
+            qty > 0 ? 'border-brand bg-brand text-white' : 'border-line bg-white text-dim'
+          }`}
+        >
           ＋
         </span>
       </BaseButton>
     </div>
-  );
+  )
 }

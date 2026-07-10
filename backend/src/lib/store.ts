@@ -1,5 +1,5 @@
-import { prisma } from './prisma.js'
 import { extractSubdomainLabel, getBaseDomain } from './config.js'
+import { prisma } from './prisma.js'
 
 export type StoreContext =
   | { kind: 'store'; storeId: number }
@@ -17,6 +17,6 @@ export async function resolveStoreContext(host: string | undefined): Promise<Sto
   if (label === 'admin') return { kind: 'platform' }
 
   const store = await prisma.store.findUnique({ where: { subdomain: label } })
-  if (!store || !store.isActive) return { kind: 'unknown' }
+  if (!store?.isActive) return { kind: 'unknown' }
   return { kind: 'store', storeId: store.id }
 }

@@ -1,26 +1,26 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { NavDrawer } from "../NavDrawer";
-import { Icon, IconButton } from "@/components/primitives";
-import { useOverTimeWarning } from "@/hooks/useOverTimeWarning";
-import { BRAND } from "@/lib/brand";
-import { ACTION_ICONS } from "@/lib/icons";
+import type { ReactNode } from 'react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { Icon, IconButton } from '@/components/primitives'
+import { useOverTimeWarning } from '@/hooks/useOverTimeWarning'
+import { BRAND } from '@/lib/brand'
+import { ACTION_ICONS } from '@/lib/icons'
+import { NavDrawer } from '../NavDrawer'
 
 interface AppHeaderProps {
-  title: ReactNode;
-  sub?: ReactNode;
-  breadcrumb?: { label: string; to?: string; onClick?: () => void };
-  right?: ReactNode;
-  titleTruncate?: boolean;
+  title: ReactNode
+  sub?: ReactNode
+  breadcrumb?: { label: string; to?: string; onClick?: () => void }
+  right?: ReactNode
+  titleTruncate?: boolean
 }
 
 export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true }: AppHeaderProps) {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  const [showNav, setShowNav] = useState(false);
-  const isOverTime = useOverTimeWarning();
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const [showNav, setShowNav] = useState(false)
+  const isOverTime = useOverTimeWarning()
 
   return (
     <>
@@ -29,7 +29,7 @@ export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true 
           {breadcrumb && (
             <IconButton
               className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface text-xs text-dim"
-              onClick={() => breadcrumb.onClick ? breadcrumb.onClick() : navigate(breadcrumb.to!)}
+              onClick={() => (breadcrumb.onClick ? breadcrumb.onClick() : navigate(breadcrumb.to!))}
             >
               <Icon src={ACTION_ICONS.arrowLeft} />
               <span>{breadcrumb.label}</span>
@@ -38,7 +38,11 @@ export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true 
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <img src={BRAND.iconPath} alt="" className="h-4.5 w-4.5 shrink-0" />
-              <div className={`min-w-0 text-sub font-medium text-ink ${titleTruncate ? 'truncate' : ''}`}>{title}</div>
+              <div
+                className={`min-w-0 text-sub font-medium text-ink ${titleTruncate ? 'truncate' : ''}`}
+              >
+                {title}
+              </div>
             </div>
             {sub && <div className="text-label text-muted mt-px truncate">{sub}</div>}
           </div>
@@ -62,5 +66,5 @@ export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true 
 
       {showNav && <NavDrawer isOverTime={isOverTime} onClose={() => setShowNav(false)} />}
     </>
-  );
+  )
 }

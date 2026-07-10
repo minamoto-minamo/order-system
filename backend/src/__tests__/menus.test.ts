@@ -1,8 +1,8 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { Prisma } from '@prisma/client'
+import Fastify from 'fastify'
 
 const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -17,7 +17,11 @@ const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     orderItem: { count: mockOrderItemCount },
-    menuItem: { findFirst: mockMenuItemFindFirst, update: mockMenuItemUpdate, delete: mockMenuItemDelete },
+    menuItem: {
+      findFirst: mockMenuItemFindFirst,
+      update: mockMenuItemUpdate,
+      delete: mockMenuItemDelete,
+    },
     subCategory: { findFirst: mockSubCategoryFindFirst },
     courseFoodItem: { count: mockCourseFoodItemCount },
     drinkPlanItem: { count: mockDrinkPlanItemCount },
@@ -34,14 +38,18 @@ const STORE_ID = 1
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
     try {
       await request.jwtVerify()
     } catch {
-      reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } })
+      reply.status(401).send({
+        error: { code: 'auth.session.required', message: '認証が必要です', details: null },
+      })
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,18 +62,33 @@ async function buildTestApp() {
 describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
 
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   function token() {
-    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('categoryId のみ変更して現在の subCategory と不整合になる場合は 422 を返す', async () => {
-    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
     mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
 
     const res = await app.inject({
@@ -76,14 +99,26 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
     })
 
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: { code: 'menus.save.subcategory_mismatch', message: 'サブカテゴリがカテゴリと一致しません' } })
-    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({ where: { id: 100, storeId: STORE_ID } })
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'menus.save.subcategory_mismatch',
+        message: 'サブカテゴリがカテゴリと一致しません',
+      },
+    })
+    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({
+      where: { id: 100, storeId: STORE_ID },
+    })
     expect(mockMenuItemUpdate).not.toHaveBeenCalled()
   })
 
   it('categoryId と subCategoryId を整合的に変更できる', async () => {
     const updated = { id: 1, categoryId: 20, subCategoryId: 200, soldOut: false }
-    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
     mockSubCategoryFindFirst.mockResolvedValue({ id: 200, categoryId: 20 })
     mockMenuItemUpdate.mockResolvedValue(updated)
 
@@ -96,7 +131,9 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
 
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject(updated)
-    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({ where: { id: 200, storeId: STORE_ID } })
+    expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({
+      where: { id: 200, storeId: STORE_ID },
+    })
     expect(mockMenuItemUpdate).toHaveBeenCalledWith({
       where: { id: 1 },
       data: expect.objectContaining({ categoryId: 20, subCategoryId: 200 }),
@@ -105,7 +142,12 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
 
   it('subCategoryId: null は整合性検証をスキップして成功する', async () => {
     const updated = { id: 1, categoryId: 10, subCategoryId: 100, soldOut: false }
-    mockMenuItemFindFirst.mockResolvedValue({ id: 1, categoryId: 10, subCategoryId: 100, soldOut: false })
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
     mockMenuItemUpdate.mockResolvedValue(updated)
 
     const res = await app.inject({
@@ -128,8 +170,12 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
 describe('DELETE /api/menus/:id — 削除制御', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
 
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
   beforeEach(() => {
     jest.clearAllMocks()
     mockCourseFoodItemCount.mockResolvedValue(0)
@@ -146,7 +192,13 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
   })
 
   function token() {
-    return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
   }
 
   it('pending の注文があれば 409 を返す', async () => {
@@ -158,7 +210,9 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '処理中の注文があるため削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '処理中の注文があるため削除できません' },
+    })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -171,7 +225,9 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '処理中の注文があるため削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '処理中の注文があるため削除できません' },
+    })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -210,7 +266,9 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: 'コースに含まれているメニューは削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: 'コースに含まれているメニューは削除できません' },
+    })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -224,7 +282,9 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: '飲み放題プランに含まれているメニューは削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: '飲み放題プランに含まれているメニューは削除できません' },
+    })
     expect(mockMenuItemDelete).not.toHaveBeenCalled()
   })
 
@@ -232,7 +292,10 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
     mockMenuItemFindFirst.mockResolvedValue({ id: 5 })
     mockOrderItemCount.mockResolvedValue(0)
     mockTransaction.mockImplementation(async () => {
-      throw new Prisma.PrismaClientKnownRequestError('FK制約違反', { code: 'P2003', clientVersion: 'test' })
+      throw new Prisma.PrismaClientKnownRequestError('FK制約違反', {
+        code: 'P2003',
+        clientVersion: 'test',
+      })
     })
     const res = await app.inject({
       method: 'DELETE',
@@ -240,6 +303,8 @@ describe('DELETE /api/menus/:id — 削除制御', () => {
       headers: { cookie: `token=${token()}` },
     })
     expect(res.statusCode).toBe(409)
-    expect(res.json()).toMatchObject({ error: { message: 'コースまたは飲み放題プランで使用されているため削除できません' } })
+    expect(res.json()).toMatchObject({
+      error: { message: 'コースまたは飲み放題プランで使用されているため削除できません' },
+    })
   })
 })

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { ToastStack } from "@/components/feedback";
+import type { ReactNode } from 'react'
+import { ToastStack } from '@/components/feedback'
 
 export function PlatformPageLayout({ children }: { children: ReactNode }) {
   return (
@@ -7,5 +7,5 @@ export function PlatformPageLayout({ children }: { children: ReactNode }) {
       <ToastStack />
       {children}
     </>
-  );
+  )
 }

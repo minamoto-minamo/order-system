@@ -1,1 +1,1 @@
-export { SubCategorySidebar } from './SubCategorySidebar';
+export { SubCategorySidebar } from './SubCategorySidebar'

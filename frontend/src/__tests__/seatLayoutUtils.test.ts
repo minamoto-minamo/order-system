@@ -1,5 +1,5 @@
-import { snap, hitTest } from '../pages/admin/SeatLayout/components/utils'
 import type { TableData } from '../pages/admin/SeatLayout/components/types'
+import { hitTest, snap } from '../pages/admin/SeatLayout/components/utils'
 
 describe('snap', () => {
   it('グリッド幅の倍数に丸める', () => {

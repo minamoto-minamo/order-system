@@ -1,64 +1,77 @@
-import { BottomSheetModal } from "@/components/composite";
-import { BaseButton, Icon } from "@/components/primitives";
-import { useForm } from "@/hooks/useForm";
-import { ACTION_ICONS } from "@/lib/icons";
-import { useId } from "react";
-import { useTranslation } from "react-i18next";
-import type { Cat, Product, ProductFormData } from "./types";
-import { TO_OPTIONS } from "./types";
+import { useId } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BottomSheetModal } from '@/components/composite'
+import { BaseButton, Icon } from '@/components/primitives'
+import { useForm } from '@/hooks/useForm'
+import { ACTION_ICONS } from '@/lib/icons'
+import type { Cat, Product, ProductFormData } from './types'
+import { TO_OPTIONS } from './types'
 
 type ProductForm = {
-  name: string;
-  price: number | string;
-  subId: number | null;
-  takeout: string;
-};
+  name: string
+  price: number | string
+  subId: number | null
+  takeout: string
+}
 
-export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, onToggleSoldOut, onDelete }: {
-  product?: Product;
-  cats: Cat[];
-  initialSubId?: number | null;
-  onConfirm: (data: ProductFormData) => void;
-  onClose: () => void;
-  onToggleSoldOut?: () => void;
-  onDelete?: () => void;
+export function ProductModal({
+  product,
+  cats,
+  initialSubId,
+  onConfirm,
+  onClose,
+  onToggleSoldOut,
+  onDelete,
+}: {
+  product?: Product
+  cats: Cat[]
+  initialSubId?: number | null
+  onConfirm: (data: ProductFormData) => void
+  onClose: () => void
+  onToggleSoldOut?: () => void
+  onDelete?: () => void
 }) {
-  const { t } = useTranslation();
-  const formId = useId();
-  const nameId = `${formId}-name`;
-  const priceId = `${formId}-price`;
-  const subIdId = `${formId}-sub-id`;
-  const takeoutId = `${formId}-takeout`;
+  const { t } = useTranslation()
+  const formId = useId()
+  const nameId = `${formId}-name`
+  const priceId = `${formId}-price`
+  const subIdId = `${formId}-sub-id`
+  const takeoutId = `${formId}-takeout`
   const { values: form, setValue } = useForm<ProductForm>({
-    name: product?.name ?? "",
-    price: product?.price ?? "",
+    name: product?.name ?? '',
+    price: product?.price ?? '',
     subId: product?.subId ?? initialSubId ?? null,
-    takeout: product?.takeout ?? "both",
-  });
-  const { name, price, subId, takeout } = form;
+    takeout: product?.takeout ?? 'both',
+  })
+  const { name, price, subId, takeout } = form
 
-  const contextLabel = !product && subId
-    ? (() => {
-      for (const c of cats) {
-        const s = c.subs.find(s => s.id === subId);
-        if (s) return `${c.label} › ${s.label}`;
-      }
-      return null;
-    })()
-    : null;
+  const contextLabel =
+    !product && subId
+      ? (() => {
+          for (const c of cats) {
+            const s = c.subs.find((s) => s.id === subId)
+            if (s) return `${c.label} › ${s.label}`
+          }
+          return null
+        })()
+      : null
 
-  const isEdit = !!product;
-  const canSubmit = name.trim() !== "" && Number(price) > 0 && subId !== null;
+  const isEdit = !!product
+  const canSubmit = name.trim() !== '' && Number(price) > 0 && subId !== null
 
   return (
     <BottomSheetModal
       show
       onClose={onClose}
-      secondaryAction={isEdit ? { label: t('common.delete'), onClick: onDelete!, variant: 'danger' } : undefined}
+      secondaryAction={
+        isEdit ? { label: t('common.delete'), onClick: onDelete!, variant: 'danger' } : undefined
+      }
       primaryAction={{
         label: isEdit ? t('common.save') : t('common.add'),
         disabled: !canSubmit,
-        onClick: () => canSubmit && onConfirm({ name: name.trim(), price: Number(price), subId: subId!, takeout }),
+        onClick: () =>
+          canSubmit &&
+          onConfirm({ name: name.trim(), price: Number(price), subId: subId!, takeout }),
       }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -68,43 +81,72 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
           </div>
           {contextLabel && <div className="text-label text-muted mt-0.5">{contextLabel}</div>}
         </div>
-        <BaseButton className="w-6 h-6 flex items-center justify-center rounded text-muted text-note" onClick={onClose} aria-label={t('common.close')}>
+        <BaseButton
+          className="w-6 h-6 flex items-center justify-center rounded text-muted text-note"
+          onClick={onClose}
+          aria-label={t('common.close')}
+        >
           <Icon src={ACTION_ICONS.close} />
         </BaseButton>
       </div>
 
-      <label htmlFor={nameId} className="block text-caption text-muted mb-0.75">{t('productSettings.productName')}</label>
-      <input id={nameId} value={name} onChange={e => setValue("name", e.target.value)}
+      <label htmlFor={nameId} className="block text-caption text-muted mb-0.75">
+        {t('productSettings.productName')}
+      </label>
+      <input
+        id={nameId}
+        value={name}
+        onChange={(e) => setValue('name', e.target.value)}
         placeholder={t('productSettings.namePlaceholder')}
         className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
       />
 
-      <label htmlFor={priceId} className="block text-caption text-muted mb-0.75">{t('productSettings.price')}</label>
-      <input id={priceId} value={price} onChange={e => setValue("price", e.target.value)}
-        placeholder={t('productSettings.pricePlaceholder')} type="number"
+      <label htmlFor={priceId} className="block text-caption text-muted mb-0.75">
+        {t('productSettings.price')}
+      </label>
+      <input
+        id={priceId}
+        value={price}
+        onChange={(e) => setValue('price', e.target.value)}
+        placeholder={t('productSettings.pricePlaceholder')}
+        type="number"
         className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink mb-2"
       />
 
-      <label htmlFor={subIdId} className="block text-caption text-muted mb-0.75">{t('productSettings.category')}</label>
-      <select id={subIdId} value={subId ?? ""} onChange={e => setValue("subId", e.target.value ? Number(e.target.value) : null)}
+      <label htmlFor={subIdId} className="block text-caption text-muted mb-0.75">
+        {t('productSettings.category')}
+      </label>
+      <select
+        id={subIdId}
+        value={subId ?? ''}
+        onChange={(e) => setValue('subId', e.target.value ? Number(e.target.value) : null)}
         className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-2 appearance-none"
       >
         {!subId && <option value="">{t('productSettings.selectPrompt')}</option>}
-        {cats.map(c => (
+        {cats.map((c) => (
           <optgroup key={c.id} label={c.label}>
-            {c.subs.map(s => (
-              <option key={s.id} value={s.id}>{s.label}</option>
+            {c.subs.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
             ))}
           </optgroup>
         ))}
       </select>
 
-      <label htmlFor={takeoutId} className="block text-caption text-muted mb-0.75">{t('productSettings.takeoutType')}</label>
-      <select id={takeoutId} value={takeout} onChange={e => setValue("takeout", e.target.value)}
+      <label htmlFor={takeoutId} className="block text-caption text-muted mb-0.75">
+        {t('productSettings.takeoutType')}
+      </label>
+      <select
+        id={takeoutId}
+        value={takeout}
+        onChange={(e) => setValue('takeout', e.target.value)}
         className="input-field w-full border border-line rounded-[7px] px-2.5 py-1.75 text-xs outline-none text-ink bg-white mb-3 appearance-none"
       >
-        {TO_OPTIONS.map(opt => (
-          <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
+        {TO_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {t(opt.labelKey)}
+          </option>
         ))}
       </select>
 
@@ -119,5 +161,5 @@ export function ProductModal({ product, cats, initialSubId, onConfirm, onClose, 
         </div>
       )}
     </BottomSheetModal>
-  );
+  )
 }

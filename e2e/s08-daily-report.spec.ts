@@ -1,8 +1,8 @@
-import { resetDb, disconnect } from './helpers/db'
-import { loginAs } from './helpers/auth'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { loginAs } from './helpers/auth'
+import { disconnect, resetDb } from './helpers/db'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -27,7 +27,7 @@ test('締め済みセッションがない場合は空状態が表示される',
 
 test('締め済みセッションがある場合にセッション一覧とサマリーが表示される', async ({ page }) => {
   const createRes = await page.request.post('/api/sessions')
-  const session = await createRes.json() as { id: number }
+  const session = (await createRes.json()) as { id: number }
   await page.request.put(`/api/sessions/${session.id}`, {
     data: { status: 'closed' },
   })

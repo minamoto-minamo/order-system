@@ -1,8 +1,12 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from 'react'
 
-export function BottomSheet({ children, className = "", ...props }: {
-  children: ReactNode;
-  className?: string;
+export function BottomSheet({
+  children,
+  className = '',
+  ...props
+}: {
+  children: ReactNode
+  className?: string
 } & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
@@ -11,5 +15,5 @@ export function BottomSheet({ children, className = "", ...props }: {
     >
       {children}
     </div>
-  );
+  )
 }

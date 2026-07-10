@@ -1,8 +1,8 @@
-import { resetDb, prisma, disconnect } from './helpers/db'
-import { loginAs, CREDS } from './helpers/auth'
-import { testWithStore } from './helpers/testWithStore'
-import { ROUTES } from '../frontend/src/lib/routes'
 import ja from '../frontend/src/i18n/locales/ja'
+import { ROUTES } from '../frontend/src/lib/routes'
+import { CREDS, loginAs } from './helpers/auth'
+import { disconnect, prisma, resetDb } from './helpers/db'
+import { testWithStore } from './helpers/testWithStore'
 
 const { test, expect, getStore } = testWithStore()
 
@@ -58,7 +58,9 @@ test('未ログイン状態で /hall にアクセスすると /login にリダ�
   await expect(page).toHaveURL(ROUTES.login)
 })
 
-test('未ログイン状態で /admin/products にアクセスすると /login にリダイレクト', async ({ page }) => {
+test('未ログイン状態で /admin/products にアクセスすると /login にリダイレクト', async ({
+  page,
+}) => {
   await page.goto(ROUTES.adminProducts)
   await expect(page).toHaveURL(ROUTES.login)
 })
@@ -110,7 +112,9 @@ test('ログイン直後にリロードなしで調理完了ボタンが機能�
   await expect(page.getByText(ja.common.readyToServe)).toBeVisible()
 })
 
-test('営業開始→ログアウト→ログイン画面リロード→再ログインでも営業中と表示される', async ({ page }) => {
+test('営業開始→ログアウト→ログイン画面リロード→再ログインでも営業中と表示される', async ({
+  page,
+}) => {
   await page.goto(ROUTES.login)
   await page.getByPlaceholder(ja.login.usernamePlaceholder).fill(CREDS.admin.username)
   await page.getByPlaceholder(ja.login.passwordPlaceholder).fill(CREDS.admin.password)

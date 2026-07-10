@@ -20,15 +20,19 @@ export function extractSubdomainLabel(hostname: string): string | null {
 // Origin ヘッダーが BASE_DOMAIN 自身または BASE_DOMAIN のサブドメインかどうかを検証する
 export function corsOriginValidator(
   origin: string | undefined,
-  callback: (err: Error | null, allow: boolean) => void
-): void {
-  if (!origin) return callback(null, true)
+  callback: (err: Error | null, allow: boolean) => unknown,
+) {
+  if (!origin) {
+    callback(null, true)
+    return
+  }
   const baseDomain = getBaseDomain()
   let hostname: string
   try {
     hostname = new URL(origin).hostname
   } catch {
-    return callback(null, false)
+    callback(null, false)
+    return
   }
   callback(null, hostname === baseDomain || hostname.endsWith(`.${baseDomain}`))
 }
@@ -37,5 +41,5 @@ export function parseDurationSeconds(d: string): number {
   const m = d.match(/^(\d+)([smhd])$/)
   if (!m) return 60 * 60 * 24 * 7
   const n = Number(m[1])
-  return { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as 's'|'m'|'h'|'d'] * n
+  return { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as 's' | 'm' | 'h' | 'd'] * n
 }

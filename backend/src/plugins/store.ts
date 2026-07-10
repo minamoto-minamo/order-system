@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin'
-import { resolveStoreContext } from '../lib/store.js'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { resolveStoreContext } from '../lib/store.js'
 
 declare module 'fastify' {
   interface FastifyRequest {

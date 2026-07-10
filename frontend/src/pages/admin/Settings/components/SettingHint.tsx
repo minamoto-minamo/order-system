@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react'
 
 // セクション末尾の補足ヒント枠
 export function SettingHint({ children }: { children: ReactNode }) {
@@ -8,5 +8,5 @@ export function SettingHint({ children }: { children: ReactNode }) {
         {children}
       </div>
     </div>
-  );
+  )
 }

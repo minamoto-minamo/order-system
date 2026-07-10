@@ -130,7 +130,11 @@ export type ApiErrorBody = {
   }
 }
 
-export function errorBody(code: string, message: string, details: ErrorDetails = null): ApiErrorBody {
+export function errorBody(
+  code: string,
+  message: string,
+  details: ErrorDetails = null,
+): ApiErrorBody {
   return { error: { code, message, details } }
 }
 

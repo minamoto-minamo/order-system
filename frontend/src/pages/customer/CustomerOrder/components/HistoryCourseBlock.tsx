@@ -1,4 +1,4 @@
-import type { OrderItem } from "@order-system/shared";
+import type { OrderItem } from '@order-system/shared'
 
 export function HistoryCourseBlock({ charge, dishes }: { charge: OrderItem; dishes: OrderItem[] }) {
   return (
@@ -11,9 +11,11 @@ export function HistoryCourseBlock({ charge, dishes }: { charge: OrderItem; dish
         <span>¥{charge.price.toLocaleString()}</span>
         <span>¥{(charge.price * charge.qty).toLocaleString()}</span>
       </div>
-      {dishes.map(d => (
-        <div key={d.id} className="mt-1 text-note text-secondary">{d.menuItemName}</div>
+      {dishes.map((d) => (
+        <div key={d.id} className="mt-1 text-note text-secondary">
+          {d.menuItemName}
+        </div>
       ))}
     </div>
-  );
+  )
 }

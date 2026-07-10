@@ -10,15 +10,18 @@ const config: Config = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      useESM: true,
-      tsconfig: {
-        module: 'ESNext',
-        moduleResolution: 'bundler',
-        jsx: 'react-jsx',
-        esModuleInterop: true,
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: {
+          module: 'ESNext',
+          moduleResolution: 'bundler',
+          jsx: 'react-jsx',
+          esModuleInterop: true,
+        },
       },
-    }],
+    ],
   },
   testMatch: ['<rootDir>/src/**/__tests__/**/*.test.{ts,tsx}'],
 }

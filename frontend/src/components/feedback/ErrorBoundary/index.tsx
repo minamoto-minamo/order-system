@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Toast } from '../Toast/Toast'
 import ja from '@/i18n/locales/ja'
+import { Toast } from '../Toast/Toast'
 
 type Props = {
   children: ReactNode
@@ -26,6 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="h-dvh flex flex-col items-center justify-center gap-4 bg-white px-6 text-center text-secondary">
           <button
+            type="button"
             className="px-4 py-2 rounded-lg bg-secondary text-white text-sm"
             onClick={() => window.location.reload()}
           >

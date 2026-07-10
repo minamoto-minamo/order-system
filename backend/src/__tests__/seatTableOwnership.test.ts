@@ -1,7 +1,7 @@
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
-import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import Fastify from 'fastify'
 
 const mockSeatFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockSeatFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
@@ -51,12 +51,19 @@ const STORE_ID = 1
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
-    try { await request.jwtVerify() }
-    catch { reply.status(401).send({ error: { code: 'auth.session.required', message: '認証が必要です', details: null } }) }
+    try {
+      await request.jwtVerify()
+    } catch {
+      reply.status(401).send({
+        error: { code: 'auth.session.required', message: '認証が必要です', details: null },
+      })
+    }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockIo: any = { emit: jest.fn() }
@@ -69,7 +76,13 @@ async function buildTestApp() {
 }
 
 function token(app: Awaited<ReturnType<typeof buildTestApp>>) {
-  return app.jwt.sign({ type: 'staff' as const, userId: ADMIN_ID, username: 'admin', role: 'admin', storeId: STORE_ID })
+  return app.jwt.sign({
+    type: 'staff' as const,
+    userId: ADMIN_ID,
+    username: 'admin',
+    role: 'admin',
+    storeId: STORE_ID,
+  })
 }
 
 function layoutPayload(tableId: number) {
@@ -84,8 +97,12 @@ function layoutPayload(tableId: number) {
 
 describe('席とテーブルの店舗所有権チェック', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
-  beforeAll(async () => { app = await buildTestApp() })
-  afterAll(async () => { await app.close() })
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
   beforeEach(() => {
     jest.resetAllMocks()
     mockSettingFindUnique.mockResolvedValue(null)
@@ -93,7 +110,11 @@ describe('席とテーブルの店舗所有権チェック', () => {
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
         setting: { update: mockSettingUpdate },
-        seatTable: { create: mockSeatTableCreate, update: mockSeatTableUpdate, deleteMany: mockSeatTableDeleteMany },
+        seatTable: {
+          create: mockSeatTableCreate,
+          update: mockSeatTableUpdate,
+          deleteMany: mockSeatTableDeleteMany,
+        },
         seat: { create: mockSeatCreate, update: mockSeatUpdate, deleteMany: mockSeatDeleteMany },
       }
       return cb(tx)
@@ -116,7 +137,15 @@ describe('席とテーブルの店舗所有権チェック', () => {
 
   it('POST /api/seats は自店舗の tableId なら作成できる', async () => {
     mockSeatTableFindFirst.mockResolvedValue({ id: 10, storeId: STORE_ID })
-    mockSeatCreate.mockResolvedValue({ id: 1, label: 'A1', type: 'table', x: 1, y: 1, tableId: 10, storeId: STORE_ID })
+    mockSeatCreate.mockResolvedValue({
+      id: 1,
+      label: 'A1',
+      type: 'table',
+      x: 1,
+      y: 1,
+      tableId: 10,
+      storeId: STORE_ID,
+    })
     const res = await app.inject({
       method: 'POST',
       url: '/api/seats',
@@ -124,9 +153,11 @@ describe('席とテーブルの店舗所有権チェック', () => {
       payload: { label: 'A1', type: 'table', x: 1, y: 1, tableId: 10 },
     })
     expect(res.statusCode).toBe(201)
-    expect(mockSeatCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ tableId: 10, storeId: STORE_ID }),
-    }))
+    expect(mockSeatCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ tableId: 10, storeId: STORE_ID }),
+      }),
+    )
   })
 
   it('PUT /api/seats/:id は他店舗の tableId を 422 で拒否する', async () => {
@@ -155,10 +186,12 @@ describe('席とテーブルの店舗所有権チェック', () => {
       payload: { tableId: 10 },
     })
     expect(res.statusCode).toBe(200)
-    expect(mockSeatUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 1 },
-      data: expect.objectContaining({ tableId: 10 }),
-    }))
+    expect(mockSeatUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({ tableId: 10 }),
+      }),
+    )
   })
 
   it('PUT /api/seat-layout は他店舗の正の tableId を 422 で拒否する', async () => {
@@ -171,12 +204,16 @@ describe('席とテーブルの店舗所有権チェック', () => {
       payload: layoutPayload(99),
     })
     expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({ error: { code: 'seat_layout.update.invalid_table_id', details: { tableId: 99 } } })
+    expect(res.json()).toMatchObject({
+      error: { code: 'seat_layout.update.invalid_table_id', details: { tableId: 99 } },
+    })
     expect(mockTransaction).not.toHaveBeenCalled()
   })
 
   it('PUT /api/seat-layout は自店舗の正の tableId なら更新できる', async () => {
-    mockSeatFindMany.mockResolvedValueOnce([{ id: 20 }]).mockResolvedValueOnce([{ id: 20, tableId: 10 }])
+    mockSeatFindMany
+      .mockResolvedValueOnce([{ id: 20 }])
+      .mockResolvedValueOnce([{ id: 20, tableId: 10 }])
     mockSeatTableFindMany.mockResolvedValueOnce([{ id: 10 }]).mockResolvedValueOnce([{ id: 10 }])
     const res = await app.inject({
       method: 'PUT',
@@ -185,9 +222,11 @@ describe('席とテーブルの店舗所有権チェック', () => {
       payload: layoutPayload(10),
     })
     expect(res.statusCode).toBe(200)
-    expect(mockSeatUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 20 },
-      data: expect.objectContaining({ tableId: 10 }),
-    }))
+    expect(mockSeatUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 20 },
+        data: expect.objectContaining({ tableId: 10 }),
+      }),
+    )
   })
 })

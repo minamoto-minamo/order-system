@@ -36,35 +36,46 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       taxRateInHouse: setting ? setting.taxRateInHouse.toNumber() : DEFAULT_SETTING.taxRateInHouse,
       taxRateTakeout: setting ? setting.taxRateTakeout.toNumber() : DEFAULT_SETTING.taxRateTakeout,
       taxInclusive: setting?.taxInclusive ?? DEFAULT_SETTING.taxInclusive,
-      refreshTokenAutoExtend: setting?.refreshTokenAutoExtend ?? DEFAULT_SETTING.refreshTokenAutoExtend,
-      refreshTokenExpiresMinutes: setting?.refreshTokenExpiresMinutes ?? DEFAULT_SETTING.refreshTokenExpiresMinutes,
+      refreshTokenAutoExtend:
+        setting?.refreshTokenAutoExtend ?? DEFAULT_SETTING.refreshTokenAutoExtend,
+      refreshTokenExpiresMinutes:
+        setting?.refreshTokenExpiresMinutes ?? DEFAULT_SETTING.refreshTokenExpiresMinutes,
     }
   })
 
-  fastify.put('/', { schema: { body: updateBodySchema }, preHandler: requireAdmin }, async (request) => {
-    const body = request.body as Partial<{
-      storeName: string; closingTime: string;
-      taxRateInHouse: number; taxRateTakeout: number;
-      taxInclusive: boolean;
-      refreshTokenAutoExtend: boolean; refreshTokenExpiresMinutes: number;
-    }>
-    const setting = await prisma.setting.upsert({
-      where: { storeId: request.storeId },
-      update: body,
-      create: { ...DEFAULT_SETTING, ...body, storeId: request.storeId },
-    })
-    const result = {
-      storeName: setting.storeName,
-      closingTime: setting.closingTime,
-      taxRateInHouse: setting.taxRateInHouse.toNumber(),
-      taxRateTakeout: setting.taxRateTakeout.toNumber(),
-      taxInclusive: setting.taxInclusive,
-      refreshTokenAutoExtend: setting.refreshTokenAutoExtend,
-      refreshTokenExpiresMinutes: setting.refreshTokenExpiresMinutes,
-    }
-    fastify.io.to(`store:${request.storeId}`).emit('settings:updated', { storeName: result.storeName, closingTime: result.closingTime })
-    return result
-  })
+  fastify.put(
+    '/',
+    { schema: { body: updateBodySchema }, preHandler: requireAdmin },
+    async (request) => {
+      const body = request.body as Partial<{
+        storeName: string
+        closingTime: string
+        taxRateInHouse: number
+        taxRateTakeout: number
+        taxInclusive: boolean
+        refreshTokenAutoExtend: boolean
+        refreshTokenExpiresMinutes: number
+      }>
+      const setting = await prisma.setting.upsert({
+        where: { storeId: request.storeId },
+        update: body,
+        create: { ...DEFAULT_SETTING, ...body, storeId: request.storeId },
+      })
+      const result = {
+        storeName: setting.storeName,
+        closingTime: setting.closingTime,
+        taxRateInHouse: setting.taxRateInHouse.toNumber(),
+        taxRateTakeout: setting.taxRateTakeout.toNumber(),
+        taxInclusive: setting.taxInclusive,
+        refreshTokenAutoExtend: setting.refreshTokenAutoExtend,
+        refreshTokenExpiresMinutes: setting.refreshTokenExpiresMinutes,
+      }
+      fastify.io
+        .to(`store:${request.storeId}`)
+        .emit('settings:updated', { storeName: result.storeName, closingTime: result.closingTime })
+      return result
+    },
+  )
 }
 
 export default settingsRoutes

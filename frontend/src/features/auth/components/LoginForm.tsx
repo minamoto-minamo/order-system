@@ -1,34 +1,46 @@
-import { useId, useState } from "react";
-import { BaseButton } from "@/components/primitives";
-import { Toast } from "@/components/feedback";
-import { BRAND } from "@/lib/brand";
+import { useId, useState } from 'react'
+import { Toast } from '@/components/feedback'
+import { BaseButton } from '@/components/primitives'
+import { BRAND } from '@/lib/brand'
 
 // ログイン画面の全面レイアウト＋認証フォーム。
 // 入力 state はここで持ち、検証・送信処理は onSubmit で呼び出し側が行う。
-export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, submitLabel, submittingLabel, error, loading, onSubmit }: {
-  title: string;
-  usernamePlaceholder: string;
-  passwordPlaceholder: string;
-  submitLabel: string;
-  submittingLabel: string;
-  error: string | null;
-  loading: boolean;
-  onSubmit: (username: string, password: string) => void;
+export function LoginForm({
+  title,
+  usernamePlaceholder,
+  passwordPlaceholder,
+  submitLabel,
+  submittingLabel,
+  error,
+  loading,
+  onSubmit,
+}: {
+  title: string
+  usernamePlaceholder: string
+  passwordPlaceholder: string
+  submitLabel: string
+  submittingLabel: string
+  error: string | null
+  loading: boolean
+  onSubmit: (username: string, password: string) => void
 }) {
-  const formId = useId();
-  const usernameId = `${formId}-username`;
-  const passwordId = `${formId}-password`;
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const formId = useId()
+  const usernameId = `${formId}-username`
+  const passwordId = `${formId}-password`
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(username, password);
-  };
+    e.preventDefault()
+    onSubmit(username, password)
+  }
 
   return (
     <div className="h-dvh overflow-y-auto bg-white p-5">
-      <div className="min-h-full flex flex-col items-center" style={{ justifyContent: "safe center" }}>
+      <div
+        className="min-h-full flex flex-col items-center"
+        style={{ justifyContent: 'safe center' }}
+      >
         <div className="w-full max-w-80">
           <div className="text-center mb-8">
             <img src={BRAND.iconPath} alt="" className="w-14 h-14 mx-auto mb-3" />
@@ -45,7 +57,7 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
                 type="text"
                 placeholder={usernamePlaceholder}
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={(e) => setUsername(e.target.value)}
                 className="input-field w-full border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
                 autoComplete="username"
               />
@@ -59,7 +71,7 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
                 type="password"
                 placeholder={passwordPlaceholder}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 className="input-field w-full border border-line rounded-[10px] px-4 py-3 text-sm text-ink bg-white outline-none focus:border-brand transition-colors"
                 autoComplete="current-password"
               />
@@ -77,5 +89,5 @@ export function LoginForm({ title, usernamePlaceholder, passwordPlaceholder, sub
       </div>
       <Toast message={error} />
     </div>
-  );
+  )
 }

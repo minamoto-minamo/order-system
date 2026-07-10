@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { config } from 'dotenv'
 import { resolve } from 'path'
+
 config({ path: resolve(process.cwd(), '../env/backend.env') })
 
 import { PrismaClient, TakeoutType } from '@prisma/client'
@@ -97,23 +98,151 @@ async function seedStore(storeId: number, subdomain: string, storeName: string, 
     soldOut: boolean
     takeout: TakeoutType
   }> = [
-      { id: id(101), name: '生ビール', price: 550, categoryId: catDrink.id, subCategoryId: subAlcohol.id, soldOut: false, takeout: TakeoutType.dine_in },
-      { id: id(102), name: 'ハイボール', price: 480, categoryId: catDrink.id, subCategoryId: subAlcohol.id, soldOut: false, takeout: TakeoutType.dine_in },
-      { id: id(103), name: '梅酒ロック', price: 480, categoryId: catDrink.id, subCategoryId: subAlcohol.id, soldOut: false, takeout: TakeoutType.dine_in },
-      { id: id(104), name: '日本酒', price: 550, categoryId: catDrink.id, subCategoryId: subAlcohol.id, soldOut: false, takeout: TakeoutType.dine_in },
-      { id: id(105), name: 'ウーロン茶', price: 280, categoryId: catDrink.id, subCategoryId: subNonAlcohol.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(106), name: 'コーラ', price: 280, categoryId: catDrink.id, subCategoryId: subNonAlcohol.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(107), name: 'ジンジャーエール', price: 280, categoryId: catDrink.id, subCategoryId: subNonAlcohol.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(201), name: '唐揚げ', price: 580, categoryId: catFood.id, subCategoryId: subFryer.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(202), name: 'ポテトフライ', price: 420, categoryId: catFood.id, subCategoryId: subFryer.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(203), name: '焼き鳥（5本）', price: 680, categoryId: catFood.id, subCategoryId: subGrill.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(204), name: '刺身盛り', price: 980, categoryId: catFood.id, subCategoryId: subCold.id, soldOut: false, takeout: TakeoutType.dine_in },
-      { id: id(205), name: '枝豆', price: 380, categoryId: catFood.id, subCategoryId: subCold.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(206), name: '冷ややっこ', price: 320, categoryId: catFood.id, subCategoryId: subCold.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(301), name: 'アイスクリーム', price: 380, categoryId: catOther.id, subCategoryId: subDessert.id, soldOut: false, takeout: TakeoutType.both },
-      { id: id(401), name: 'お弁当（唐揚げ）', price: 780, categoryId: catFood.id, subCategoryId: subTakeout.id, soldOut: false, takeout: TakeoutType.takeout },
-      { id: id(402), name: 'お弁当（焼き鳥）', price: 880, categoryId: catFood.id, subCategoryId: subTakeout.id, soldOut: false, takeout: TakeoutType.takeout },
-    ]
+    {
+      id: id(101),
+      name: '生ビール',
+      price: 550,
+      categoryId: catDrink.id,
+      subCategoryId: subAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.dine_in,
+    },
+    {
+      id: id(102),
+      name: 'ハイボール',
+      price: 480,
+      categoryId: catDrink.id,
+      subCategoryId: subAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.dine_in,
+    },
+    {
+      id: id(103),
+      name: '梅酒ロック',
+      price: 480,
+      categoryId: catDrink.id,
+      subCategoryId: subAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.dine_in,
+    },
+    {
+      id: id(104),
+      name: '日本酒',
+      price: 550,
+      categoryId: catDrink.id,
+      subCategoryId: subAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.dine_in,
+    },
+    {
+      id: id(105),
+      name: 'ウーロン茶',
+      price: 280,
+      categoryId: catDrink.id,
+      subCategoryId: subNonAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(106),
+      name: 'コーラ',
+      price: 280,
+      categoryId: catDrink.id,
+      subCategoryId: subNonAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(107),
+      name: 'ジンジャーエール',
+      price: 280,
+      categoryId: catDrink.id,
+      subCategoryId: subNonAlcohol.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(201),
+      name: '唐揚げ',
+      price: 580,
+      categoryId: catFood.id,
+      subCategoryId: subFryer.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(202),
+      name: 'ポテトフライ',
+      price: 420,
+      categoryId: catFood.id,
+      subCategoryId: subFryer.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(203),
+      name: '焼き鳥（5本）',
+      price: 680,
+      categoryId: catFood.id,
+      subCategoryId: subGrill.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(204),
+      name: '刺身盛り',
+      price: 980,
+      categoryId: catFood.id,
+      subCategoryId: subCold.id,
+      soldOut: false,
+      takeout: TakeoutType.dine_in,
+    },
+    {
+      id: id(205),
+      name: '枝豆',
+      price: 380,
+      categoryId: catFood.id,
+      subCategoryId: subCold.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(206),
+      name: '冷ややっこ',
+      price: 320,
+      categoryId: catFood.id,
+      subCategoryId: subCold.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(301),
+      name: 'アイスクリーム',
+      price: 380,
+      categoryId: catOther.id,
+      subCategoryId: subDessert.id,
+      soldOut: false,
+      takeout: TakeoutType.both,
+    },
+    {
+      id: id(401),
+      name: 'お弁当（唐揚げ）',
+      price: 780,
+      categoryId: catFood.id,
+      subCategoryId: subTakeout.id,
+      soldOut: false,
+      takeout: TakeoutType.takeout,
+    },
+    {
+      id: id(402),
+      name: 'お弁当（焼き鳥）',
+      price: 880,
+      categoryId: catFood.id,
+      subCategoryId: subTakeout.id,
+      soldOut: false,
+      takeout: TakeoutType.takeout,
+    },
+  ]
 
   for (const item of menuItems) {
     await prisma.menuItem.upsert({
@@ -163,10 +292,20 @@ async function seedStore(storeId: number, subdomain: string, storeName: string, 
   const c2 = await prisma.course.upsert({
     where: { id: id(2) },
     update: {},
-    create: { id: id(2), storeId, name: '飲み放題＋おつまみコース', price: 2800, drinkPlanId: dp1.id },
+    create: {
+      id: id(2),
+      storeId,
+      name: '飲み放題＋おつまみコース',
+      price: 2800,
+      drinkPlanId: dp1.id,
+    },
   })
   // 料理: 枝豆x1, 唐揚げx1, ポテトフライx1
-  for (const [menuItemId, qty] of [[id(205), 1], [id(201), 1], [id(202), 1]] as [number, number][]) {
+  for (const [menuItemId, qty] of [
+    [id(205), 1],
+    [id(201), 1],
+    [id(202), 1],
+  ] as [number, number][]) {
     await prisma.courseFoodItem.upsert({
       where: { courseId_menuItemId: { courseId: c2.id, menuItemId } },
       update: {},
@@ -180,7 +319,11 @@ async function seedStore(storeId: number, subdomain: string, storeName: string, 
     create: { id: id(3), storeId, name: '刺身＆焼き鳥コース', price: 1800, drinkPlanId: null },
   })
   // 料理: 刺身盛りx1, 焼き鳥x1, 冷ややっこx1
-  for (const [menuItemId, qty] of [[id(204), 1], [id(203), 1], [id(206), 1]] as [number, number][]) {
+  for (const [menuItemId, qty] of [
+    [id(204), 1],
+    [id(203), 1],
+    [id(206), 1],
+  ] as [number, number][]) {
     await prisma.courseFoodItem.upsert({
       where: { courseId_menuItemId: { courseId: c3.id, menuItemId } },
       update: {},
@@ -226,37 +369,37 @@ async function seedStore(storeId: number, subdomain: string, storeName: string, 
     y: number
     tableId: number | null
   }> = [
-      // テーブル1（2人）
-      { id: id(10), label: 'A-1', type: 'table', x: G * 1, y: G * 1, tableId: st1.id },
-      { id: id(11), label: 'A-2', type: 'table', x: G * 3, y: G * 1, tableId: st1.id },
-      // テーブル2（2人）
-      { id: id(12), label: 'B-1', type: 'table', x: G * 1, y: G * 4, tableId: st2.id },
-      { id: id(13), label: 'B-2', type: 'table', x: G * 3, y: G * 4, tableId: st2.id },
-      // テーブル3（4人）
-      { id: id(14), label: 'C-1', type: 'table', x: G * 6, y: G * 1, tableId: st3.id },
-      { id: id(15), label: 'C-2', type: 'table', x: G * 9, y: G * 1, tableId: st3.id },
-      { id: id(16), label: 'C-3', type: 'table', x: G * 6, y: G * 3, tableId: st3.id },
-      { id: id(17), label: 'C-4', type: 'table', x: G * 9, y: G * 3, tableId: st3.id },
-      // テーブル4（4人）
-      { id: id(18), label: 'D-1', type: 'table', x: G * 6, y: G * 5, tableId: st4.id },
-      { id: id(19), label: 'D-2', type: 'table', x: G * 9, y: G * 5, tableId: st4.id },
-      { id: id(20), label: 'D-3', type: 'table', x: G * 6, y: G * 7, tableId: st4.id },
-      { id: id(21), label: 'D-4', type: 'table', x: G * 9, y: G * 7, tableId: st4.id },
-      // テーブル5（6人）
-      { id: id(22), label: 'E-1', type: 'table', x: G * 11, y: G * 2, tableId: st5.id },
-      { id: id(23), label: 'E-2', type: 'table', x: G * 13, y: G * 2, tableId: st5.id },
-      { id: id(24), label: 'E-3', type: 'table', x: G * 11, y: G * 4, tableId: st5.id },
-      { id: id(25), label: 'E-4', type: 'table', x: G * 13, y: G * 4, tableId: st5.id },
-      { id: id(26), label: 'E-5', type: 'table', x: G * 11, y: G * 6, tableId: st5.id },
-      { id: id(27), label: 'E-6', type: 'table', x: G * 13, y: G * 6, tableId: st5.id },
-      // カウンター（6席）
-      { id: id(28), label: 'CT-1', type: 'counter', x: G * 1, y: G * 10, tableId: null },
-      { id: id(29), label: 'CT-2', type: 'counter', x: G * 2, y: G * 10, tableId: null },
-      { id: id(30), label: 'CT-3', type: 'counter', x: G * 3, y: G * 10, tableId: null },
-      { id: id(31), label: 'CT-4', type: 'counter', x: G * 4, y: G * 10, tableId: null },
-      { id: id(32), label: 'CT-5', type: 'counter', x: G * 5, y: G * 10, tableId: null },
-      { id: id(33), label: 'CT-6', type: 'counter', x: G * 6, y: G * 10, tableId: null },
-    ]
+    // テーブル1（2人）
+    { id: id(10), label: 'A-1', type: 'table', x: G * 1, y: G * 1, tableId: st1.id },
+    { id: id(11), label: 'A-2', type: 'table', x: G * 3, y: G * 1, tableId: st1.id },
+    // テーブル2（2人）
+    { id: id(12), label: 'B-1', type: 'table', x: G * 1, y: G * 4, tableId: st2.id },
+    { id: id(13), label: 'B-2', type: 'table', x: G * 3, y: G * 4, tableId: st2.id },
+    // テーブル3（4人）
+    { id: id(14), label: 'C-1', type: 'table', x: G * 6, y: G * 1, tableId: st3.id },
+    { id: id(15), label: 'C-2', type: 'table', x: G * 9, y: G * 1, tableId: st3.id },
+    { id: id(16), label: 'C-3', type: 'table', x: G * 6, y: G * 3, tableId: st3.id },
+    { id: id(17), label: 'C-4', type: 'table', x: G * 9, y: G * 3, tableId: st3.id },
+    // テーブル4（4人）
+    { id: id(18), label: 'D-1', type: 'table', x: G * 6, y: G * 5, tableId: st4.id },
+    { id: id(19), label: 'D-2', type: 'table', x: G * 9, y: G * 5, tableId: st4.id },
+    { id: id(20), label: 'D-3', type: 'table', x: G * 6, y: G * 7, tableId: st4.id },
+    { id: id(21), label: 'D-4', type: 'table', x: G * 9, y: G * 7, tableId: st4.id },
+    // テーブル5（6人）
+    { id: id(22), label: 'E-1', type: 'table', x: G * 11, y: G * 2, tableId: st5.id },
+    { id: id(23), label: 'E-2', type: 'table', x: G * 13, y: G * 2, tableId: st5.id },
+    { id: id(24), label: 'E-3', type: 'table', x: G * 11, y: G * 4, tableId: st5.id },
+    { id: id(25), label: 'E-4', type: 'table', x: G * 13, y: G * 4, tableId: st5.id },
+    { id: id(26), label: 'E-5', type: 'table', x: G * 11, y: G * 6, tableId: st5.id },
+    { id: id(27), label: 'E-6', type: 'table', x: G * 13, y: G * 6, tableId: st5.id },
+    // カウンター（6席）
+    { id: id(28), label: 'CT-1', type: 'counter', x: G * 1, y: G * 10, tableId: null },
+    { id: id(29), label: 'CT-2', type: 'counter', x: G * 2, y: G * 10, tableId: null },
+    { id: id(30), label: 'CT-3', type: 'counter', x: G * 3, y: G * 10, tableId: null },
+    { id: id(31), label: 'CT-4', type: 'counter', x: G * 4, y: G * 10, tableId: null },
+    { id: id(32), label: 'CT-5', type: 'counter', x: G * 5, y: G * 10, tableId: null },
+    { id: id(33), label: 'CT-6', type: 'counter', x: G * 6, y: G * 10, tableId: null },
+  ]
 
   for (const seat of seats) {
     await prisma.seat.upsert({
@@ -316,5 +459,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1) })
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
   .finally(() => prisma.$disconnect())

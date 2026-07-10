@@ -1,0 +1,61 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "a11y": {
+        "recommended": false,
+        "noAutofocus": "error",
+        "noLabelWithoutControl": "error",
+        "noStaticElementInteractions": "error",
+        "noSvgWithoutTitle": "error",
+        "useButtonType": "error",
+        "useKeyWithClickEvents": "error"
+      },
+      "correctness": {
+        "recommended": false,
+        "noVoidTypeReturn": "error",
+        "useExhaustiveDependencies": "error"
+      },
+      "complexity": {
+        "recommended": false,
+        "useLiteralKeys": "error",
+        "useOptionalChain": "error"
+      },
+      "suspicious": {
+        "recommended": false,
+        "noArrayIndexKey": "error",
+        "noImplicitAnyLet": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
+}

@@ -1,7 +1,7 @@
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next'
 
 export function HistoryTotalsFooter({ subtotal, tax }: { subtotal: number; tax: number }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <div className="fixed bottom-0 left-0 right-0 z-modal px-5 py-4 bg-white border-t border-divider flex flex-col gap-1">
       <div className="flex justify-between items-baseline">
@@ -19,5 +19,5 @@ export function HistoryTotalsFooter({ subtotal, tax }: { subtotal: number; tax: 
         <span className="text-sub font-medium text-ink">¥{(subtotal + tax).toLocaleString()}</span>
       </div>
     </div>
-  );
+  )
 }

@@ -1,10 +1,10 @@
-import { getSeatLabels, isGroupActive, isAdmin, formatDate } from '../lib/utils'
-import type { Seat, Group, AuthUser } from '@order-system/shared'
+import type { AuthUser, Group, Seat } from '@order-system/shared'
+import { formatDate, getSeatLabels, isAdmin, isGroupActive } from '../lib/utils'
 
 const seats: Seat[] = [
   { id: 1, label: 'A1', type: 'counter', x: 0, y: 0, tableId: null },
   { id: 2, label: 'A2', type: 'counter', x: 1, y: 0, tableId: null },
-  { id: 3, label: 'B1', type: 'table',   x: 0, y: 1, tableId: 1 },
+  { id: 3, label: 'B1', type: 'table', x: 0, y: 1, tableId: 1 },
 ]
 
 describe('getSeatLabels', () => {
@@ -23,9 +23,17 @@ describe('getSeatLabels', () => {
 
 describe('isGroupActive', () => {
   const base: Group = {
-    id: 'uuid-group-1', name: 'G1', guestCount: 2, seatIds: [], sessionId: 1,
-    courseId: null, drinkPlanId: null, createdAt: '2024-01-01T00:00:00.000Z',
-    effectiveTaxRateInHouse: 10, effectiveTaxRateTakeout: 8, effectiveTaxInclusive: false,
+    id: 'uuid-group-1',
+    name: 'G1',
+    guestCount: 2,
+    seatIds: [],
+    sessionId: 1,
+    courseId: null,
+    drinkPlanId: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    effectiveTaxRateInHouse: 10,
+    effectiveTaxRateTakeout: 8,
+    effectiveTaxInclusive: false,
     status: 'active',
   }
 

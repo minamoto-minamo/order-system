@@ -2,7 +2,7 @@ import type { OrderItem, OrderItemStatus } from '@order-system/shared'
 import { calculateTaxTotals } from '../lib/taxTotals'
 
 function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
-  const { id, ...rest } = overrides;
+  const { id, ...rest } = overrides
   return {
     id,
     groupId: 'group-1',

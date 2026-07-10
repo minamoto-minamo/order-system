@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import type { PublicSetting } from '@order-system/shared'
+import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { EP } from '@/lib/endpoints'
-import { socket } from '@/lib/socket'
 import { SOCKET_EVENTS as SE } from '@/lib/events'
+import { socket } from '@/lib/socket'
 import { useSessionStore } from '@/stores/session'
-import type { PublicSetting } from '@order-system/shared'
 
 function checkOverTime(closingTime: string, openedAt: string): boolean {
   const [h, m] = closingTime.split(':').map(Number)
@@ -23,14 +23,17 @@ export function useOverTimeWarning(): boolean {
   const isOpen = session?.status === 'open'
 
   useEffect(() => {
-	    api.get<{ closingTime: string }>(EP.settings)
-	      .then(s => setClosingTime(s.closingTime))
-	      // 営業時間警告は補助表示なので、設定取得に失敗した場合は非表示のまま続行する
-	      .catch(() => {})
+    api
+      .get<{ closingTime: string }>(EP.settings)
+      .then((s) => setClosingTime(s.closingTime))
+      // 営業時間警告は補助表示なので、設定取得に失敗した場合は非表示のまま続行する
+      .catch(() => {})
 
     const onSettingsUpdated = (s: PublicSetting) => setClosingTime(s.closingTime)
     socket.on(SE.settingsUpdated, onSettingsUpdated)
-    return () => { socket.off(SE.settingsUpdated, onSettingsUpdated) }
+    return () => {
+      socket.off(SE.settingsUpdated, onSettingsUpdated)
+    }
   }, [])
 
   useEffect(() => {

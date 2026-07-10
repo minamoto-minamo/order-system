@@ -1,18 +1,23 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { BottomSheetModal } from "@/components/composite";
-import { QuantityPicker } from "@/components/primitives";
-import type { OrderItem } from "@order-system/shared";
+import type { OrderItem } from '@order-system/shared'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BottomSheetModal } from '@/components/composite'
+import { QuantityPicker } from '@/components/primitives'
 
-export function CancelModal({ item, disabled, onConfirm, onClose }: {
-  item: OrderItem;
-  disabled?: boolean;
-  onConfirm: (id: string, cancelQty: number) => void;
-  onClose: () => void;
+export function CancelModal({
+  item,
+  disabled,
+  onConfirm,
+  onClose,
+}: {
+  item: OrderItem
+  disabled?: boolean
+  onConfirm: (id: string, cancelQty: number) => void
+  onClose: () => void
 }) {
-  const { t } = useTranslation();
-  const [qty, setQty] = useState(1);
-  const isMulti = item.qty >= 2;
+  const { t } = useTranslation()
+  const [qty, setQty] = useState(1)
+  const isMulti = item.qty >= 2
 
   return (
     <BottomSheetModal
@@ -21,7 +26,7 @@ export function CancelModal({ item, disabled, onConfirm, onClose }: {
       secondaryAction={{ label: t('common.back'), onClick: onClose }}
       primaryAction={{
         label: isMulti ? t('group.cancelQty', { qty }) : t('group.cancelConfirm'),
-        variant: "danger",
+        variant: 'danger',
         disabled,
         onClick: () => onConfirm(item.id, isMulti ? qty : 1),
       }}
@@ -32,7 +37,9 @@ export function CancelModal({ item, disabled, onConfirm, onClose }: {
       </div>
       {isMulti && (
         <div className="mb-6">
-          <div className="text-label text-muted mb-4">{t('group.currentQty', { qty: item.qty })}</div>
+          <div className="text-label text-muted mb-4">
+            {t('group.currentQty', { qty: item.qty })}
+          </div>
           <QuantityPicker value={qty} onChange={setQty} min={1} max={item.qty} />
           {qty === item.qty && (
             <div className="text-label text-bill mt-3">{t('group.cancelAll')}</div>
@@ -40,5 +47,5 @@ export function CancelModal({ item, disabled, onConfirm, onClose }: {
         </div>
       )}
     </BottomSheetModal>
-  );
+  )
 }

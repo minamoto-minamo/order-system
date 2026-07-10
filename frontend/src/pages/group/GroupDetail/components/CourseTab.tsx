@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { BaseButton, Icon, QuantityPicker } from "@/components/primitives";
-import type { Course, DrinkPlan, MenuItem } from "@order-system/shared";
-import { useTranslation } from "react-i18next";
-import { SYMBOL_ICONS } from "@/lib/icons";
+import type { Course, DrinkPlan, MenuItem } from '@order-system/shared'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BaseButton, Icon, QuantityPicker } from '@/components/primitives'
+import { SYMBOL_ICONS } from '@/lib/icons'
 
 interface CourseTabProps {
   courses: Course[]
@@ -17,10 +17,21 @@ interface CourseTabProps {
   onChangeQty: (qty: number) => void
 }
 
-export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCourseQty, activeDrinkPlan, groupGuestCount, onApply, onRemove, onChangeQty }: CourseTabProps) {
-  const { t } = useTranslation();
-  const [editingQty, setEditingQty] = useState<number | null>(null);
-  const displayQty = appliedCourseQty ?? groupGuestCount;
+export function CourseTab({
+  courses,
+  drinkPlans,
+  menus,
+  appliedCourse,
+  appliedCourseQty,
+  activeDrinkPlan,
+  groupGuestCount,
+  onApply,
+  onRemove,
+  onChangeQty,
+}: CourseTabProps) {
+  const { t } = useTranslation()
+  const [editingQty, setEditingQty] = useState<number | null>(null)
+  const displayQty = appliedCourseQty ?? groupGuestCount
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -37,7 +48,10 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-caption text-secondary">
-                <span>¥{appliedCourse.price.toLocaleString()}{t('common.perPerson')}</span>
+                <span>
+                  ¥{appliedCourse.price.toLocaleString()}
+                  {t('common.perPerson')}
+                </span>
                 {displayQty != null && (
                   <span>{t('group.courseQtyLabel', { qty: displayQty })}</span>
                 )}
@@ -45,7 +59,9 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
               {activeDrinkPlan && (
                 <div className="mt-2 inline-flex max-w-full items-center rounded-full border border-info-border bg-info-bg px-2 py-0.5 text-caption text-info">
                   <Icon src={SYMBOL_ICONS.beer} className="mr-1 shrink-0" />
-                  <span className="truncate">{activeDrinkPlan.name} {t('group.drinkPlanActive')}</span>
+                  <span className="truncate">
+                    {activeDrinkPlan.name} {t('group.drinkPlanActive')}
+                  </span>
                 </div>
               )}
             </div>
@@ -61,7 +77,10 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
                 <BaseButton
                   variant="primary"
                   className="rounded-lg px-3.5 py-2 text-caption font-medium"
-                  onClick={() => { onChangeQty(editingQty); setEditingQty(null); }}
+                  onClick={() => {
+                    onChangeQty(editingQty)
+                    setEditingQty(null)
+                  }}
                 >
                   {t('group.courseQtyConfirm')}
                 </BaseButton>
@@ -95,31 +114,42 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
         </div>
       )}
 
-      {courses.map(course => {
-        const plan = course.drinkPlanId ? drinkPlans.find(p => p.id === course.drinkPlanId) : null;
-        const isApplied = appliedCourse?.id === course.id;
+      {courses.map((course) => {
+        const plan = course.drinkPlanId ? drinkPlans.find((p) => p.id === course.drinkPlanId) : null
+        const isApplied = appliedCourse?.id === course.id
         return (
-          <div key={course.id} className={`px-5 py-3.5 border-b border-surface ${isApplied ? 'bg-course-bg' : 'bg-white'}`}>
+          <div
+            key={course.id}
+            className={`px-5 py-3.5 border-b border-surface ${isApplied ? 'bg-course-bg' : 'bg-white'}`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <div className="text-sm font-medium text-ink mb-1">{course.name}</div>
-                <div className="text-xs text-muted mb-2">¥{course.price.toLocaleString()} {t('common.perPerson')}</div>
+                <div className="text-xs text-muted mb-2">
+                  ¥{course.price.toLocaleString()} {t('common.perPerson')}
+                </div>
                 {plan && (
                   <div className="mb-1.5">
                     <span className="text-caption text-info bg-info-bg border border-info-border px-1.75 py-0.5 rounded-full">
-                      <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />{plan.name}
+                      <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />
+                      {plan.name}
                     </span>
                   </div>
                 )}
                 {course.foodItems.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {course.foodItems.map((fi, i) => {
-                      const name = menus.find(m => m.id === fi.menuItemId)?.name ?? t('common.unknownItem', { id: fi.menuItemId });
+                    {course.foodItems.map((fi) => {
+                      const name =
+                        menus.find((m) => m.id === fi.menuItemId)?.name ??
+                        t('common.unknownItem', { id: fi.menuItemId })
                       return (
-                        <span key={i} className="text-caption text-dim bg-surface border border-divider px-1.75 py-0.5 rounded-full">
+                        <span
+                          key={fi.menuItemId}
+                          className="text-caption text-dim bg-surface border border-divider px-1.75 py-0.5 rounded-full"
+                        >
                           {name}
                         </span>
-                      );
+                      )
                     })}
                   </div>
                 )}
@@ -138,8 +168,8 @@ export function CourseTab({ courses, drinkPlans, menus, appliedCourse, appliedCo
               )}
             </div>
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }

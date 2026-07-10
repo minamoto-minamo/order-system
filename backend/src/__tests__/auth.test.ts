@@ -1,4 +1,4 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import Fastify from 'fastify'
 
 process.env.JWT_SECRET = 'test-secret'
@@ -22,7 +22,9 @@ const STORE_ID = 1
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
-  app.addHook('onRequest', async (request) => { request.storeId = STORE_ID })
+  app.addHook('onRequest', async (request) => {
+    request.storeId = STORE_ID
+  })
   await app.register(authPlugin)
   app.get('/api/protected', async (request) => {
     const user = request.user
@@ -42,8 +44,18 @@ beforeEach(() => {
 describe('auth plugin preHandler', () => {
   it('有効なアクセストークンならそのまま通過する', async () => {
     const app = await buildTestApp()
-    const token = app.jwt.sign({ type: 'staff' as const, userId: STAFF.id, username: STAFF.username, role: STAFF.role, storeId: STAFF.storeId })
-    const res = await app.inject({ method: 'GET', url: '/api/protected', headers: { cookie: `token=${token}` } })
+    const token = app.jwt.sign({
+      type: 'staff' as const,
+      userId: STAFF.id,
+      username: STAFF.username,
+      role: STAFF.role,
+      storeId: STAFF.storeId,
+    })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/protected',
+      headers: { cookie: `token=${token}` },
+    })
     expect(res.statusCode).toBe(200)
     expect(mockRotateRefreshToken).not.toHaveBeenCalled()
     await app.close()
@@ -51,18 +63,36 @@ describe('auth plugin preHandler', () => {
 
   it('platform管理者トークンでstaff専用エンドポイントにアクセスすると401を返す（認可バイパス防止）', async () => {
     const app = await buildTestApp()
-    const token = app.jwt.sign({ type: 'platform' as const, adminId: 'admin-1', username: 'platadmin' })
-    const res = await app.inject({ method: 'GET', url: '/api/protected', headers: { cookie: `token=${token}` } })
+    const token = app.jwt.sign({
+      type: 'platform' as const,
+      adminId: 'admin-1',
+      username: 'platadmin',
+    })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/protected',
+      headers: { cookie: `token=${token}` },
+    })
     expect(res.statusCode).toBe(401)
     const setCookies = res.cookies
-    expect(setCookies.find(c => c.name === 'token')?.value).toBe('')
+    expect(setCookies.find((c) => c.name === 'token')?.value).toBe('')
     await app.close()
   })
 
   it('JWT内のstoreIdがHost由来のstoreIdと一致しない場合は401を返す（トークン再生防止）', async () => {
     const app = await buildTestApp()
-    const token = app.jwt.sign({ type: 'staff' as const, userId: STAFF.id, username: STAFF.username, role: STAFF.role, storeId: STORE_ID + 1 })
-    const res = await app.inject({ method: 'GET', url: '/api/protected', headers: { cookie: `token=${token}` } })
+    const token = app.jwt.sign({
+      type: 'staff' as const,
+      userId: STAFF.id,
+      username: STAFF.username,
+      role: STAFF.role,
+      storeId: STORE_ID + 1,
+    })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/protected',
+      headers: { cookie: `token=${token}` },
+    })
     expect(res.statusCode).toBe(401)
     await app.close()
   })
@@ -79,20 +109,23 @@ describe('auth plugin preHandler', () => {
     const app = await buildTestApp()
     const expiresAt = new Date(Date.now() + 60_000)
     mockRotateRefreshToken.mockResolvedValue({
-      status: 'rotated', staffId: STAFF.id, token: { raw: 'new-raw-token', id: 'child-1', expiresAt },
+      status: 'rotated',
+      staffId: STAFF.id,
+      token: { raw: 'new-raw-token', id: 'child-1', expiresAt },
     })
     mockFindUniqueStaff.mockResolvedValue(STAFF)
 
     const res = await app.inject({
-      method: 'GET', url: '/api/protected',
+      method: 'GET',
+      url: '/api/protected',
       headers: { cookie: 'token=invalid-or-expired; refresh_token=old-raw-token' },
     })
 
     expect(res.statusCode).toBe(200)
     expect(JSON.parse(res.body)).toEqual({ userId: STAFF.id, role: STAFF.role })
     const setCookies = res.cookies
-    expect(setCookies.find(c => c.name === 'token')).toBeTruthy()
-    expect(setCookies.find(c => c.name === 'refresh_token')?.value).toBe('new-raw-token')
+    expect(setCookies.find((c) => c.name === 'token')).toBeTruthy()
+    expect(setCookies.find((c) => c.name === 'refresh_token')?.value).toBe('new-raw-token')
     await app.close()
   })
 
@@ -102,33 +135,36 @@ describe('auth plugin preHandler', () => {
     mockFindUniqueStaff.mockResolvedValue(STAFF)
 
     const res = await app.inject({
-      method: 'GET', url: '/api/protected',
+      method: 'GET',
+      url: '/api/protected',
       headers: { cookie: 'token=invalid-or-expired; refresh_token=old-raw-token' },
     })
 
     expect(res.statusCode).toBe(200)
     const setCookies = res.cookies
-    expect(setCookies.find(c => c.name === 'token')).toBeTruthy()
-    expect(setCookies.find(c => c.name === 'refresh_token')).toBeUndefined()
+    expect(setCookies.find((c) => c.name === 'token')).toBeTruthy()
+    expect(setCookies.find((c) => c.name === 'refresh_token')).toBeUndefined()
     await app.close()
   })
 
-  it.each(['invalid', 'expired', 'reuse-detected'] as const)(
-    'refresh_token が %s の場合は cookie を削除して 401 を返す',
-    async (status) => {
-      const app = await buildTestApp()
-      mockRotateRefreshToken.mockResolvedValue({ status, staffId: STAFF.id })
+  it.each([
+    'invalid',
+    'expired',
+    'reuse-detected',
+  ] as const)('refresh_token が %s の場合は cookie を削除して 401 を返す', async (status) => {
+    const app = await buildTestApp()
+    mockRotateRefreshToken.mockResolvedValue({ status, staffId: STAFF.id })
 
-      const res = await app.inject({
-        method: 'GET', url: '/api/protected',
-        headers: { cookie: 'token=invalid-or-expired; refresh_token=bad-raw-token' },
-      })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/protected',
+      headers: { cookie: 'token=invalid-or-expired; refresh_token=bad-raw-token' },
+    })
 
-      expect(res.statusCode).toBe(401)
-      const setCookies = res.cookies
-      expect(setCookies.find(c => c.name === 'token')?.value).toBe('')
-      expect(setCookies.find(c => c.name === 'refresh_token')?.value).toBe('')
-      await app.close()
-    },
-  )
+    expect(res.statusCode).toBe(401)
+    const setCookies = res.cookies
+    expect(setCookies.find((c) => c.name === 'token')?.value).toBe('')
+    expect(setCookies.find((c) => c.name === 'refresh_token')?.value).toBe('')
+    await app.close()
+  })
 })

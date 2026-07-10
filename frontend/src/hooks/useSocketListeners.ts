@@ -9,7 +9,7 @@ export function useSocketListeners(listeners: SocketEventMap): void {
   ref.current = listeners
 
   useEffect(() => {
-    const entries = Object.keys(ref.current).map(event => {
+    const entries = Object.keys(ref.current).map((event) => {
       // socket.off に同一関数参照が必要なため、ref への間接呼び出しで参照を固定した wrapper を使う
       const wrapped = (...args: any[]) => ref.current[event]?.(...args)
       socket.on(event as any, wrapped as any)
