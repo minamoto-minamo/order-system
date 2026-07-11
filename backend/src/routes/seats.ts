@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
@@ -27,6 +28,8 @@ const updateBodySchema = {
   },
   additionalProperties: false,
 } as const
+
+type DeleteSeatTxResult = { ok: true } | { err: 'not_found' | 'in_use' }
 
 const seatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
@@ -109,19 +112,45 @@ const seatsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const existing = await prisma.seat.findFirst({
-      where: { id: Number(id), storeId: request.storeId },
-    })
-    if (!existing) return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
-    // bill_requested も会計完了前は席を占有しているため削除不可とする
-    const inUse = await prisma.groupSeat.findFirst({
-      where: {
-        seatId: Number(id),
-        group: { status: { in: ['active', 'bill_requested'] } },
-      },
-    })
-    if (inUse) return sendError(reply, 409, ErrorCodes.Seats.InUse, '使用中の席は削除できません')
-    await prisma.seat.delete({ where: { id: Number(id) } })
+
+    let txResult: DeleteSeatTxResult
+    try {
+      txResult = await prisma.$transaction(
+        async (tx) => {
+          const seat = await tx.seat.findFirst({
+            where: { id: Number(id), storeId: request.storeId },
+          })
+          if (!seat) return { err: 'not_found' as const }
+
+          // bill_requested も会計完了前は席を占有しているため削除不可とする
+          const inUse = await tx.groupSeat.findFirst({
+            where: {
+              seatId: Number(id),
+              group: { status: { in: ['active', 'bill_requested'] } },
+            },
+          })
+          if (inUse) return { err: 'in_use' as const }
+
+          await tx.seat.delete({ where: { id: Number(id) } })
+          return { ok: true as const }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
+        return sendError(reply, 409, ErrorCodes.Seats.InUse, '使用中の席は削除できません')
+      }
+      throw e
+    }
+
+    if ('err' in txResult) {
+      if (txResult.err === 'not_found') {
+        return sendError(reply, 404, ErrorCodes.Seats.NotFound, '席が見つかりません')
+      }
+      return sendError(reply, 409, ErrorCodes.Seats.InUse, '使用中の席は削除できません')
+    }
+
+    fastify.io.to(`store:${request.storeId}`).emit('seat:deleted', Number(id))
     return reply.status(204).send()
   })
 }

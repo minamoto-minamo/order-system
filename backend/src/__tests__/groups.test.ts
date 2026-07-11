@@ -318,6 +318,55 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     expect(mockGroupUpdate).not.toHaveBeenCalled()
   })
 
+  it('bill_requested グループへ status（正当な遷移）と guestCount を同時送信すると 409 を返す（ガードのすり抜け防止）', async () => {
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: {
+          findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'bill_requested' }),
+          update: mockGroupUpdate,
+        },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'closed', guestCount: 5 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { message: '会計済み・会計待ちのグループは変更できません' },
+    })
+    expect(mockGroupUpdate).not.toHaveBeenCalled()
+  })
+
+  it('closed グループへ status（不正な遷移）と seatIds を同時送信すると 409 を返す（ガードのすり抜け防止）', async () => {
+    mockSeatCount.mockResolvedValue(1)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: {
+          findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'closed' }),
+          update: mockGroupUpdate,
+        },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'active', seatIds: [1] },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { message: '会計済み・会計待ちのグループは変更できません' },
+    })
+    expect(mockGroupUpdate).not.toHaveBeenCalled()
+  })
+
   it('seatIds に競合席がある場合 409 を返す', async () => {
     mockSeatFindMany.mockResolvedValue([])
     mockSeatCount.mockResolvedValue(1)

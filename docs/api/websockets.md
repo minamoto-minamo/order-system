@@ -12,7 +12,7 @@ tags: [websocket, socketio, realtime, events]
 
 イベント名は小文字のコロン区切り（例: `order:created`）。payload は JSON で、必須フィールドを明記する。型定義は [`shared/types/index.ts`](../../shared/types/index.ts) の `ServerToClientEvents` / `ClientToServerEvents` を参照。
 
-接続時に httpOnly cookie の JWT を検証する。未認証の場合は接続を拒否する。
+接続時に httpOnly cookie の JWT を検証する。未認証でも接続自体は許可され、ゲスト接続として扱われる。認証済みスタッフ接続のみ `store:${storeId}` ルームに参加する。
 
 ## Server → Client
 
@@ -23,6 +23,7 @@ tags: [websocket, socketio, realtime, events]
 - `group:updated` — グループ更新時（ステータス変更・コース適用等）にブロードキャスト。payload: `Group`
 - `seat:created` — 席追加時にブロードキャスト。payload: `Seat`
 - `seat:updated` — 席の占有状態変化時にブロードキャスト。payload: `Seat`
+- `seat:deleted` — 席削除時にブロードキャスト。payload: `seatId: number`
 - `menu:soldout` — メニュー品目の品切れ状態変化時にブロードキャスト。payload: `(menuItemId: number, soldOut: boolean)`（2引数）
 - `menu:created` — メニュー品目作成時にブロードキャスト。payload: `MenuItem`
 - `menu:updated` — メニュー品目更新時にブロードキャスト（`soldOut` 変更時は `menu:soldout` と同時に発火）。payload: `MenuItem`
@@ -35,7 +36,7 @@ tags: [websocket, socketio, realtime, events]
 - `drinkPlan:deleted` — ドリンクプラン削除時にブロードキャスト。payload: `drinkPlanId: number`
 - `seatLayout:updated` — 席レイアウト保存時にブロードキャスト。payload: `SeatLayoutResponse`
 - `session:updated` — 営業セッションの開始/終了時にブロードキャスト。payload: `Session`
-- `settings:updated` — 店舗設定変更時にブロードキャスト。payload: `PublicSetting`（`storeName` / `closingTime` のみ。未認証の客用ソケットにも配信されるため税率等の内部設定値は含まない）
+- `settings:updated` — 店舗設定変更時に `store:${storeId}` ルームへブロードキャスト。payload: `PublicSetting`（`storeName` / `closingTime` のみ。認証済みスタッフ向け配信のため税率等の内部設定値は含まない）
 - `staff:called` — 顧客がスタッフ呼び出しをした際にブロードキャスト。payload: `(groupId: string, groupName: string)`
 - `error` — Socket 経由の操作（`order:complete` / `order:serve`）が失敗した際に発生元クライアントへ送信。payload: `ApiErrorPayload`
 

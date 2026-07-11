@@ -1,6 +1,7 @@
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { Prisma } from '@prisma/client'
 import Fastify from 'fastify'
 
 type Group = { id: string; status: string; courseId: number | null; drinkPlanId: number | null }
@@ -25,7 +26,8 @@ const mockSettingFindUnique =
     } | null>
   >()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
+const mockTransaction =
+  jest.fn<(cb: (tx: any) => Promise<any>, options?: unknown) => Promise<any>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
@@ -193,6 +195,85 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ id: GROUP_ID, courseId: 1 })
     expect(mockOrderItemCreate).not.toHaveBeenCalled()
+  })
+
+  it('Serializable 分離レベルでトランザクションを実行する（同時コース適用による二重課金防止）', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      courseId: null,
+      drinkPlanId: null,
+    })
+    mockCourseFindFirst.mockResolvedValue({
+      id: 1,
+      name: 'ランチ',
+      price: 0,
+      drinkPlanId: null,
+      foodItems: [],
+    })
+    const updatedGroup = {
+      id: GROUP_ID,
+      name: 'A席',
+      guestCount: 2,
+      status: 'active',
+      sessionId: 1,
+      courseId: 1,
+      drinkPlanId: null,
+      createdAt: new Date(),
+      seats: [] as { seatId: number }[],
+    }
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        menuItem: { findMany: () => Promise.resolve([]) },
+        orderItem: { create: () => Promise.resolve({}) },
+        group: {
+          findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
+          update: () => Promise.resolve(updatedGroup),
+        },
+      }
+      return cb(tx)
+    })
+    await app.inject({
+      method: 'POST',
+      url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 2 },
+    })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
+  })
+
+  it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      courseId: null,
+      drinkPlanId: null,
+    })
+    mockCourseFindFirst.mockResolvedValue({
+      id: 1,
+      name: 'ランチ',
+      price: 0,
+      drinkPlanId: null,
+      foodItems: [],
+    })
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', {
+        code: 'P2034',
+        clientVersion: '5.17.0',
+      })
+    })
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { courseId: 1, qty: 2 },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { message: '他の操作と競合しました。もう一度お試しください' },
+    })
   })
 
   it('course.price > 0 のコースを適用するとコース料金 OrderItem が作成される', async () => {
@@ -617,6 +698,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([{ id: 20, name: 'ビール', price: 500 }]) },
         drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
         orderItem: {
           create: mockOrderItemCreate,
           update: mockOrderItemUpdateInTx,
@@ -746,6 +828,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([]) },
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [{ menuItemId: 10 }] }) },
         orderItem: {
           create: mockOrderItemCreate,
           update: mockOrderItemUpdateInTx,
@@ -821,6 +904,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       .mockResolvedValue(clearedGroup)
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
         orderItem: { findMany: () => Promise.resolve([]) },
         group: {
           findUnique: () =>
@@ -901,6 +985,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       }))
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
         orderItem: {
           findMany: () => Promise.resolve([courseChargeItem, drinkPlanChargeItem]),
           update: mockOrderItemUpdateInTx,
@@ -931,6 +1016,105 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
         data: { status: 'cancelled' },
       }),
     )
+  })
+
+  it('courseId 付きの通常満額注文（コース由来ではない）はコース解除時に取消されない（3-1: 誤取消防止）', async () => {
+    const clearedGroup = {
+      id: GROUP_ID,
+      name: 'A席',
+      guestCount: 2,
+      status: 'active',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      createdAt: new Date(),
+      seats: [] as { seatId: number }[],
+    }
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      courseId: 1,
+      drinkPlanId: null,
+    })
+    const courseChargeItem = {
+      id: 'charge-1',
+      groupId: GROUP_ID,
+      menuItemId: null,
+      menuItemName: 'Aコース',
+      price: 3000,
+      qty: 1,
+      status: 'served',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: 1,
+      isCourseCharge: true,
+      isDrinkPlanCharge: false,
+      orderedAt: new Date(),
+    }
+    const courseFoodItem = {
+      id: 'food-1',
+      groupId: GROUP_ID,
+      menuItemId: 10,
+      menuItemName: 'サラダ（コース）',
+      price: 0,
+      qty: 1,
+      status: 'served',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: 1,
+      isCourseCharge: false,
+      isDrinkPlanCharge: false,
+      orderedAt: new Date(),
+    }
+    // DB 側で isCourseCharge:true または menuItemId in course.foodItems のみに絞り込まれる想定。
+    // courseId は一致するが手動満額注文（menuItemId:20, isCourseCharge:false）はこの絞り込みで除外される
+    const mockOrderItemFindMany = jest
+      .fn<(...args: unknown[]) => Promise<unknown[]>>()
+      .mockResolvedValue([courseChargeItem, courseFoodItem])
+    const mockOrderItemUpdateInTx = jest
+      .fn<(...args: unknown[]) => Promise<unknown>>()
+      .mockImplementation(async (args: any) => ({
+        ...(args.where.id === 'charge-1' ? courseChargeItem : courseFoodItem),
+        status: 'cancelled',
+      }))
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [{ menuItemId: 10 }] }) },
+        orderItem: {
+          findMany: mockOrderItemFindMany,
+          update: mockOrderItemUpdateInTx,
+        },
+        group: {
+          findUnique: () =>
+            Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }),
+          update: () => Promise.resolve(clearedGroup),
+        },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/groups/${GROUP_ID}/course`,
+      headers: { cookie: `token=${token(app)}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(mockOrderItemFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ isCourseCharge: true }, { menuItemId: { in: [10] } }],
+        }),
+      }),
+    )
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'charge-1' } }),
+    )
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'food-1' } }),
+    )
+    expect(mockOrderItemUpdateInTx).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'manual-1' } }),
+    )
+    expect(mockOrderItemUpdateInTx).toHaveBeenCalledTimes(2)
   })
 
   it('存在しないグループに対して 404 を返す', async () => {
@@ -1047,6 +1231,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       .mockResolvedValueOnce([])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
         drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
         orderItem: { findMany: mockOrderItemFindManyInTx, update: mockOrderItemUpdateInTx },
         group: {
@@ -1120,6 +1305,7 @@ describe('DELETE /api/groups/:id/course — コース解除', () => {
       .mockResolvedValueOnce([])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
+        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
         drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
         orderItem: { findMany: mockOrderItemFindManyInTx, update: mockOrderItemUpdateInTx },
         group: {

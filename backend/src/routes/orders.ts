@@ -201,6 +201,13 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           '適用中のコースと一致しません',
           { courseId: body.courseId },
         )
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003')
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Orders.MenuItemDeleted,
+          '注文対象のメニューが削除されたため、注文を作成できません',
+        )
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034')
         return sendError(
           reply,

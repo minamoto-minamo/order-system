@@ -417,7 +417,7 @@ export default function SeatLayout() {
             type="button"
             onClick={handleSave}
             disabled={hasOutOfBounds}
-            className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${hasOutOfBounds ? 'bg-surface text-faint cursor-not-allowed' : saved ? 'bg-success-bg text-success-fg cursor-pointer' : 'bg-brand text-white cursor-pointer'}`}
+            className={`border-none rounded-lg px-4 py-1.5 text-note font-medium transition-all ${hasOutOfBounds ? 'bg-surface text-muted cursor-not-allowed' : saved ? 'bg-success-bg text-success-fg cursor-pointer' : 'bg-brand text-white cursor-pointer'}`}
           >
             {saved ? t('common.saved') : t('common.save')}
           </button>

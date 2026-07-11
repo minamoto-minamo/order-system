@@ -11,6 +11,7 @@ const mockGroupFindFirst =
 const mockDrinkPlanDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockTransaction =
   jest.fn<
@@ -18,6 +19,7 @@ const mockTransaction =
       callback: (tx: {
         course: { findFirst: typeof mockCourseFindFirst }
         group: { findFirst: typeof mockGroupFindFirst }
+        orderItem: { count: typeof mockOrderItemCount }
         drinkPlan: { findFirst: typeof mockDrinkPlanFindFirst; delete: typeof mockDrinkPlanDelete }
       }) => Promise<unknown>,
       options?: unknown,
@@ -35,6 +37,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
       create: mockDrinkPlanCreate,
       update: mockDrinkPlanUpdate,
     },
+    orderItem: { count: mockOrderItemCount },
     menuItem: { count: mockMenuItemCount },
   },
 }))
@@ -73,9 +76,11 @@ async function buildTestApp() {
 
 describe('DELETE /api/drink-plans/:id — 削除制御', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
+  let warnSpy: jest.SpiedFunction<typeof app.log.warn>
 
   beforeAll(async () => {
     app = await buildTestApp()
+    warnSpy = jest.spyOn(app.log, 'warn').mockImplementation(() => app.log)
   })
   afterAll(async () => {
     await app.close()
@@ -86,9 +91,11 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
       callback({
         course: { findFirst: mockCourseFindFirst },
         group: { findFirst: mockGroupFindFirst },
+        orderItem: { count: mockOrderItemCount },
         drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete },
       }),
     )
+    mockOrderItemCount.mockResolvedValue(0)
   })
 
   function token() {
@@ -167,6 +174,39 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
+  })
+
+  it('過去グループの OrderItem があれば警告ログを出して削除する', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
+    mockCourseFindFirst.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockOrderItemCount.mockResolvedValue(2)
+    mockDrinkPlanDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/drink-plans/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { drinkPlanId: 1, storeId: STORE_ID, referencedOrderItemCount: 2 },
+      '飲み放題プラン削除により過去グループの drinkPlanId 参照が失われます',
+    )
+  })
+
+  it('過去グループの OrderItem がなければ警告ログを出さない', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
+    mockCourseFindFirst.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockOrderItemCount.mockResolvedValue(0)
+    mockDrinkPlanDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/drink-plans/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {

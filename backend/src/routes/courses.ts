@@ -175,6 +175,15 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
             where: { courseId, status: { in: ['active', 'bill_requested'] } },
           })
           if (activeGroup) return { err: 'in_use' as const }
+          const referencedOrderItemCount = await tx.orderItem.count({
+            where: { storeId: request.storeId, courseId },
+          })
+          if (referencedOrderItemCount > 0) {
+            fastify.log.warn(
+              { courseId, storeId: request.storeId, referencedOrderItemCount },
+              'コース削除により過去の OrderItem.courseId が null 化されます',
+            )
+          }
           await tx.course.delete({ where: { id: courseId } })
           return { ok: true as const }
         },

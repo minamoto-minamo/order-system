@@ -19,29 +19,49 @@ pnpm --filter frontend test       # Jest でユニットテストを実行
 
 ```txt
 src/
-├── App.tsx                  # ルート定義の唯一の場所
+├── App.tsx                  # ルート定義の唯一の場所。Host がプラットフォーム管理者用サブドメインかどうかで
+│                             # ルートツリーを丸ごと出し分ける（isPlatformAdminHost()、lib/platform.ts）
 ├── main.tsx
+├── layouts/                  # 画面種別ごとの共通レイアウト（ヘッダー・ナビ等）
+│   ├── PageLayout/            # スタッフ向け画面（ホール・キッチン・管理者）共通
+│   ├── CustomerPageLayout/    # 客用注文画面（S103）用
+│   └── PlatformPageLayout/    # プラットフォーム管理画面（S500/S501）用
 ├── pages/                   # 1ディレクトリ = 1画面。サブコンポーネントも同じディレクトリに置く
 │   ├── home/Home/
 │   ├── login/Login/
 │   ├── hall/Hall/
 │   ├── kitchen/Kitchen/
 │   ├── group/GroupDetail/
-│   └── admin/{AdminMenu,Products,SeatLayout,DailyReport,Settings,Staff}/
-├── components/              # 複数画面で使う共通コンポーネント
-│   ├── controls/            # QuantityControl, ToggleButtonGroup, Button, IconButton, NavButton
-│   ├── display/             # StatusBadge, TabNavigation
-│   ├── layout/              # AppHeader, SubHeader, NavDrawer
-│   └── modal/               # BottomSheetModal, ConfirmModal, InputModal
+│   ├── customer/CustomerOrder/               # S103 客用注文
+│   ├── platform/{PlatformLogin,StoreList}/   # S500/S501
+│   ├── error/NotFound.tsx
+│   └── admin/{AdminMenu,Products,SeatLayout,DailyReport,Settings,Staff,Courses}/
+├── features/                # 画面横断ではなくドメイン単位でまとまった機能コンポーネント
+│   ├── auth/components/       # LoginForm など
+│   ├── menu/components/       # SubCategorySidebar など
+│   ├── navigation/components/ # AppHeader, NavDrawer, ActionBar, NavigationCard
+│   └── order/components/      # OrderHistorySection など
+├── components/              # 画面・機能に依存しない汎用コンポーネント
+│   ├── primitives/           # Icon, QuantityPicker, ToggleButtonGroup, ZeroStartStepper, button
+│   ├── composite/            # BottomSheet(Modal), FormSheetModal, InputModal, MenuConfirmModal, TabNavigation, SlideUpFooter
+│   └── feedback/              # ErrorBoundary, NoticeBanner, RetryableLoadError, Toast
 ├── stores/
-│   ├── auth.ts              # useAuthStore — ログインユーザー管理
-│   └── session.ts           # useSessionStore — 営業セッション管理
+│   ├── auth.ts              # useAuthStore — ログインスタッフ管理
+│   ├── platformAuth.ts      # usePlatformAuthStore — プラットフォーム管理者ログイン管理
+│   ├── session.ts           # useSessionStore — 営業セッション管理
+│   ├── banner.ts            # お知らせバナー state 管理
+│   └── toast.ts             # トースト通知 state 管理
 ├── lib/
 │   ├── routes.ts            # ROUTES 定数（全ルートパス）
 │   ├── endpoints.ts         # EP 定数（全 API エンドポイント）
 │   ├── events.ts            # SOCKET_EVENTS 定数（Socket.io イベント名）
 │   ├── api.ts               # fetch ラッパー
+│   ├── apiError.ts          # ApiErrorPayload（backend の ErrorCodes）の解釈ヘルパー
 │   ├── socket.ts            # Socket.io クライアント初期化
+│   ├── platform.ts          # isPlatformAdminHost() — Host からプラットフォーム管理者用かを判定
+│   ├── taxTotals.ts         # 税額・合計金額の計算ユーティリティ
+│   ├── partitionOrderItems.ts # 注文明細のステータス別振り分け
+│   ├── brand.ts / icons.ts  # ブランド表示・アイコンマッピング
 │   └── utils.ts             # 共通ユーティリティ（getSeatLabels, isGroupActive, isAdmin）
 ├── assets/
 │   ├── fonts/               # NotoSansJP-Regular.woff2
@@ -69,14 +89,20 @@ src/
 
 パス文字列は `lib/routes.ts` の `ROUTES` 定数を使う。直接文字列を書かない。
 
-認証ガード:
+`isPlatformAdminHost()`（`lib/platform.ts`）で Host を判定し、プラットフォーム管理者用サブドメインならプラットフォーム系ルート（`PlatformLogin` / `StoreList`）のみを、それ以外なら通常の店舗向けルートツリーをレンダリングする。この分岐は backend の `resolveStoreContext` による store/platform 判定（`backend/CLAUDE.md` 参照）とペアになっている。
+
+認証ガード（`RequireAuth`、店舗向けルート）:
 
 - 未認証 → `/login` にリダイレクト
 - admin ロール以外 → `/admin/*` にアクセス不可
+- `requireSession` 指定時（ホール・キッチン系）に営業セッションが `open` でなければアクセス不可
+
+プラットフォーム系ルートは `RequirePlatformAuth` で別途ガードする（未ログイン → `/platform/login`）。
 
 ## 状態管理
 
-- `useAuthStore`（`stores/auth.ts`）: ログインユーザー。`App.tsx` 起動時に `GET /api/auth/me` で初期化。
+- `useAuthStore`（`stores/auth.ts`）: ログインスタッフ。`App.tsx` 起動時に `GET /api/auth/me` で初期化。
+- `usePlatformAuthStore`（`stores/platformAuth.ts`）: プラットフォーム管理者。`GET /api/platform/auth/me` で初期化。
 - `useSessionStore`（`stores/session.ts`）: 現在の営業セッション。
 
 ## API / Socket.io

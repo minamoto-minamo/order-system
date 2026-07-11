@@ -81,3 +81,4 @@ Socket emit: `seat:updated`（Seat 全体）
 
 Response 204: No Content
 Response 409: `seats.delete.in_use`（active/bill_requested グループが使用中）
+Socket emit: `seat:deleted`（削除した Seat の id）

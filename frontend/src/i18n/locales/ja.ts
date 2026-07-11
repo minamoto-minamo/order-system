@@ -285,6 +285,8 @@ const ja = {
   },
   report: {
     sessionLabel: '営業セッション',
+    sessionDateTime: '{{month}}月{{day}}日 {{hour}}:{{minute}}',
+    sessionRange: '{{start}} 〜 {{end}}',
     noSessions: '締め済みのセッションがありません',
     categoryBreakdown: 'カテゴリ別売上',
     majorCategory: '大分類',
@@ -302,6 +304,7 @@ const ja = {
     perGroup: '/ グループ',
     perGuest: '/ 人',
     hourlySales: '時間帯別売上',
+    pieChartTitle: '日次売上構成比の円グラフ',
   },
   login: {
     title: 'ログイン',

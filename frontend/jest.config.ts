@@ -8,6 +8,7 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@order-system/shared$': '<rootDir>/../shared/types/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '\\.(css|scss)$': '<rootDir>/src/__tests__/styleMock.ts',
   },
   transform: {
     '^.+\\.tsx?$': [

@@ -10,6 +10,7 @@ const app = await buildApp()
 
 const shutdown = async (signal: string) => {
   app.log.info(`${signal} received, shutting down`)
+  app.io.disconnectSockets(true)
   await app.close()
   process.exit(0)
 }

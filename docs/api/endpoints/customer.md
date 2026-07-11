@@ -134,7 +134,10 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
 5. Response 422: `customer.orders.takeout_only` — `takeout: 'takeout'`（テイクアウト専用）の商品を含む
 6. Response 422: `customer.orders.drink_plan_mismatch` — グループにドリンクプランが適用中で、プラン対象外の商品を含む
 
-上記チェックを通過した後、DB トランザクション内でグループの現在ステータスを再取得して `active` であることを再確認してから `OrderItem` を作成する。会計依頼（`bill_requested`）等による同時更新との競合を防ぐためで、再確認時点で `active` でなくなっていた場合も Response 400: `customer.orders.closed` を返す（トランザクションはロールバックされ、作成は行われない）。
+上記チェックを通過した後、DB トランザクション内でグループの現在ステータスを再取得して `active` であることを再確認してから `OrderItem` を作成する。会計依頼（`bill_requested`）等による同時更新との競合を防ぐためで、再確認時点で `active` でなくなっていた場合も Response 400: `customer.orders.closed` を返す（トランザクションはロールバックされ、作成は行われない）。トランザクションは Serializable 分離レベルで実行される。
+
+Response 409: `customer.orders.menu_item_deleted` — トランザクション中に対象 `menuItemId` が削除された場合
+Response 409: `customer.orders.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合。もう一度リクエストすると解決する
 
 Response 201: 作成された order item の配列（[Orders](./orders.md) の POST と同形式）
 

@@ -82,12 +82,14 @@ Request body（全フィールド省略可）:
 
 - `username` 変更時に重複する場合は 409
 - `password` を省略すると変更しない
+- `role` を変更した場合、対象スタッフに紐づく Socket.io 接続（room: `user:${id}`）を強制切断する（[Auth](./auth.md) のログアウト時と同じ仕組み）
 
 ## DELETE /api/staff/:id
 
 - `:id` は UUID string
 - 204 No Content
 - 自分自身を削除しようとした場合は 422
+- 削除に成功した場合、対象スタッフに紐づく Socket.io 接続（room: `user:${id}`）を強制切断する
 
 ## GET /api/staff/:id/sessions
 

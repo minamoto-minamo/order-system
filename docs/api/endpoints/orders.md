@@ -81,6 +81,7 @@ Response 409: `orders.create.sold_out` — 品切れの商品が含まれる場�
 Response 422: `orders.create.takeout_mismatch` — `takeout` 設定（`dine_in`/`takeout`）と `isTakeout` が矛盾する場合
 Response 422: `orders.create.course_not_found` — `courseId` が存在しない場合
 Response 422: `orders.create.course_mismatch` — トランザクション開始時点で `courseId` がグループの適用中コースと一致しない場合
+Response 409: `orders.create.menu_item_deleted` — トランザクション中に対象 `menuItemId` が削除された場合
 Response 409: `orders.cancel.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合（作成処理でも同じエラーコードを使い回している）。会計依頼やコース変更などの同時更新とぶつかったケースを含む。もう一度リクエストすると解決する
 
 作成処理では、グループ状態をトランザクション内で再取得して `active` を再確認してから `OrderItem` を作成する。これにより、事前チェック通過後に会計依頼やコース変更が入った場合でも不整合な作成を防ぐ。

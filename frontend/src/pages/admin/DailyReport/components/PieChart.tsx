@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 export function PieChart({
   data,
   colorMap,
@@ -5,6 +7,7 @@ export function PieChart({
   data: Record<string, number>
   colorMap: Record<string, string>
 }) {
+  const { t } = useTranslation()
   const total = Object.values(data).reduce((s, v) => s + v, 0)
   if (total === 0) return null
   let cumAngle = -Math.PI / 2
@@ -26,7 +29,7 @@ export function PieChart({
   return (
     <div className="flex items-center gap-5 flex-wrap">
       <svg width={180} height={180} viewBox="0 0 180 180" className="shrink-0">
-        <title>日次売上構成比の円グラフ</title>
+        <title>{t('report.pieChartTitle')}</title>
         {slices.map((s) => (
           <path
             key={s.key}

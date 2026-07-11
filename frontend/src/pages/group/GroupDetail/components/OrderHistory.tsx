@@ -16,7 +16,7 @@ function StatusActionButton({
   const { t } = useTranslation()
   return (
     <BaseButton
-      className={`border rounded-md px-2.75 py-1.25 text-label ${item.status === 'ready' ? 'border-amber-border bg-amber-bg text-amber-fg' : 'border-line bg-white text-secondary'}`}
+      className={`min-h-10 border rounded-md px-2.75 py-1.25 text-label ${item.status === 'ready' ? 'border-amber-border bg-amber-bg text-amber-fg' : 'border-line bg-white text-secondary'}`}
       onClick={() => onChangeStatus(item.id)}
       disabled={item.status === 'pending' ? false : item.status === 'ready' ? false : true}
     >

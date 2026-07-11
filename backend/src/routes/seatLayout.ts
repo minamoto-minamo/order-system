@@ -1,4 +1,5 @@
 import type { SeatLayoutResponse } from '@order-system/shared'
+import { Prisma } from '@prisma/client'
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
@@ -145,94 +146,116 @@ const seatLayoutRoutes: FastifyPluginAsync = async (fastify) => {
         )
       }
 
-      // 削除対象の事前チェック（使用中席の保護）
       const reqSeatIds = new Set(ownedSeats.filter((s) => s.id > 0).map((s) => s.id))
       const deleteSeatIds = dbSeats.map((s) => s.id).filter((id) => !reqSeatIds.has(id))
 
-      if (deleteSeatIds.length > 0) {
-        const busySeats = await prisma.groupSeat.findMany({
-          where: {
-            seatId: { in: deleteSeatIds },
-            group: { status: { in: ['active', 'bill_requested'] } },
+      const reqTableIds = new Set(ownedTables.filter((t) => t.id > 0).map((t) => t.id))
+      const deleteTableIds = dbTables.map((t) => t.id).filter((id) => !reqTableIds.has(id))
+
+      let txResult: { busySeatIds?: number[] }
+      try {
+        txResult = await prisma.$transaction(
+          async (tx) => {
+            if (deleteSeatIds.length > 0) {
+              const busySeats = await tx.groupSeat.findMany({
+                where: {
+                  seatId: { in: deleteSeatIds },
+                  group: { status: { in: ['active', 'bill_requested'] } },
+                },
+                select: { seatId: true },
+              })
+              if (busySeats.length > 0) {
+                return { busySeatIds: busySeats.map((gs) => gs.seatId) }
+              }
+            }
+
+            // Setting 更新
+            await tx.setting.update({ where: { storeId }, data: { canvasCols, canvasRows, gridSize } })
+
+            // SeatTable 削除
+            if (deleteTableIds.length > 0) {
+              await tx.seatTable.deleteMany({ where: { id: { in: deleteTableIds } } })
+            }
+
+            // SeatTable 作成（仮ID → 実ID マップ構築）
+            const idMap = new Map<number, number>()
+            for (const t of ownedTables.filter((t) => t.id < 0)) {
+              const created = await tx.seatTable.create({
+                data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h, storeId },
+              })
+              idMap.set(t.id, created.id)
+            }
+
+            // SeatTable 更新
+            for (const t of ownedTables.filter((t) => t.id > 0)) {
+              await tx.seatTable.update({
+                where: { id: t.id },
+                data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h },
+              })
+            }
+
+            // Seat 削除
+            if (deleteSeatIds.length > 0) {
+              await tx.seat.deleteMany({ where: { id: { in: deleteSeatIds } } })
+            }
+
+            // Seat 作成
+            for (const s of ownedSeats.filter((s) => s.id < 0)) {
+              const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
+              await tx.seat.create({
+                data: {
+                  label: s.label,
+                  type: tid != null ? 'table' : 'counter',
+                  x: s.x,
+                  y: s.y,
+                  tableId: tid,
+                  storeId,
+                },
+              })
+            }
+
+            // Seat 更新
+            for (const s of ownedSeats.filter((s) => s.id > 0)) {
+              const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
+              await tx.seat.update({
+                where: { id: s.id },
+                data: {
+                  label: s.label,
+                  type: tid != null ? 'table' : 'counter',
+                  x: s.x,
+                  y: s.y,
+                  tableId: tid,
+                },
+              })
+            }
+
+            return {}
           },
-          select: { seatId: true },
-        })
-        if (busySeats.length > 0) {
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
           return sendError(
             reply,
             409,
             ErrorCodes.SeatLayout.BusySeatsIncluded,
             '使用中の席が含まれています',
-            {
-              seatIds: busySeats.map((gs) => gs.seatId),
-            },
           )
         }
+        throw e
       }
 
-      await prisma.$transaction(async (tx) => {
-        // Setting 更新
-        await tx.setting.update({ where: { storeId }, data: { canvasCols, canvasRows, gridSize } })
-
-        // SeatTable 削除
-        const reqTableIds = new Set(ownedTables.filter((t) => t.id > 0).map((t) => t.id))
-        const deleteTableIds = dbTables.map((t) => t.id).filter((id) => !reqTableIds.has(id))
-        if (deleteTableIds.length > 0) {
-          await tx.seatTable.deleteMany({ where: { id: { in: deleteTableIds } } })
-        }
-
-        // SeatTable 作成（仮ID → 実ID マップ構築）
-        const idMap = new Map<number, number>()
-        for (const t of ownedTables.filter((t) => t.id < 0)) {
-          const created = await tx.seatTable.create({
-            data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h, storeId },
-          })
-          idMap.set(t.id, created.id)
-        }
-
-        // SeatTable 更新
-        for (const t of ownedTables.filter((t) => t.id > 0)) {
-          await tx.seatTable.update({
-            where: { id: t.id },
-            data: { label: t.label, x: t.x, y: t.y, w: t.w, h: t.h },
-          })
-        }
-
-        // Seat 削除
-        if (deleteSeatIds.length > 0) {
-          await tx.seat.deleteMany({ where: { id: { in: deleteSeatIds } } })
-        }
-
-        // Seat 作成
-        for (const s of ownedSeats.filter((s) => s.id < 0)) {
-          const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
-          await tx.seat.create({
-            data: {
-              label: s.label,
-              type: tid != null ? 'table' : 'counter',
-              x: s.x,
-              y: s.y,
-              tableId: tid,
-              storeId,
-            },
-          })
-        }
-
-        // Seat 更新
-        for (const s of ownedSeats.filter((s) => s.id > 0)) {
-          const tid = s.tableId != null ? (idMap.get(s.tableId) ?? s.tableId) : null
-          await tx.seat.update({
-            where: { id: s.id },
-            data: {
-              label: s.label,
-              type: tid != null ? 'table' : 'counter',
-              x: s.x,
-              y: s.y,
-              tableId: tid,
-            },
-          })
-        }
-      })
+      if (txResult.busySeatIds && txResult.busySeatIds.length > 0) {
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.SeatLayout.BusySeatsIncluded,
+          '使用中の席が含まれています',
+          {
+            seatIds: txResult.busySeatIds,
+          },
+        )
+      }
 
       const layout = await fetchLayout(storeId)
       fastify.io.to(`store:${request.storeId}`).emit('seatLayout:updated', layout)

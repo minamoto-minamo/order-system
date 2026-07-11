@@ -59,7 +59,9 @@ export function RankingSection({
 
       <div className="px-4 py-2.5 border-b border-surface flex gap-1.5 flex-wrap">
         {catOptions.map((opt) => {
-          const accentColor = opt.isCat ? (catColorMap[opt.key] ?? '#888') : '#888'
+          const accentColor = opt.isCat
+            ? (catColorMap[opt.key] ?? 'var(--color-muted)')
+            : 'var(--color-muted)'
           const isActive = catFilter === opt.key
           return (
             <button
@@ -94,7 +96,7 @@ export function RankingSection({
         sorted.map((item, i) => {
           const rc = rankColor(item.rank)
           const barW = Math.round(((metric === 'amount' ? item.amount : item.qty) / maxVal) * 100)
-          const catColor = catColorMap[item.categoryName] ?? '#ccc'
+          const catColor = catColorMap[item.categoryName] ?? 'var(--color-line)'
           return (
             <div
               key={item.name}

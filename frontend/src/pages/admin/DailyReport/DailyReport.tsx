@@ -26,11 +26,17 @@ export default function DailyReport() {
   const sessionLabel = (s: SessionInfo): string => {
     const fmt = (iso: string) => {
       const d = new Date(iso)
-      return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+      return t('report.sessionDateTime', {
+        month: d.getMonth() + 1,
+        day: d.getDate(),
+        hour: d.getHours(),
+        minute: String(d.getMinutes()).padStart(2, '0'),
+      })
     }
-    return s.closedAt
-      ? `${fmt(s.openedAt)} 〜 ${fmt(s.closedAt)}`
-      : `${fmt(s.openedAt)} 〜 ${t('session.open')}`
+    return t('report.sessionRange', {
+      start: fmt(s.openedAt),
+      end: s.closedAt ? fmt(s.closedAt) : t('session.open'),
+    })
   }
 
   useEffect(() => {

@@ -92,8 +92,12 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
         data.username = body.username
       }
       if (body.password) data.passwordHash = await bcrypt.hash(body.password, 12)
+      const roleChanged = body.role !== undefined && body.role !== existing.role
       if (body.role) data.role = body.role
-      return prisma.staff.update({ where: { id }, data, select })
+      const updated = await prisma.staff.update({ where: { id }, data, select })
+      // ロール変更は権限に直結するため、降格・昇格前の権限で操作が継続できないよう既存接続を切断する
+      if (roleChanged) fastify.io.in(`user:${id}`).disconnectSockets(true)
+      return updated
     },
   )
 
@@ -106,6 +110,7 @@ const staffRoutes: FastifyPluginAsync = async (fastify) => {
     if (!existing)
       return sendError(reply, 404, ErrorCodes.Staff.NotFound, 'スタッフが見つかりません')
     await prisma.staff.delete({ where: { id } })
+    fastify.io.in(`user:${id}`).disconnectSockets(true)
     return reply.status(204).send()
   })
 

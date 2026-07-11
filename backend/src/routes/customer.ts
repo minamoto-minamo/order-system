@@ -1,4 +1,5 @@
 import rateLimit from '@fastify/rate-limit'
+import { Prisma } from '@prisma/client'
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { toGroup, toOrderItem } from '../lib/mappers.js'
@@ -227,33 +228,55 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const txResult = await prisma.$transaction(async (tx) => {
-      const current = await tx.group.findUnique({
-        where: { id: body.groupId },
-        select: { status: true },
-      })
-      if (current?.status !== 'active') return null
-      return Promise.all(
-        body.items.map((item) => {
-          const isPlanItem = planMenuItemIds?.has(item.menuItemId) ?? false
-          // 注文時点の MenuItem 単価を保持し、飲み放題解除時の復元にも使う
-          const originalPrice = menuItemMap.get(item.menuItemId)!.price
-          return tx.orderItem.create({
-            data: {
-              groupId: body.groupId,
-              menuItemId: item.menuItemId,
-              menuItemName: menuItemMap.get(item.menuItemId)!.name,
-              price: isPlanItem ? 0 : originalPrice,
-              originalPrice,
-              qty: item.qty,
-              isTakeout: false,
-              courseId: null,
-              storeId: request.storeId,
-            },
+    let txResult: Awaited<ReturnType<typeof prisma.orderItem.create>>[] | null
+    try {
+      txResult = await prisma.$transaction(
+        async (tx) => {
+          const current = await tx.group.findUnique({
+            where: { id: body.groupId },
+            select: { status: true },
           })
-        }),
+          if (current?.status !== 'active') return null
+          return Promise.all(
+            body.items.map((item) => {
+              const isPlanItem = planMenuItemIds?.has(item.menuItemId) ?? false
+              // 注文時点の MenuItem 単価を保持し、飲み放題解除時の復元にも使う
+              const originalPrice = menuItemMap.get(item.menuItemId)!.price
+              return tx.orderItem.create({
+                data: {
+                  groupId: body.groupId,
+                  menuItemId: item.menuItemId,
+                  menuItemName: menuItemMap.get(item.menuItemId)!.name,
+                  price: isPlanItem ? 0 : originalPrice,
+                  originalPrice,
+                  qty: item.qty,
+                  isTakeout: false,
+                  courseId: null,
+                  storeId: request.storeId,
+                },
+              })
+            }),
+          )
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       )
-    })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003')
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Customer.MenuItemDeleted,
+          '注文対象のメニューが削除されたため、注文を作成できません',
+        )
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034')
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Customer.Conflict,
+          '他の操作と競合しました。もう一度お試しください',
+        )
+      throw e
+    }
 
     if (!txResult)
       return sendError(

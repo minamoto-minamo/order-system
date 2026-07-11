@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { Prisma } from '@prisma/client'
 import Fastify from 'fastify'
 
 type Group = { id: string; status: string; drinkPlanId: number | null }
@@ -17,7 +18,8 @@ const mockSettingFindUnique =
     } | null>
   >()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
+const mockTransaction =
+  jest.fn<(cb: (tx: any) => Promise<any>, options?: unknown) => Promise<any>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
@@ -186,6 +188,56 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
         data: expect.objectContaining({ menuItemId: 1, price: 600, originalPrice: 600 }),
       }),
     )
+  })
+
+  it('Serializable 分離レベルでの作成競合（P2034）でも 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '枝豆', price: 300, soldOut: false }])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', {
+        code: 'P2034',
+        clientVersion: '5.17.0',
+      })
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { message: '他の操作と競合しました。もう一度お試しください' },
+    })
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
+  })
+
+  it('注文作成中に対象メニューが削除されて FK 制約違反（P2003）になっても 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, name: '枝豆', price: 300, soldOut: false }])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Foreign key constraint failed', {
+        code: 'P2003',
+        clientVersion: '5.17.0',
+      })
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'customer.orders.menu_item_deleted',
+        message: '注文対象のメニューが削除されたため、注文を作成できません',
+      },
+    })
   })
 
   it('プラン外商品を注文すると 422 を返す', async () => {

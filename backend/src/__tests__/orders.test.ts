@@ -432,6 +432,39 @@ describe('POST /api/orders — courseId 検証', () => {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
   })
+
+  it('注文作成中に対象メニューが削除されて FK 制約違反（P2003）になっても 409 を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: null,
+    })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
+    ])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Foreign key constraint failed', {
+        code: 'P2003',
+        clientVersion: '5.17.0',
+      })
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'orders.create.menu_item_deleted',
+        message: '注文対象のメニューが削除されたため、注文を作成できません',
+      },
+    })
+  })
 })
 
 describe('POST /api/orders — テイクアウト可否チェック', () => {

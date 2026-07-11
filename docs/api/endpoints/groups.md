@@ -163,6 +163,7 @@ Response 404: `groups.detail.not_found`
 Response 404: `groups.course.not_found` — コースが存在しない場合
 Response 409: `groups.course.not_applicable` — グループが `active` でない場合
 Response 409: `groups.course.sold_out` — コース内に品切れの商品が含まれる場合
+Response 409: `groups.course.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合。もう一度リクエストすると解決する
 Response 500: `groups.course.setting_not_found` — 店舗設定が見つからない場合
 
 ## PUT /api/groups/:id/course
@@ -179,6 +180,7 @@ Response 200: 更新されたコース料金明細（order item）。コース�
 Response 404: `groups.detail.not_found`
 Response 409: `groups.course_qty.not_editable` — グループが `active` でない場合
 Response 409: `groups.course.not_applied` — コースが適用されていない場合
+Response 409: `groups.course.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合。もう一度リクエストすると解決する
 
 ## DELETE /api/groups/:id/course
 
@@ -187,3 +189,4 @@ Response 409: `groups.course.not_applied` — コースが適用されていな�
 Response 200: group object（`courseId` / `drinkPlanId` が `null` に戻る）
 Response 404: `groups.detail.not_found`
 Response 409: `groups.course.remove_not_allowed` — グループが `active` でない場合（`bill_requested` / `closed` では解除不可）
+Response 409: `groups.course.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合。もう一度リクエストすると解決する

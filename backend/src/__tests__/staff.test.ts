@@ -6,6 +6,7 @@ import Fastify from 'fastify'
 const mockFindFirst =
   jest.fn<(...args: unknown[]) => Promise<{ id: string; username: string; role: string } | null>>()
 const mockDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockListActiveSessions = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
 const mockRevokeTokenById = jest.fn<(...args: unknown[]) => Promise<boolean>>()
 
@@ -17,7 +18,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
       findMany: jest.fn(),
       findFirst: mockFindFirst,
       create: jest.fn(),
-      update: jest.fn(),
+      update: mockUpdate,
     },
   },
 }))
@@ -35,12 +36,19 @@ const OTHER_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const SECRET = 'test-secret'
 const STORE_ID = 1
 
-async function buildTestApp() {
+function buildMockIo() {
+  const disconnectSockets = jest.fn()
+  const inFn = jest.fn((_room: string) => ({ disconnectSockets }))
+  return { inFn, disconnectSockets }
+}
+
+async function buildTestApp(io = buildMockIo()) {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
   app.addHook('onRequest', async (request) => {
     request.storeId = STORE_ID
   })
+  app.decorate('io', { in: io.inFn } as never)
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET, cookie: { cookieName: 'token', signed: false } })
   app.addHook('preHandler', async (request, reply) => {
@@ -59,9 +67,10 @@ async function buildTestApp() {
 
 describe('DELETE /api/staff/:id — 自己削除ガード', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
 
   beforeAll(async () => {
-    app = await buildTestApp()
+    app = await buildTestApp(io)
   })
 
   afterAll(async () => {
@@ -91,9 +100,10 @@ describe('DELETE /api/staff/:id — 自己削除ガード', () => {
     expect(res.statusCode).toBe(422)
     expect(res.json()).toMatchObject({ error: { message: '自分自身は削除できません' } })
     expect(mockFindFirst).not.toHaveBeenCalled()
+    expect(io.inFn).not.toHaveBeenCalled()
   })
 
-  it('他スタッフのIDで DELETE すると自己削除ガードを通過する', async () => {
+  it('他スタッフのIDで DELETE すると自己削除ガードを通過し、対象の Socket 接続を切断する', async () => {
     mockFindFirst.mockResolvedValue({ id: OTHER_ID, username: 'other', role: 'staff' })
     mockDelete.mockResolvedValue({})
 
@@ -104,6 +114,80 @@ describe('DELETE /api/staff/:id — 自己削除ガード', () => {
     })
     expect(res.statusCode).toBe(204)
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: OTHER_ID } })
+    expect(io.inFn).toHaveBeenCalledWith(`user:${OTHER_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('PUT /api/staff/:id — ロール変更時の Socket 切断', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
+
+  beforeAll(async () => {
+    app = await buildTestApp(io)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function token(userId: string) {
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
+  }
+
+  it('role を変更すると対象スタッフの Socket 接続を切断する', async () => {
+    mockFindFirst.mockResolvedValue({ id: OTHER_ID, username: 'other', role: 'staff' })
+    mockUpdate.mockResolvedValue({ id: OTHER_ID, username: 'other', role: 'admin' })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/staff/${OTHER_ID}`,
+      headers: { cookie: `token=${token(ADMIN_ID)}` },
+      payload: { role: 'admin' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).toHaveBeenCalledWith(`user:${OTHER_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+  })
+
+  it('role が既存値と同じ場合は切断しない', async () => {
+    mockFindFirst.mockResolvedValue({ id: OTHER_ID, username: 'other', role: 'staff' })
+    mockUpdate.mockResolvedValue({ id: OTHER_ID, username: 'other', role: 'staff' })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/staff/${OTHER_ID}`,
+      headers: { cookie: `token=${token(ADMIN_ID)}` },
+      payload: { role: 'staff' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
+  })
+
+  it('username / password のみの変更では切断しない', async () => {
+    mockFindFirst
+      .mockResolvedValueOnce({ id: OTHER_ID, username: 'other', role: 'staff' })
+      .mockResolvedValueOnce(null)
+    mockUpdate.mockResolvedValue({ id: OTHER_ID, username: 'renamed', role: 'staff' })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/staff/${OTHER_ID}`,
+      headers: { cookie: `token=${token(ADMIN_ID)}` },
+      payload: { username: 'renamed' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
   })
 })
 

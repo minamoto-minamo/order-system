@@ -1,6 +1,7 @@
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { Prisma } from '@prisma/client'
 import Fastify from 'fastify'
 
 const mockSeatFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -17,7 +18,7 @@ const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<unknown>>(
 const mockSettingUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockGroupSeatFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>) => Promise<any>>()
+const mockTransaction = jest.fn<(cb: (tx: any) => Promise<any>, options?: any) => Promise<any>>()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
@@ -116,6 +117,7 @@ describe('席とテーブルの店舗所有権チェック', () => {
           deleteMany: mockSeatTableDeleteMany,
         },
         seat: { create: mockSeatCreate, update: mockSeatUpdate, deleteMany: mockSeatDeleteMany },
+        groupSeat: { findMany: mockGroupSeatFindMany },
       }
       return cb(tx)
     })
@@ -228,5 +230,40 @@ describe('席とテーブルの店舗所有権チェック', () => {
         data: expect.objectContaining({ tableId: 10 }),
       }),
     )
+    expect(mockTransaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      }),
+    )
+  })
+
+  it('PUT /api/seat-layout は Serializable 競合（P2034）を 409 で返す', async () => {
+    mockSeatFindMany.mockResolvedValueOnce([{ id: 20 }])
+    mockSeatTableFindMany.mockResolvedValueOnce([{ id: 10 }])
+    mockTransaction.mockImplementation(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Transaction failed due to a write conflict', {
+        code: 'P2034',
+        clientVersion: '5.17.0',
+      })
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/seat-layout',
+      headers: { cookie: `token=${token(app)}` },
+      payload: {
+        canvasCols: 16,
+        canvasRows: 12,
+        gridSize: 48,
+        tables: [],
+        seats: [],
+      },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { code: 'seat_layout.update.busy_seats_included', message: '使用中の席が含まれています' },
+    })
   })
 })

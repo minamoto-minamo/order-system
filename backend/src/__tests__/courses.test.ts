@@ -10,6 +10,7 @@ const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockTransaction =
@@ -17,6 +18,7 @@ const mockTransaction =
     (
       callback: (tx: {
         group: { findFirst: typeof mockGroupFindFirst }
+        orderItem: { count: typeof mockOrderItemCount }
         course: { findFirst: typeof mockCourseFindFirst; delete: typeof mockCourseDelete }
       }) => Promise<unknown>,
       options?: unknown,
@@ -33,6 +35,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
       create: mockCourseCreate,
       update: mockCourseUpdate,
     },
+    orderItem: { count: mockOrderItemCount },
     menuItem: { count: mockMenuItemCount },
     drinkPlan: { findFirst: mockDrinkPlanFindFirst },
   },
@@ -72,9 +75,11 @@ async function buildTestApp() {
 
 describe('DELETE /api/courses/:id — 削除制御', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
+  let warnSpy: jest.SpiedFunction<typeof app.log.warn>
 
   beforeAll(async () => {
     app = await buildTestApp()
+    warnSpy = jest.spyOn(app.log, 'warn').mockImplementation(() => app.log)
   })
   afterAll(async () => {
     await app.close()
@@ -84,9 +89,11 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     mockTransaction.mockImplementation(async (callback) =>
       callback({
         group: { findFirst: mockGroupFindFirst },
+        orderItem: { count: mockOrderItemCount },
         course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete },
       }),
     )
+    mockOrderItemCount.mockResolvedValue(0)
   })
 
   function token() {
@@ -143,6 +150,37 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
+  })
+
+  it('過去の OrderItem があれば警告ログを出して削除する', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockOrderItemCount.mockResolvedValue(3)
+    mockCourseDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { courseId: 1, storeId: STORE_ID, referencedOrderItemCount: 3 },
+      'コース削除により過去の OrderItem.courseId が null 化されます',
+    )
+  })
+
+  it('過去の OrderItem がなければ警告ログを出さない', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockOrderItemCount.mockResolvedValue(0)
+    mockCourseDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {

@@ -127,6 +127,18 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
             where: { drinkPlanId, status: { in: ['active', 'bill_requested'] } },
           })
           if (activeGroup) return { err: 'in_use' as const }
+          const referencedOrderItemCount = await tx.orderItem.count({
+            where: {
+              storeId: request.storeId,
+              group: { drinkPlanId },
+            },
+          })
+          if (referencedOrderItemCount > 0) {
+            fastify.log.warn(
+              { drinkPlanId, storeId: request.storeId, referencedOrderItemCount },
+              '飲み放題プラン削除により過去グループの drinkPlanId 参照が失われます',
+            )
+          }
           await tx.drinkPlan.delete({ where: { id: drinkPlanId } })
           return { ok: true as const }
         },
