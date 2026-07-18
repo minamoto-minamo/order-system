@@ -8,6 +8,7 @@ import { getTaxSettingOrThrow, SettingNotFoundError } from '../lib/taxSetting.js
 class SeatConflictError extends Error {}
 class SoldOutError extends Error {}
 class GroupStatusError extends Error {}
+class CourseAlreadyAppliedError extends Error {}
 class InvalidTransitionError extends Error {
   constructor(
     public from: string,
@@ -75,7 +76,6 @@ type ApplyCourseTxResult = {
   createdItems: OrderItemRecord[]
   updatedOrderItems: OrderItemRecord[]
   updatedGroup: GroupWithSeats
-  unapplied: Awaited<ReturnType<typeof unapplyCourse>>
 }
 type UpdateCourseQtyTxResult = {
   chargeResult: OrderItemRecord | null
@@ -446,6 +446,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           ErrorCodes.Groups.CourseNotApplicable,
           'このグループにはコースを適用できません',
         )
+      if (group.courseId != null)
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Groups.CourseAlreadyApplied,
+          '既にコースが適用されています',
+        )
 
       const course = await prisma.course.findFirst({
         where: { id: courseId, storeId: request.storeId },
@@ -467,17 +474,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           async (tx) => {
             const currentGroup = await tx.group.findUnique({ where: { id } })
             if (currentGroup?.status !== 'active') throw new GroupStatusError()
-
-            // 既にコースが適用されている場合は、二重課金にならないよう先に旧コースを取り消してから新コースを適用する
-            const unapplied =
-              currentGroup.courseId != null
-                ? await unapplyCourse(tx, {
-                    groupId: id,
-                    storeId: request.storeId,
-                    courseId: currentGroup.courseId,
-                    drinkPlanId: currentGroup.drinkPlanId,
-                  })
-                : { restoredItems: [], cancelledItems: [] }
+            if (currentGroup.courseId != null) throw new CourseAlreadyAppliedError()
 
             const createdItems = []
             if (course.price > 0) {
@@ -578,7 +575,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               data: { courseId: course.id, drinkPlanId: course.drinkPlanId },
               include: { seats: true },
             })
-            return { createdItems, updatedOrderItems, updatedGroup, unapplied }
+            return { createdItems, updatedOrderItems, updatedGroup }
             // Serializable にしないと、同時のコース適用/解除リクエストが両方とも現在のコース状態を
             // 読んでしまい、二重課金が発生しうる
           },
@@ -591,6 +588,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
             409,
             ErrorCodes.Groups.CourseNotApplicable,
             'このグループにはコースを適用できません',
+          )
+        if (e instanceof CourseAlreadyAppliedError)
+          return sendError(
+            reply,
+            409,
+            ErrorCodes.Groups.CourseAlreadyApplied,
+            '既にコースが適用されています',
           )
         if (e instanceof SoldOutError)
           return sendError(
@@ -609,7 +613,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         throw e
       }
 
-      const { createdItems, updatedOrderItems, updatedGroup, unapplied } = txResult
+      const { createdItems, updatedOrderItems, updatedGroup } = txResult
       let groupResult: GroupResponse
       try {
         const setting = await getTaxSettingOrThrow(request.storeId)
@@ -631,11 +635,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           .to(`group:${id}`)
           .emit('order:created', toOrderItem(item))
       }
-      for (const item of [
-        ...unapplied.restoredItems,
-        ...unapplied.cancelledItems,
-        ...updatedOrderItems,
-      ]) {
+      for (const item of updatedOrderItems) {
         fastify.io
           .to(`store:${request.storeId}`)
           .to(`group:${id}`)

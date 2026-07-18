@@ -605,7 +605,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
     )
   })
 
-  it('既にコースが適用されている場合、旧コースの課金明細を取消してから新コースを適用する（二重課金防止）', async () => {
+  it('既にコースが適用されている場合は 409 を返し、既存の適用状態・注文明細を変更しない', async () => {
     mockGroupFindFirst.mockResolvedValue({
       id: GROUP_ID,
       status: 'active',
@@ -619,130 +619,27 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       drinkPlanId: null,
       foodItems: [],
     })
-    mockSettingFindUnique.mockResolvedValue({
-      taxRateInHouse: { toNumber: () => 10 },
-      taxRateTakeout: { toNumber: () => 8 },
-      taxInclusive: false,
-    })
-    const updatedGroup = {
-      id: GROUP_ID,
-      name: 'A席',
-      guestCount: 2,
-      status: 'active',
-      sessionId: 1,
-      courseId: 2,
-      drinkPlanId: null,
-      createdAt: new Date(),
-      seats: [] as { seatId: number }[],
-    }
-    const oldChargeItem = {
-      id: 'old-charge',
-      groupId: GROUP_ID,
-      menuItemId: null,
-      menuItemName: '旧コース',
-      price: 3000,
-      qty: 2,
-      status: 'served',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: 1,
-      isCourseCharge: true,
-      isDrinkPlanCharge: false,
-      orderedAt: new Date(),
-    }
-    const drinkItem = {
-      id: 'drink-1',
-      groupId: GROUP_ID,
-      menuItemId: 20,
-      menuItemName: 'ビール',
-      price: 0,
-      originalPrice: 500,
-      qty: 1,
-      status: 'pending',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: null,
-      orderedAt: new Date(),
-    }
-    const mockOrderItemUpdateInTx = jest
-      .fn<(...args: unknown[]) => Promise<unknown>>()
-      .mockImplementation(async (args: any) =>
-        args.where.id === 'old-charge'
-          ? { ...oldChargeItem, status: 'cancelled' }
-          : { ...drinkItem, price: 500 },
-      )
-    const mockNewChargeItem = {
-      id: 'new-charge',
-      groupId: GROUP_ID,
-      menuItemId: null,
-      menuItemName: '新コース',
-      price: 4000,
-      qty: 2,
-      status: 'served',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: 2,
-      isCourseCharge: true,
-      isDrinkPlanCharge: false,
-      orderedAt: new Date(),
-    }
-    const mockOrderItemCreate = jest
-      .fn<(...args: unknown[]) => Promise<unknown>>()
-      .mockResolvedValue(mockNewChargeItem)
-    const mockOrderItemFindMany = jest
-      .fn<(...args: unknown[]) => Promise<unknown[]>>()
-      .mockImplementation(async (args: any) =>
-        'courseId' in args.where ? [oldChargeItem] : [drinkItem],
-      )
-    mockTransaction.mockImplementation(async (cb) => {
-      const tx = {
-        menuItem: { findMany: () => Promise.resolve([{ id: 20, name: 'ビール', price: 500 }]) },
-        drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
-        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [] }) },
-        orderItem: {
-          create: mockOrderItemCreate,
-          update: mockOrderItemUpdateInTx,
-          findMany: mockOrderItemFindMany,
-        },
-        group: {
-          findUnique: () =>
-            Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: 5 }),
-          update: () => Promise.resolve(updatedGroup),
-        },
-      }
-      return cb(tx)
-    })
     const res = await app.inject({
       method: 'POST',
       url: `/api/groups/${GROUP_ID}/course`,
       headers: { cookie: `token=${token(app)}` },
       payload: { courseId: 2, qty: 2 },
     })
-    expect(res.statusCode).toBe(200)
-    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'old-charge' },
-        data: { status: 'cancelled' },
-      }),
-    )
-    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'drink-1' },
-        data: { price: 500 },
-      }),
-    )
-    expect(mockOrderItemCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ menuItemName: '新コース', price: 4000, courseId: 2 }),
-      }),
-    )
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'groups.course.already_applied',
+        message: '既にコースが適用されています',
+      },
+    })
+    expect(mockTransaction).not.toHaveBeenCalled()
   })
 
-  it('旧コースの食事明細（isCourseCharge:false）も切替時にキャンセルされる（重複蓄積防止）', async () => {
+  it('トランザクション開始後に別リクエストでコース適用済みになった場合も 409 を返す', async () => {
     mockGroupFindFirst.mockResolvedValue({
       id: GROUP_ID,
       status: 'active',
-      courseId: 1,
+      courseId: null,
       drinkPlanId: null,
     })
     mockCourseFindFirst.mockResolvedValue({
@@ -752,92 +649,14 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       drinkPlanId: null,
       foodItems: [],
     })
-    mockSettingFindUnique.mockResolvedValue({
-      taxRateInHouse: { toNumber: () => 10 },
-      taxRateTakeout: { toNumber: () => 8 },
-      taxInclusive: false,
-    })
-    const updatedGroup = {
-      id: GROUP_ID,
-      name: 'A席',
-      guestCount: 2,
-      status: 'active',
-      sessionId: 1,
-      courseId: 2,
-      drinkPlanId: null,
-      createdAt: new Date(),
-      seats: [] as { seatId: number }[],
-    }
-    const oldChargeItem = {
-      id: 'old-charge',
-      groupId: GROUP_ID,
-      menuItemId: null,
-      menuItemName: '旧コース',
-      price: 3000,
-      qty: 2,
-      status: 'served',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: 1,
-      isCourseCharge: true,
-      isDrinkPlanCharge: false,
-      orderedAt: new Date(),
-    }
-    const oldFoodItem = {
-      id: 'old-food',
-      groupId: GROUP_ID,
-      menuItemId: 10,
-      menuItemName: '唐揚げ',
-      price: 0,
-      qty: 4,
-      status: 'served',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: 1,
-      isCourseCharge: false,
-      isDrinkPlanCharge: false,
-      orderedAt: new Date(),
-    }
-    const mockOrderItemUpdateInTx = jest
-      .fn<(...args: unknown[]) => Promise<unknown>>()
-      .mockImplementation(async (args: any) => ({
-        ...(args.where.id === 'old-charge' ? oldChargeItem : oldFoodItem),
-        status: 'cancelled',
-      }))
-    const mockNewChargeItem = {
-      id: 'new-charge',
-      groupId: GROUP_ID,
-      menuItemId: null,
-      menuItemName: '新コース',
-      price: 4000,
-      qty: 2,
-      status: 'served',
-      isTakeout: false,
-      taxRate: { toNumber: () => 10 },
-      courseId: 2,
-      isCourseCharge: true,
-      isDrinkPlanCharge: false,
-      orderedAt: new Date(),
-    }
-    const mockOrderItemCreate = jest
-      .fn<(...args: unknown[]) => Promise<unknown>>()
-      .mockResolvedValue(mockNewChargeItem)
-    const mockOrderItemFindMany = jest
-      .fn<(...args: unknown[]) => Promise<unknown[]>>()
-      .mockResolvedValue([oldChargeItem, oldFoodItem])
     mockTransaction.mockImplementation(async (cb) => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([]) },
-        course: { findFirst: () => Promise.resolve({ id: 1, foodItems: [{ menuItemId: 10 }] }) },
-        orderItem: {
-          create: mockOrderItemCreate,
-          update: mockOrderItemUpdateInTx,
-          findMany: mockOrderItemFindMany,
-        },
+        orderItem: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
         group: {
           findUnique: () =>
             Promise.resolve({ id: GROUP_ID, status: 'active', courseId: 1, drinkPlanId: null }),
-          update: () => Promise.resolve(updatedGroup),
+          update: jest.fn(),
         },
       }
       return cb(tx)
@@ -848,24 +667,13 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       headers: { cookie: `token=${token(app)}` },
       payload: { courseId: 2, qty: 2 },
     })
-    expect(res.statusCode).toBe(200)
-    expect(mockOrderItemFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ groupId: GROUP_ID, courseId: 1 }),
-      }),
-    )
-    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'old-charge' },
-        data: { status: 'cancelled' },
-      }),
-    )
-    expect(mockOrderItemUpdateInTx).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'old-food' },
-        data: { status: 'cancelled' },
-      }),
-    )
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'groups.course.already_applied',
+        message: '既にコースが適用されています',
+      },
+    })
   })
 })
 

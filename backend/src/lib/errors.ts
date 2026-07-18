@@ -35,6 +35,7 @@ export const ErrorCodes = {
     InvalidTransition: 'groups.update.invalid_transition',
     ClosedOrBillRequested: 'groups.update.closed_or_bill_requested',
     CourseNotApplicable: 'groups.course.not_applicable',
+    CourseAlreadyApplied: 'groups.course.already_applied',
     CourseNotFound: 'groups.course.not_found',
     SettingNotFound: 'groups.course.setting_not_found',
     CourseSoldOut: 'groups.course.sold_out',
