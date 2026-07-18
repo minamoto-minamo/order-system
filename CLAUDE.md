@@ -9,6 +9,10 @@
 pnpm dev          # frontend（Vite dev server）と backend（tsx watch）を同時起動
 pnpm build        # 本番ビルド。frontend → backend の順でビルドする
 pnpm typecheck    # 全ワークスペースの TypeScript 型チェック（エラーのみ、出力なし）
+pnpm lint         # Biome によるリントチェック
+pnpm lint:fix     # Biome によるリント自動修正
+pnpm format       # Biome によるフォーマット自動修正
+pnpm format:check # Biome によるフォーマットチェック（差分なし確認）
 
 # テスト
 pnpm test              # frontend + backend のユニットテスト（Jest）を並列実行
@@ -42,14 +46,17 @@ order-system/
 
 ## Claude / Codex 分担
 
-- Claude: 設計、仕様整理、観点別レビュー、Codexへの実装ハンドオフ作成を担当する。
-- Codex: 実行担当。開発、調査、Lint、単体テスト、e2e、テスト追加・改修、型チェック・ビルド、検証失敗の原因調査と修正、結果報告を担当する。
-- 設計済みの変更をCodexへ渡す時は `.claude/skills/codex-execution` を使い、`codex@openai-codex` plugin の `/codex:rescue` へ委譲する。
-- レビュー結果の指摘を実装へ回す時は `.claude/skills/review-findings-to-codex` を使い、独立した指摘を複数の `/codex:rescue --background --fresh` job として並列に渡す。
-- レビューを通さない通常の開発要望をCodexへ渡す時は `.claude/skills/dev-request-to-codex` を使い、要望をhandoff形式に整理してから `/codex:rescue` へ渡す。
-- Codex側は `.agents/skills/implement-from-design` を使い、受け取ったhandoffを現行コードに照合してから最小差分で実行する。
+- Claude: 設計、仕様整理、観点別レビュー、Codexへの実装ハンドオフ作成、e2eテストの実行を担当する。
+- Codex: 実行担当。開発、調査、Lint、単体テスト、テスト追加・改修（e2eのテストコード追加・改修を含む）、型チェック・ビルド、検証失敗の原因調査と修正、結果報告を担当する。e2eの実行はcompanion環境の制約でできないためClaude側が担う。
+- Codexへ渡す時は `.claude/skills/codex-execution` を使う。設計済みの変更・開発要望・レビュー指摘のいずれも、この1つのSkillでhandoff形式に整理してから `codex@openai-codex` plugin の `/codex:rescue` へ委譲する。レビュー指摘は独立した指摘ごとに複数の `/codex:rescue --background --fresh` job として並列に渡す。
 - 設計と現行コードが矛盾する場合は、Codexは実装を止めて差分を報告する。Claudeは設計を更新して再ハンドオフする。
 - 進捗確認は `/codex:status`、結果取得は `/codex:result <job-id>` を使う。
+
+### speckitを使う場合
+
+- `speckit-specify` → `speckit-clarify` → `speckit-plan` → `speckit-tasks` はClaudeが設計担当として実行する。
+- `speckit-implement` は使わない（Claude自身がタスクを実行する前提のスキルのため）。代わりに生成された `tasks.md` を `.claude/skills/codex-execution` でhandoffに変換し、`/codex:rescue` へ渡す。
+- Codex実行後のtasks.md完了マークの反映はClaudeが結果を確認して手動更新するか、`speckit-converge` で未着手分を検出して補う。
 
 ## 環境設定
 
@@ -64,24 +71,6 @@ env/frontend.env.example → env/frontend.env  # VITE_BACKEND_URL（本番ビル
 - Prisma CLI は dotenv-cli 経由でロード（`db:*` スクリプト）
 - Vite は `../env/frontend.env` を `vite.config.ts` で `define` に注入
 
-## 画面構成
+## ドキュメント
 
-| ID   | 画面名               | パス                                      | アクター   |
-|------|----------------------|-------------------------------------------|------------|
-| S100 | ホーム               | `/`                                       | 全員       |
-| S101 | ログイン             | `/login`                                  | 全員       |
-| S102 | グループ詳細         | `/hall/group/:id` `/kitchen/group/:id`    | 共通       |
-| S103 | 客用注文             | `/order/:id`                              | 客         |
-| S200 | ホール               | `/hall`                                   | ホール店員 |
-| S300 | キッチン             | `/kitchen`                                | キッチン   |
-| S400 | 管理者メニュー       | `/admin`                                  | 管理者     |
-| S401 | 商品設定             | `/admin/products`                         | 管理者     |
-| S402 | 席レイアウト設定     | `/admin/seats`                            | 管理者     |
-| S403 | 日次レポート         | `/admin/report`                           | 管理者     |
-| S404 | 詳細設定             | `/admin/settings`                         | 管理者     |
-| S405 | スタッフ管理         | `/admin/staff`                            | 管理者     |
-| S406 | コース設定           | `/admin/courses`                          | 管理者     |
-| S500 | プラットフォーム管理者ログイン | `/platform/login`                | Platform |
-| S501 | プラットフォーム店舗管理 | `/platform/stores`                      | Platform |
-
-詳細仕様は `docs/screens/`、ドキュメント一覧は `docs/index.md` を参照。
+画面構成・API・データモデル・運用手順は `docs/` 配下で管理する。入口は `docs/index.md`。画面ごとの仕様は `docs/screens/index.md` を参照。
