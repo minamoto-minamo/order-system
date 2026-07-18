@@ -1,0 +1,356 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  open
+  closed
+}
+
+enum SeatType {
+  counter
+  table
+}
+
+enum GroupStatus {
+  active
+  bill_requested
+  closed
+}
+
+enum OrderItemStatus {
+  pending
+  ready
+  served
+  cancelled
+}
+
+enum TakeoutType {
+  dine_in
+  both
+  takeout
+}
+
+enum StaffRole {
+  admin
+  staff
+}
+
+model Store {
+  id        Int      @id @default(autoincrement())
+  subdomain String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sessions      Session[]
+  seatTables    SeatTable[]
+  seats         Seat[]
+  categories    Category[]
+  subCategories SubCategory[]
+  menuItems     MenuItem[]
+  drinkPlans    DrinkPlan[]
+  courses       Course[]
+  groups        Group[]
+  orderItems    OrderItem[]
+  setting       Setting?
+  staff         Staff[]
+
+  @@map("store")
+}
+
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("platform_admin")
+}
+
+model Session {
+  id            Int           @id @default(autoincrement())
+  storeId       Int
+  status        SessionStatus @default(open)
+  openedAt      DateTime      @default(now())
+  closedAt      DateTime?
+  seatUsageRate Int?
+
+  store  Store   @relation(fields: [storeId], references: [id])
+  groups Group[]
+
+  @@index([storeId, status])
+}
+
+model SeatTable {
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  label   String
+  x       Int
+  y       Int
+  w       Int
+  h       Int
+
+  store Store  @relation(fields: [storeId], references: [id])
+  seats Seat[]
+
+  @@index([storeId])
+}
+
+model Seat {
+  id      Int        @id @default(autoincrement())
+  storeId Int
+  label   String
+  type    SeatType
+  x       Int
+  y       Int
+  tableId Int?
+  table   SeatTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  store      Store       @relation(fields: [storeId], references: [id])
+  groupSeats GroupSeat[]
+
+  @@index([tableId])
+  @@index([storeId])
+}
+
+model Category {
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String
+  sort    Int    @default(0)
+
+  store         Store         @relation(fields: [storeId], references: [id])
+  subCategories SubCategory[]
+  menuItems     MenuItem[]
+
+  @@index([storeId])
+}
+
+model SubCategory {
+  id         Int    @id @default(autoincrement())
+  storeId    Int
+  categoryId Int
+  name       String
+  sort       Int    @default(0)
+
+  store     Store      @relation(fields: [storeId], references: [id])
+  category  Category   @relation(fields: [categoryId], references: [id])
+  menuItems MenuItem[]
+
+  @@index([categoryId])
+  @@index([storeId])
+}
+
+model MenuItem {
+  id            Int         @id @default(autoincrement())
+  storeId       Int
+  name          String
+  price         Int
+  categoryId    Int
+  subCategoryId Int
+  soldOut       Boolean     @default(false)
+  takeout       TakeoutType @default(dine_in)
+  sort          Int         @default(0)
+
+  store       Store       @relation(fields: [storeId], references: [id])
+  category    Category    @relation(fields: [categoryId], references: [id])
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id])
+
+  drinkPlanItems  DrinkPlanItem[]
+  courseFoodItems CourseFoodItem[]
+  orderItems      OrderItem[]
+
+  @@index([categoryId])
+  @@index([subCategoryId])
+  @@index([storeId])
+}
+
+model DrinkPlan {
+  id      Int    @id @default(autoincrement())
+  storeId Int
+  name    String
+  price   Int    @default(0)
+
+  store   Store           @relation(fields: [storeId], references: [id])
+  items   DrinkPlanItem[]
+  courses Course[]
+  groups  Group[]
+
+  @@index([storeId])
+}
+
+model DrinkPlanItem {
+  drinkPlanId Int
+  menuItemId  Int
+
+  drinkPlan DrinkPlan @relation(fields: [drinkPlanId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@id([drinkPlanId, menuItemId])
+}
+
+model Course {
+  id          Int    @id @default(autoincrement())
+  storeId     Int
+  name        String
+  price       Int
+  drinkPlanId Int?
+
+  store     Store      @relation(fields: [storeId], references: [id])
+  drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
+
+  foodItems  CourseFoodItem[]
+  groups     Group[]
+  orderItems OrderItem[]
+
+  @@index([drinkPlanId])
+  @@index([storeId])
+}
+
+model CourseFoodItem {
+  courseId   Int
+  menuItemId Int
+  qty        Int @default(1)
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@id([courseId, menuItemId])
+}
+
+model Group {
+  id          String      @id @default(uuid())
+  storeId     Int
+  name        String
+  guestCount  Int
+  status      GroupStatus @default(active)
+  sessionId   Int
+  courseId    Int?
+  drinkPlanId Int?
+  billedTaxRateInHouse Decimal? @db.Decimal(5, 2)
+  billedTaxRateTakeout Decimal? @db.Decimal(5, 2)
+  billedTaxInclusive Boolean?
+  createdAt   DateTime    @default(now())
+
+  store     Store      @relation(fields: [storeId], references: [id])
+  session   Session    @relation(fields: [sessionId], references: [id])
+  course    Course?    @relation(fields: [courseId], references: [id])
+  drinkPlan DrinkPlan? @relation(fields: [drinkPlanId], references: [id])
+
+  seats      GroupSeat[]
+  orderItems OrderItem[]
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([storeId])
+}
+
+model GroupSeat {
+  groupId String
+  seatId  Int
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  seat  Seat  @relation(fields: [seatId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, seatId])
+  @@index([seatId])
+}
+
+model OrderItem {
+  id             String          @id @default(uuid())
+  storeId        Int
+  groupId        String
+  menuItemId     Int?
+  menuItemName   String
+  price          Int
+  // MenuItem に紐づく明細（menuItemId != null）が常に持つ注文作成時点の MenuItem 単価。
+  // 飲み放題ゼロ化時の復元にも使う。定額課金明細（menuItemId == null）は null のまま。
+  originalPrice  Int?
+  qty            Int
+  status         OrderItemStatus @default(pending)
+  isTakeout      Boolean         @default(false)
+  courseId       Int?
+  // コース/飲み放題の定額課金明細かどうか。menuItemId が null になるだけでは
+  // 「削除済みメニュー」と区別できないため明示的に持たせる
+  isCourseCharge Boolean         @default(false)
+  // isCourseCharge:true の明細のうち、飲み放題の定額課金明細かどうか。
+  // コース自身の料金明細と名前が偶然一致・事後変更されても区別できるようにするため
+  isDrinkPlanCharge Boolean      @default(false)
+  orderedAt      DateTime        @default(now())
+
+  store    Store     @relation(fields: [storeId], references: [id])
+  group    Group     @relation(fields: [groupId], references: [id])
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([status])
+  @@index([orderedAt])
+  @@index([storeId])
+}
+
+model Setting {
+  id                         Int     @id @default(autoincrement())
+  storeId                    Int     @unique
+  storeName                  String
+  closingTime                String
+  taxRateInHouse             Decimal @db.Decimal(5, 2)
+  taxRateTakeout             Decimal @db.Decimal(5, 2)
+  taxInclusive               Boolean @default(false)
+  canvasCols                 Int     @default(16)
+  canvasRows                 Int     @default(12)
+  canvasColsMin              Int     @default(8)
+  canvasColsMax              Int     @default(32)
+  canvasRowsMin              Int     @default(6)
+  canvasRowsMax              Int     @default(24)
+  gridSize                   Int     @default(48)
+  gridSizeMin                Int     @default(32)
+  gridSizeMax                Int     @default(80)
+  refreshTokenAutoExtend     Boolean @default(true)
+  refreshTokenExpiresMinutes Int     @default(1440)
+
+  store Store @relation(fields: [storeId], references: [id])
+}
+
+model Staff {
+  id           String    @id @default(uuid())
+  storeId      Int
+  username     String
+  passwordHash String
+  role         StaffRole @default(staff)
+  createdAt    DateTime  @default(now())
+
+  store         Store          @relation(fields: [storeId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([storeId, username])
+  @@map("staff")
+}
+
+model RefreshToken {
+  id             String    @id @default(uuid())
+  staffId        String
+  tokenHash      String    @unique
+  parentId       String?
+  familyIssuedAt DateTime
+  issuedAt       DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  userAgent      String?
+  ipAddress      String?
+
+  staff    Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  parent   RefreshToken?  @relation("RefreshTokenChain", fields: [parentId], references: [id], onDelete: SetNull)
+  children RefreshToken[] @relation("RefreshTokenChain")
+
+  @@index([staffId])
+  @@index([parentId])
+  @@map("refresh_token")
+}

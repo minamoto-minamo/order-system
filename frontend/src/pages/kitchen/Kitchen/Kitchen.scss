@@ -1,0 +1,12 @@
+.complete-btn {
+  transition: background 0.1s ease;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-deep) !important;
+  }
+
+  &:active {
+    background: var(--color-surface-deep) !important;
+  }
+}

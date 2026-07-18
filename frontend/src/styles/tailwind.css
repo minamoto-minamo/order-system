@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Brand ── */
+  --color-brand: #0f766e;
+  --color-brand-dark: #115e59;
+  --color-brand-soft: #e6f3f1;
+  --color-brand-border: #99d5ce;
+
+  /* ── Neutral ── */
+  --color-ink: #111; /* primary text */
+  --color-secondary: #333; /* secondary labels, nav items */
+  --color-dim: #666; /* captions, icons, dimmed text */
+  --color-muted: #767676; /* muted labels (WCAG AA 4.5:1 on white) */
+  --color-faint: #aaa; /* decorative only — borders, icons, dots — not for text */
+  --color-line: #c8c8c8; /* card / input borders, outlines */
+  --color-divider: #d8d8d8; /* layout dividers */
+  --color-surface-deep: #f0f0f0; /* hover / pressed / grid bg */
+  --color-surface: #f5f5f5; /* page / section bg */
+
+  /* ── Amber: ready-to-serve / takeout ── */
+  --color-amber: #f59e0b;
+  --color-amber-bg: #fef9e8;
+  --color-amber-border: #fcd34d;
+  --color-amber-fg: #92400e;
+
+  /* ── Bill: 会計リクエスト ── */
+  --color-bill: #8b5cf6;
+  --color-bill-bg: #f5f0ff;
+  --color-bill-border: #c4b5fd;
+  --color-bill-glow: #8b5cf644;
+  --color-bill-fg: #6d28d9;
+
+  /* ── Danger: error / delete ── */
+  --color-danger: #e53935;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fca5a5;
+  --color-danger-glow: #e5393544;
+
+  /* ── Info: selection / focus ── */
+  --color-info: #4a9eff;
+  --color-info-bg: #eef4ff;
+  --color-info-border: #bfdbfe;
+  --color-info-glow: #4a9eff44;
+  --color-info-dark: #1a6fd4;
+
+  /* ── Open: 営業中 ── */
+  --color-open: #22c55e;
+  --color-open-border: #86efac;
+  --color-open-fg: #16a34a;
+
+  /* ── Course: フードカテゴリ ── */
+  --color-course: #3ec97a;
+  --color-course-bg: #f0fdf4;
+
+  /* ── Order: 注文ステータスバッジ ── */
+  --color-order-pending: #c97300;
+  --color-order-pending-bg: #ffedd5;
+  --color-order-ready: #d97706;
+  --color-order-ready-bg: #fef3c7;
+
+  /* ── Rank: ランキング表示 ── */
+  --color-gold: #b8860b;
+  --color-gold-bg: #fffbe6;
+  --color-gold-border: #f0d060;
+  --color-bronze: #a0522d;
+  --color-bronze-bg: #fdf5ec;
+  --color-bronze-border: #e8c090;
+
+  /* ── Success: 保存完了状態 ── */
+  --color-success-bg: #e8f5e9;
+  --color-success-fg: #388e3c;
+
+  /* ── Cat: キッチン画面のカテゴリローテーション色 ── */
+  --color-cat-1: #4a9eff;
+  --color-cat-1-bg: #4a9eff18;
+  --color-cat-2: #3ec97a;
+  --color-cat-2-bg: #3ec97a18;
+  --color-cat-3: #f59e0b;
+  --color-cat-3-bg: #f59e0b18;
+  --color-cat-4: #e53935;
+  --color-cat-4-bg: #e5393518;
+  --color-cat-5: #9c27b0;
+  --color-cat-5-bg: #9c27b018;
+
+  /* ── Series: レポート画面の系列色 ── */
+  --color-series-1: #4a9eff;
+  --color-series-2: #3ec97a;
+  --color-series-3: #f59e0b;
+  --color-series-4: #a78bfa;
+  --color-series-5: #f87171;
+  --color-series-6: #34d399;
+  --color-series-7: #fb923c;
+  --color-series-8: #60a5fa;
+
+  /* ── Z-index layers ── */
+  --z-index-modal: 200; /* ページ固定要素・標準モーダル */
+  --z-index-sheet: 300; /* オーバーレイ付きシート・サイドパネル */
+  --z-index-nav: 400; /* ナビゲーションドロワー（最高位） */
+  --z-index-toast: 500; /* トースト通知（常に最前面） */
+
+  /* ── Custom font sizes ── */
+  --text-nano: 0.5rem; /* 8px */
+  --text-micro: 0.5625rem; /* 9px */
+  --text-caption: 0.625rem; /* 10px */
+  --text-label: 0.6875rem; /* 11px */
+  --text-note: 0.8125rem; /* 13px */
+  --text-sub: 0.9375rem; /* 15px */
+  --text-body: 0.875rem; /* 14px — 本文・リスト項目 */
+  --text-title: 1.125rem; /* 18px — 数値・金額 */
+  --text-display: 1.5rem; /* 24px — 画面タイトル */
+}

@@ -1,0 +1,7 @@
+.rank-row {
+  transition: background 0.1s ease;
+
+  &:hover {
+    background: var(--color-surface);
+  }
+}

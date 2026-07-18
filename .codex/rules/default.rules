@@ -1,0 +1,60 @@
+# Project-local execution policy for Codex.
+# These rules apply to commands Codex asks to run outside the sandbox.
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Do not discard local work in this repository. Ask the user for an explicit recovery plan instead.",
+    match = [
+        "git reset --hard",
+        "git reset --hard HEAD~1",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "checkout", "--"],
+    decision = "forbidden",
+    justification = "Do not revert files without an explicit user request. Inspect the diff and ask before discarding changes.",
+    match = [
+        "git checkout -- frontend/src/App.tsx",
+        "git checkout -- .",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "clean"],
+    decision = "forbidden",
+    justification = "Do not delete untracked files in this repository. Report them instead.",
+    match = [
+        "git clean -fd",
+        "git clean -fdx",
+    ],
+)
+
+prefix_rule(
+    pattern = ["pnpm", "install"],
+    decision = "prompt",
+    justification = "Dependency installation can change lockfiles and may require network access.",
+    match = [
+        "pnpm install",
+        "pnpm install --frozen-lockfile",
+    ],
+)
+
+prefix_rule(
+    pattern = ["pnpm", "--filter", "backend", "db:migrate"],
+    decision = "prompt",
+    justification = "Database migrations change local schema state and should be intentional.",
+    match = [
+        "pnpm --filter backend db:migrate",
+    ],
+)
+
+prefix_rule(
+    pattern = ["pnpm", "--filter", "backend", "db:seed"],
+    decision = "prompt",
+    justification = "Seeding mutates local development data and should be intentional.",
+    match = [
+        "pnpm --filter backend db:seed",
+    ],
+)

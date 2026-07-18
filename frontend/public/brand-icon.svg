@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">宴卓オーダー</title>
+  <desc id="desc">卓と注文札を組み合わせたブランドアイコン</desc>
+  <rect width="512" height="512" rx="112" fill="#0f766e"/>
+  <circle cx="256" cy="256" r="154" fill="#e6f3f1"/>
+  <circle cx="256" cy="256" r="112" fill="#ffffff"/>
+  <path d="M171 244c0-47 38-85 85-85s85 38 85 85v18H171v-18Z" fill="#f59e0b"/>
+  <path d="M160 262h192v42c0 19-15 34-34 34H194c-19 0-34-15-34-34v-42Z" fill="#115e59"/>
+  <path d="M204 196h104" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <path d="M204 304h104" stroke="#ffffff" stroke-width="22" stroke-linecap="round"/>
+  <path d="M196 371h120" stroke="#e6f3f1" stroke-width="24" stroke-linecap="round"/>
+</svg>

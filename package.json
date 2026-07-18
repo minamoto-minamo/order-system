@@ -1,0 +1,29 @@
+{
+  "name": "order-system",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup-env.js",
+    "dev": "concurrently \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\"",
+    "build": "pnpm --filter frontend build && pnpm --filter backend build",
+    "lint": "pnpm exec biome check .",
+    "lint:fix": "pnpm exec biome check --write .",
+    "format": "pnpm exec biome format --write .",
+    "format:check": "pnpm exec biome format .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:ui:wsl": "playwright test --ui --ui-host=0.0.0.0 --ui-port=9323"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
+    "@playwright/test": "^1.61.0",
+    "@prisma/client": "^6.19.3",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^22.19.21",
+    "bcryptjs": "^3.0.3",
+    "concurrently": "^8.2.0",
+    "dotenv": "^17.4.2"
+  }
+}

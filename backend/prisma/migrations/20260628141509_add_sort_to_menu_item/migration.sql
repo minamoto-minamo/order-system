@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "MenuItem" ADD COLUMN     "sort" INTEGER NOT NULL DEFAULT 0;

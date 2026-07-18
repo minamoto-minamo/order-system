@@ -1,0 +1,25 @@
+# Node modules
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/.vite/
+
+# Environment
+**/.env
+**/.env.local
+env/*.env
+
+# Logs
+*.log
+
+# Test results
+test-results/
+
+# OS
+.DS_Store
+
+# Scratch work output (review reports, etc.)
+work/
+
+.claude/settings.local.json

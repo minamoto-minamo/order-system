@@ -1,0 +1,16 @@
+**/node_modules/
+**/dist/
+**/.vite/
+**/.env
+**/.env.local
+*.log
+.agents/
+.claude/
+.codex/
+.git/
+.vscode/
+docs/
+e2e/
+env/
+test-results/
+work/

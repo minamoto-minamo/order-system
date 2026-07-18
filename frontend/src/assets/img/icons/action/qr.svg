@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.7" stroke-linejoin="round">
+  <title>QRコード</title>
+  <rect x="3.5" y="3.5" width="6.5" height="6.5"/>
+  <rect x="14" y="3.5" width="6.5" height="6.5"/>
+  <rect x="3.5" y="14" width="6.5" height="6.5"/>
+  <g fill="#444" stroke="none">
+    <rect x="5.75" y="5.75" width="2" height="2"/>
+    <rect x="16.25" y="5.75" width="2" height="2"/>
+    <rect x="5.75" y="16.25" width="2" height="2"/>
+    <rect x="14" y="14" width="2.2" height="2.2"/>
+    <rect x="18.3" y="14" width="2.2" height="2.2"/>
+    <rect x="16.15" y="16.15" width="2.2" height="2.2"/>
+    <rect x="14" y="18.3" width="2.2" height="2.2"/>
+    <rect x="18.3" y="18.3" width="2.2" height="2.2"/>
+  </g>
+</svg>

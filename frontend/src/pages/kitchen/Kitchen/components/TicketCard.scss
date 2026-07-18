@@ -1,0 +1,9 @@
+.ticket-card {
+  transition: box-shadow 0.12s ease;
+  cursor: pointer;
+  animation: popIn 0.2s ease both;
+
+  &:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+  }
+}
