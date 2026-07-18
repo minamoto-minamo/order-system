@@ -57,7 +57,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     if (!group)
       return sendError(reply, 404, ErrorCodes.Customer.GroupNotFound, 'テーブルが見つかりません')
 
-    const [menus, categories, subCategories] = await Promise.all([
+    const [menus, categories, subCategories, drinkPlanItems] = await Promise.all([
       prisma.menuItem.findMany({
         where: { soldOut: false, storeId: request.storeId },
         orderBy: { id: 'asc' },
@@ -67,6 +67,12 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         where: { storeId: request.storeId },
         orderBy: { sort: 'asc' },
       }),
+      group.drinkPlanId
+        ? prisma.drinkPlanItem.findMany({
+            where: { drinkPlanId: group.drinkPlanId },
+            select: { menuItemId: true },
+          })
+        : Promise.resolve([]),
     ])
 
     return {
@@ -86,6 +92,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         sort: s.sort,
         categoryId: s.categoryId,
       })),
+      drinkPlanMenuItemIds: drinkPlanItems.map((item) => item.menuItemId),
     }
   })
 

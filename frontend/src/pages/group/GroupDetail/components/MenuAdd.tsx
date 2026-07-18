@@ -1,19 +1,22 @@
-import type { Category, MenuItem, SubCategory } from '@order-system/shared'
+import type { Category, DrinkPlan, MenuItem, SubCategory } from '@order-system/shared'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MenuConfirmModal, SlideUpFooter } from '@/components/composite'
-import { BaseButton, ZeroStartStepper } from '@/components/primitives'
+import { BaseButton, Icon, ZeroStartStepper } from '@/components/primitives'
 import { SubCategorySidebar } from '@/features/menu/components'
+import { SYMBOL_ICONS } from '@/lib/icons'
 
 export function MenuAdd({
   menus,
   categories,
   subCategories,
+  activeDrinkPlan,
   onAdd,
 }: {
   menus: MenuItem[]
   categories: Category[]
   subCategories: SubCategory[]
+  activeDrinkPlan: DrinkPlan | null
   onAdd: (items: { item: MenuItem; qty: number }[], isTakeout: boolean) => Promise<void>
 }) {
   const { t } = useTranslation()
@@ -112,6 +115,8 @@ export function MenuAdd({
           {filteredItems.map((item) => {
             const qty = getQty(item.id)
             const isTOOnly = item.takeout === 'takeout'
+            const isDrinkPlanTarget =
+              orderType === 'dine_in' && activeDrinkPlan?.menuItemIds.includes(item.id)
             return (
               <div
                 key={item.id}
@@ -130,8 +135,16 @@ export function MenuAdd({
                         {t('productSettings.soldOut')}
                       </span>
                     )}
+                    {isDrinkPlanTarget && (
+                      <span className="text-micro text-info bg-info-bg border border-info-border px-1.25 py-px rounded-full">
+                        <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />
+                        {t('group.drinkPlanTarget')}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-muted">¥{item.price.toLocaleString()}</div>
+                  <div className="text-xs text-muted">
+                    ¥{isDrinkPlanTarget ? '0' : item.price.toLocaleString()}
+                  </div>
                 </div>
                 <ZeroStartStepper
                   qty={qty}

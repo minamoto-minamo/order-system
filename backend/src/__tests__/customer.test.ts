@@ -5,10 +5,14 @@ import Fastify from 'fastify'
 type Group = { id: string; status: string; drinkPlanId: number | null }
 type MenuItem = { id: number; name: string; price: number; soldOut: boolean; takeout?: string }
 type DrinkPlanItem = { menuItemId: number }
+type Category = { id: number; name: string; sort: number }
+type SubCategory = { id: number; name: string; sort: number; categoryId: number }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
+const mockCategoryFindMany = jest.fn<(...args: unknown[]) => Promise<Category[]>>()
+const mockSubCategoryFindMany = jest.fn<(...args: unknown[]) => Promise<SubCategory[]>>()
 const mockSettingFindUnique =
   jest.fn<
     (...args: unknown[]) => Promise<{
@@ -26,6 +30,8 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     group: { findFirst: mockGroupFindFirst },
     menuItem: { findMany: mockMenuItemFindMany },
     drinkPlanItem: { findMany: mockDrinkPlanItemFindMany },
+    category: { findMany: mockCategoryFindMany },
+    subCategory: { findMany: mockSubCategoryFindMany },
     setting: { findUnique: mockSettingFindUnique },
     $transaction: mockTransaction,
   },
@@ -99,6 +105,63 @@ describe('GET /api/customer/groups/:id — 税率設定', () => {
     expect(res.json()).toMatchObject({
       error: { code: 'common.setting_not_found', message: '店舗設定が見つかりません' },
     })
+  })
+})
+
+describe('GET /api/customer/groups/:id/menus — 飲み放題対象商品の返却', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('drinkPlan 適用中は対象 menuItemId 一覧を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '生ビール', price: 600, soldOut: false, takeout: 'both' },
+    ])
+    mockCategoryFindMany.mockResolvedValue([{ id: 10, name: 'ドリンク', sort: 1 }])
+    mockSubCategoryFindMany.mockResolvedValue([
+      { id: 100, name: 'ビール', sort: 1, categoryId: 10 },
+    ])
+    mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }, { menuItemId: 2 }])
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/customer/groups/${GROUP_ID}/menus`,
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      drinkPlanMenuItemIds: [1, 2],
+      menus: [
+        expect.objectContaining({
+          id: 1,
+          name: '生ビール',
+        }),
+      ],
+    })
+  })
+
+  it('drinkPlan 未適用なら対象 menuItemId 一覧は空で返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([])
+    mockCategoryFindMany.mockResolvedValue([])
+    mockSubCategoryFindMany.mockResolvedValue([])
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/customer/groups/${GROUP_ID}/menus`,
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ drinkPlanMenuItemIds: [] })
+    expect(mockDrinkPlanItemFindMany).not.toHaveBeenCalled()
   })
 })
 

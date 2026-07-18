@@ -101,6 +101,7 @@ const ja = {
     courseTab: 'コース',
     courseActiveLabel: 'を適用中',
     drinkPlanActive: '有効',
+    drinkPlanTarget: '飲み放題',
     courseApplyDone: '適用済み',
     courseApply: '適用する',
     addedToastMsg: '{{name}} を追加しました',

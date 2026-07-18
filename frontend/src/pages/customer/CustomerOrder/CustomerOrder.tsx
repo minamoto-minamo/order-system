@@ -33,6 +33,7 @@ type CustomerMenusResponse = {
   menus: MenuItem[]
   categories: Category[]
   subCategories: SubCategory[]
+  drinkPlanMenuItemIds: number[]
 }
 
 export default function CustomerOrder() {
@@ -44,6 +45,7 @@ export default function CustomerOrder() {
   const [menus, setMenus] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [subCategories, setSubCategories] = useState<SubCategory[]>([])
+  const [drinkPlanMenuItemIds, setDrinkPlanMenuItemIds] = useState<number[]>([])
   const [items, setItems] = useState<OrderItem[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -70,6 +72,7 @@ export default function CustomerOrder() {
           setMenus(m.menus)
           setCategories(m.categories)
           setSubCategories(m.subCategories)
+          setDrinkPlanMenuItemIds(m.drinkPlanMenuItemIds)
           setItems(o)
         })
         .catch(() => {
@@ -169,6 +172,7 @@ export default function CustomerOrder() {
           setMenus(m.menus)
           setCategories(m.categories)
           setSubCategories(m.subCategories)
+          setDrinkPlanMenuItemIds(m.drinkPlanMenuItemIds)
         })
         setConfirmOpen(false)
       }
@@ -288,6 +292,7 @@ export default function CustomerOrder() {
           activeSubId={safeSubId}
           onSelectSub={setActiveSubId}
           items={filteredItems}
+          drinkPlanMenuItemIds={drinkPlanMenuItemIds}
           getQty={getQty}
           onQtyChange={setQty}
           footerVisible={orderItems.length > 0}
