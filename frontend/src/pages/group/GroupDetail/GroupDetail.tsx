@@ -69,6 +69,7 @@ export default function GroupDetail() {
   const [cancelTarget, setCancelTarget] = useState<OrderItem | null>(null)
   const [showBillConfirm, setShowBillConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showCourseRemoveConfirm, setShowCourseRemoveConfirm] = useState(false)
   const showToast = useToastStore((state) => state.showToast)
   const [loadError, setLoadError] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<SubmittingAction | null>(null)
@@ -192,6 +193,7 @@ export default function GroupDetail() {
       } catch {
         showToast(t('group.courseRemoveFailed'))
       }
+      setShowCourseRemoveConfirm(false)
     })
   }
 
@@ -368,6 +370,7 @@ export default function GroupDetail() {
                 menus={menus}
                 categories={categories}
                 subCategories={subCategories}
+                activeDrinkPlan={activeDrinkPlan}
                 onAdd={handleAdd}
               />
             ) : (
@@ -375,6 +378,7 @@ export default function GroupDetail() {
                 courses={courses}
                 drinkPlans={drinkPlans}
                 menus={menus}
+                categories={categories}
                 appliedCourse={appliedCourse}
                 appliedCourseQty={appliedCourseQty}
                 activeDrinkPlan={activeDrinkPlan}
@@ -383,7 +387,7 @@ export default function GroupDetail() {
                   setShowCourseConfirm(course)
                   setCourseQty(group?.guestCount ?? 1)
                 }}
-                onRemove={handleCourseRemove}
+                onRemove={() => setShowCourseRemoveConfirm(true)}
                 onChangeQty={handleCourseQtyChange}
               />
             )}
@@ -430,6 +434,18 @@ export default function GroupDetail() {
           <div className="text-xs text-danger font-medium">{t('group.checkOutConfirmDesc')}</div>
         </div>
       </ConfirmModal>
+
+      <ConfirmModal
+        show={showCourseRemoveConfirm}
+        title={t('group.courseRemoveConfirmTitle')}
+        description={t('group.courseRemoveConfirmDesc')}
+        cancelLabel={t('common.back')}
+        confirmLabel={t('group.courseRemove')}
+        variant="danger"
+        disabled={isSubmitting}
+        onConfirm={handleCourseRemove}
+        onClose={() => setShowCourseRemoveConfirm(false)}
+      />
 
       {showCourseConfirm && (
         <CourseConfirmModal
