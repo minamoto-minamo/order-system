@@ -12,9 +12,9 @@ const TRANSLATIONS: Record<string, string> = {
   'common.all': 'すべて',
   'productSettings.deleteProductConfirm': '{{name}} を削除しますか？',
   'productSettings.deleteSubCategoryConfirm':
-    '{{name}} を削除しますか？配下の商品もすべて削除されます',
+    '{{name}} を削除しますか？配下に商品がある場合は削除できません',
   'productSettings.deleteCategoryConfirm':
-    '{{name}} を削除しますか？配下の小分類・商品もすべて削除されます',
+    '{{name}} を削除しますか？配下に小分類・商品がある場合は削除できません',
 }
 
 function translate(key: string, options?: Record<string, unknown>): string {
@@ -167,7 +167,7 @@ describe('Products 削除確認フロー', () => {
     expect(container.textContent).not.toContain('生ビール')
   })
 
-  it('小分類削除：カスケード警告付きの確認ステップを経てキャンセル・確定それぞれ検証する', async () => {
+  it('小分類削除：配下制約の警告付きの確認ステップを経てキャンセル・確定それぞれ検証する', async () => {
     await act(async () => {
       findEditGearNear(container, 'ビール').click()
     })
@@ -175,7 +175,7 @@ describe('Products 削除確認フロー', () => {
       findButtonByText(container, '削除').click()
     })
 
-    expect(container.textContent).toContain('ビール を削除しますか？配下の商品もすべて削除されます')
+    expect(container.textContent).toContain('ビール を削除しますか？配下に商品がある場合は削除できません')
     expect(apiDelete).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -199,7 +199,7 @@ describe('Products 削除確認フロー', () => {
     expect(container.textContent).not.toContain('生ビール')
   })
 
-  it('カテゴリ削除：カスケード警告付きの確認ステップを経てキャンセル・確定それぞれ検証する', async () => {
+  it('カテゴリ削除：配下制約の警告付きの確認ステップを経てキャンセル・確定それぞれ検証する', async () => {
     await act(async () => {
       findEditGearNear(container, 'ドリンク').click()
     })
@@ -208,7 +208,7 @@ describe('Products 削除確認フロー', () => {
     })
 
     expect(container.textContent).toContain(
-      'ドリンク を削除しますか？配下の小分類・商品もすべて削除されます',
+      'ドリンク を削除しますか？配下に小分類・商品がある場合は削除できません',
     )
     expect(apiDelete).not.toHaveBeenCalled()
 

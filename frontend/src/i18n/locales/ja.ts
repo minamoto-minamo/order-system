@@ -290,8 +290,8 @@ const ja = {
     addSubCategoryTitle: '小分類を追加',
     editSubCategoryTitle: '小分類を編集',
     deleteProductConfirm: '{{name}} を削除しますか？',
-    deleteSubCategoryConfirm: '{{name}} を削除しますか？配下の商品もすべて削除されます',
-    deleteCategoryConfirm: '{{name}} を削除しますか？配下の小分類・商品もすべて削除されます',
+    deleteSubCategoryConfirm: '{{name}} を削除しますか？配下に商品がある場合は削除できません',
+    deleteCategoryConfirm: '{{name}} を削除しますか？配下に小分類・商品がある場合は削除できません',
   },
   report: {
     sessionLabel: '営業セッション',
