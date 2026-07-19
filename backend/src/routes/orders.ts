@@ -127,6 +127,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     if (body.courseId != null) {
       const course = await prisma.course.findFirst({
         where: { id: body.courseId, storeId: request.storeId },
+        include: { foodItems: true },
       })
       if (!course)
         return sendError(
@@ -136,6 +137,26 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           `course ${body.courseId} が見つかりません`,
           { courseId: body.courseId },
         )
+
+      // コース由来の自動生成明細と衝突する追加注文を禁止する。PUT /:id/course の人数変更再計算が
+      // courseId 一致 + menuItemId 一致で明細を拾うため、ここを通すと手動明細が誤って巻き込まれる
+      const courseFoodItemMenuItemIds = new Set(course.foodItems.map((fi) => fi.menuItemId))
+      const conflictingMenuItemIds = [
+        ...new Set(
+          body.items
+            .filter((i) => courseFoodItemMenuItemIds.has(i.menuItemId))
+            .map((i) => i.menuItemId),
+        ),
+      ]
+      if (conflictingMenuItemIds.length > 0) {
+        return sendError(
+          reply,
+          422,
+          ErrorCodes.Orders.CourseFoodItemConflict,
+          'コース内商品と同じメニューは courseId 付きで追加注文できません',
+          { courseId: body.courseId, conflictingMenuItemIds },
+        )
+      }
     }
 
     let created: CreateOrderResult

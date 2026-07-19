@@ -14,7 +14,10 @@ type Setting = {
 }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
-const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
+const mockCourseFindFirst =
+  jest.fn<
+    (...args: unknown[]) => Promise<{ id: number; foodItems?: { menuItemId: number }[] } | null>
+  >()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
 const mockSettingFindUnique = jest.fn<(...args: unknown[]) => Promise<Setting | null>>()
@@ -329,7 +332,7 @@ describe('POST /api/orders — courseId 検証', () => {
       drinkPlanId: null,
       courseId: 10,
     })
-    mockCourseFindFirst.mockResolvedValue({ id: 10 })
+    mockCourseFindFirst.mockResolvedValue({ id: 10, foodItems: [] })
     mockMenuItemFindMany.mockResolvedValue([
       { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
     ])
@@ -375,7 +378,7 @@ describe('POST /api/orders — courseId 検証', () => {
       drinkPlanId: null,
       courseId: 10,
     })
-    mockCourseFindFirst.mockResolvedValue({ id: 20 })
+    mockCourseFindFirst.mockResolvedValue({ id: 20, foodItems: [] })
     mockMenuItemFindMany.mockResolvedValue([
       { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
     ])
@@ -464,6 +467,122 @@ describe('POST /api/orders — courseId 検証', () => {
         message: '注文対象のメニューが削除されたため、注文を作成できません',
       },
     })
+  })
+
+  it('コース内商品と同一メニューを courseId 付きで追加注文すると 422 で拒否され、明細が作成されない', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: 10,
+    })
+    mockCourseFindFirst.mockResolvedValue({
+      id: 10,
+      foodItems: [{ menuItemId: 1 }],
+    })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
+    ])
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, courseId: 10, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'orders.create.course_food_item_conflict',
+        details: { courseId: 10, conflictingMenuItemIds: [1] },
+      },
+    })
+    expect(mockTransaction).not.toHaveBeenCalled()
+  })
+
+  it('courseId を指定しない追加注文は、コース内商品と同一メニューでも従来通り成功する', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: 10,
+    })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({
+      id: 'item-1',
+      groupId: GROUP_ID,
+      menuItemId: 1,
+      menuItemName: '枝豆',
+      price: 300,
+      originalPrice: 300,
+      qty: 2,
+      status: 'pending',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: null,
+      orderedAt: new Date(),
+    })
+    mockTx(mockCreate, { courseId: 10 })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 2 }] },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCourseFindFirst).not.toHaveBeenCalled()
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ price: 300, qty: 2, courseId: null }),
+      }),
+    )
+  })
+
+  it('courseId 付きでもコース外商品の追加注文は従来通り成功する', async () => {
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: 10,
+    })
+    mockCourseFindFirst.mockResolvedValue({
+      id: 10,
+      foodItems: [{ menuItemId: 99 }],
+    })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '枝豆', price: 300, soldOut: false, takeout: 'both' },
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({
+      id: 'item-1',
+      groupId: GROUP_ID,
+      menuItemId: 1,
+      menuItemName: '枝豆',
+      price: 300,
+      originalPrice: 300,
+      qty: 1,
+      status: 'pending',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: 10,
+      orderedAt: new Date(),
+    })
+    mockTx(mockCreate, { courseId: 10 })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, courseId: 10, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+
+    expect(res.statusCode).toBe(201)
   })
 })
 
