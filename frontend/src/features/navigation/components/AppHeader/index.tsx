@@ -50,7 +50,7 @@ export function AppHeader({ title, sub, breadcrumb, right, titleTruncate = true 
         {right && <div className="flex items-center gap-2 shrink-0">{right}</div>}
         <div className="relative shrink-0">
           <IconButton
-            className="w-8 h-8 flex flex-col justify-center items-center gap-1.25 bg-transparent rounded-md"
+            className="min-w-11 min-h-11 flex flex-col justify-center items-center gap-1.25 bg-transparent rounded-md"
             onClick={() => setShowNav(true)}
             aria-label={t('nav.openMenu')}
           >

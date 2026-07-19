@@ -312,14 +312,14 @@ export default function GroupDetail() {
           group?.status === 'active' ? (
             <div className="flex items-center gap-2">
               <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-dim"
                 onClick={() => setShowQr(true)}
                 aria-label={t('group.showQr')}
               >
                 <Icon src={ACTION_ICONS.qr} />
               </IconButton>
               <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-dim"
                 onClick={() => setShowSeatModal(true)}
                 aria-label={t('group.changeSeat')}
               >

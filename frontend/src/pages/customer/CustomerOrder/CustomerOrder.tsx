@@ -248,7 +248,7 @@ export default function CustomerOrder() {
         <div className="text-sub font-medium text-ink">{group.name}</div>
         <div className="flex items-center gap-1">
           <IconButton
-            className="w-8 h-8 flex items-center justify-center rounded-md text-dim text-base"
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-dim text-base"
             onClick={() => setConfirmCall(true)}
             aria-label={t('customerOrder.callStaff')}
           >
@@ -256,7 +256,7 @@ export default function CustomerOrder() {
           </IconButton>
           {orderable && (
             <IconButton
-              className="w-8 h-8 flex items-center justify-center rounded-md text-base text-dim"
+              className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-base text-dim"
               onClick={() => setConfirmBill(true)}
               aria-label={t('customerOrder.requestBill')}
             >
