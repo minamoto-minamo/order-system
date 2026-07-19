@@ -222,17 +222,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         where: { drinkPlanId: group.drinkPlanId },
         select: { menuItemId: true },
       })
-      const allowedPlanMenuItemIds = new Set(planItems.map((p) => p.menuItemId))
-      planMenuItemIds = allowedPlanMenuItemIds
-      const outOfPlan = body.items.filter((i) => !planMenuItemIds!.has(i.menuItemId))
-      if (outOfPlan.length > 0) {
-        return sendError(
-          reply,
-          422,
-          ErrorCodes.Customer.DrinkPlanMismatch,
-          'ドリンクプランに含まれていない商品が選択されています',
-        )
-      }
+      planMenuItemIds = new Set(planItems.map((p) => p.menuItemId))
     }
 
     let txResult: Awaited<ReturnType<typeof prisma.orderItem.create>>[] | null
