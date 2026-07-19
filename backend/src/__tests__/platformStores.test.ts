@@ -52,8 +52,15 @@ const { default: platformStoresRoutes } = await import('../routes/platformStores
 const SECRET = 'test-secret'
 const STORE_ID = 42
 
-async function buildTestApp() {
+function buildMockIo() {
+  const disconnectSockets = jest.fn()
+  const inFn = jest.fn((_room: string) => ({ disconnectSockets }))
+  return { inFn, disconnectSockets }
+}
+
+async function buildTestApp(io = buildMockIo()) {
   const app = Fastify({ logger: false })
+  app.decorate('io', { in: io.inFn } as never)
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET })
   await app.register(platformStoresRoutes, { prefix: '/api/platform/stores' })
@@ -63,9 +70,10 @@ async function buildTestApp() {
 
 describe('DELETE /api/platform/stores/:id', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
 
   beforeAll(async () => {
-    app = await buildTestApp()
+    app = await buildTestApp(io)
   })
 
   afterAll(async () => {
@@ -150,6 +158,8 @@ describe('DELETE /api/platform/stores/:id', () => {
     expect(mockStaffDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockSettingDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockStoreDelete).toHaveBeenCalledWith({ where: { id: STORE_ID } })
+    expect(io.inFn).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
   })
 
   it('削除トランザクションが失敗すると isActive を true へ戻してログを出す', async () => {
@@ -179,5 +189,95 @@ describe('DELETE /api/platform/stores/:id', () => {
     )
 
     logError.mockRestore()
+  })
+})
+
+describe('PUT /api/platform/stores/:id', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
+
+  beforeAll(async () => {
+    app = await buildTestApp(io)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function platformCookie() {
+    const token = app.jwt.sign({
+      type: 'platform' as const,
+      adminId: 'admin-1',
+      username: 'platform-admin',
+    })
+    return `platform_token=${token}`
+  }
+
+  it('isActive: false への更新で対象店舗の Socket 接続を切断する', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'test',
+      isActive: false,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { isActive: false },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+  })
+
+  it('isActive: true への更新（再有効化）では切断しない', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: false })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'test',
+      isActive: true,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { isActive: true },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
+  })
+
+  it('isActive を含まない更新（既存値が true）では切断しない', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'new-name',
+      isActive: true,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { name: 'new-name' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
   })
 })

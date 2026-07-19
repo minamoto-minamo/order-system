@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import type { FastifyPluginAsync } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import { requirePlatformAdmin } from '../plugins/auth.js'
@@ -37,6 +37,12 @@ const updateBodySchema = {
 
 // passwordHash 等の内部情報を含めないための明示的な select
 const select = { id: true, subdomain: true, name: true, isActive: true, createdAt: true }
+
+// 店舗無効化直後、旧スタッフ端末がアクセストークン失効まで操作を継続できてしまわないよう、
+// 既存の Socket.io 接続を強制切断する（auth.ts/staff.ts と同じ disconnectSockets パターン）
+function deactivateStoreSockets(fastify: FastifyInstance, storeId: number) {
+  fastify.io.in(`store:${storeId}`).disconnectSockets(true)
+}
 
 const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', requirePlatformAdmin)
@@ -100,6 +106,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     if (!existing)
       return sendError(reply, 404, ErrorCodes.PlatformStores.NotFound, '店舗が見つかりません')
     const store = await prisma.store.update({ where: { id: Number(id) }, data: body, select })
+    if (store.isActive === false) deactivateStoreSockets(fastify, store.id)
     return store
   })
 
@@ -114,6 +121,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     // resolveStoreContext は isActive: false の店舗を unknown 扱いにするため、
     // 以降のリクエストは Host 解決の時点で 404 になる。
     await prisma.store.update({ where: { id: storeId }, data: { isActive: false } })
+    deactivateStoreSockets(fastify, storeId)
 
     try {
       // FK 依存の逆順で削除する（GroupSeat/CourseFoodItem/DrinkPlanItem/RefreshToken は onDelete: Cascade で自動削除される）
