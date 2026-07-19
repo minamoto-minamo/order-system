@@ -25,6 +25,9 @@ declare module 'socket.io' {
   }
 }
 
+// 原因（ステータス不一致／グループ・セッション会計済み／対象明細が存在しない）によらず単一の汎用メッセージで通知する
+const ORDER_STATUS_REJECTED_MESSAGE = '操作を反映できませんでした。画面を更新してください'
+
 const socketPlugin: FastifyPluginAsync = async (fastify) => {
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(fastify.server, {
     // cors.ts と同じ delegator パターン: ハンドシェイクリクエストの Host ヘッダーを origin 判定に渡す
@@ -163,9 +166,21 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           include: { group: { include: { session: true } } },
         })
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
-        if (order?.status !== 'pending') return
+        if (order?.status !== 'pending') {
+          socket.emit(
+            'error',
+            errorBody(ErrorCodes.Socket.OrderCompleteRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
+          )
+          return
+        }
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
-        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
+        if (order.group.status === 'closed' || order.group.session.status === 'closed') {
+          socket.emit(
+            'error',
+            errorBody(ErrorCodes.Socket.OrderCompleteRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
+          )
+          return
+        }
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'ready' },
@@ -190,9 +205,21 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           include: { group: { include: { session: true } } },
         })
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける
-        if (order?.status !== 'ready') return
+        if (order?.status !== 'ready') {
+          socket.emit(
+            'error',
+            errorBody(ErrorCodes.Socket.OrderServeRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
+          )
+          return
+        }
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
-        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
+        if (order.group.status === 'closed' || order.group.session.status === 'closed') {
+          socket.emit(
+            'error',
+            errorBody(ErrorCodes.Socket.OrderServeRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
+          )
+          return
+        }
         const updated = await prisma.orderItem.update({
           where: { id: itemId },
           data: { status: 'served' },

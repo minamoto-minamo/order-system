@@ -124,6 +124,8 @@ export const ErrorCodes = {
   Socket: {
     OrderCompleteFailed: 'socket.order.complete_failed',
     OrderServeFailed: 'socket.order.serve_failed',
+    OrderCompleteRejected: 'socket.order.complete_rejected',
+    OrderServeRejected: 'socket.order.serve_rejected',
   },
 } as const
 
