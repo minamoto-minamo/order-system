@@ -200,7 +200,10 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         })
 
         if (body.soldOut !== undefined && body.soldOut !== current.soldOut) {
-          fastify.io.to(`store:${request.storeId}`).emit('menu:soldout', item.id, item.soldOut)
+          fastify.io
+            .to(`store:${request.storeId}`)
+            .to(`customer-store:${request.storeId}`)
+            .emit('menu:soldout', item.id, item.soldOut)
         }
         fastify.io.to(`store:${request.storeId}`).emit('menu:updated', item)
 

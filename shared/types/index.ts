@@ -138,6 +138,12 @@ export interface ServerToClientEvents {
   'menu:created': (item: MenuItem) => void
   'menu:updated': (item: MenuItem) => void
   'menu:deleted': (menuItemId: number) => void
+  'category:created': (category: Category) => void
+  'category:updated': (category: Category) => void
+  'category:deleted': (categoryId: number) => void
+  'subCategory:created': (subCategory: SubCategory) => void
+  'subCategory:updated': (subCategory: SubCategory) => void
+  'subCategory:deleted': (subCategoryId: number) => void
   'course:created': (course: Course) => void
   'course:updated': (course: Course) => void
   'course:deleted': (courseId: number) => void

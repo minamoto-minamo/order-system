@@ -119,6 +119,8 @@ export default function CustomerOrder() {
           effectiveTaxInclusive: g.effectiveTaxInclusive,
         })
     },
+    [SE.menuSoldout]: (menuItemId: number, soldOut: boolean) =>
+      setMenus((prev) => prev.map((m) => (m.id === menuItemId ? { ...m, soldOut } : m))),
   })
 
   const dineInMenus = menus.filter((m) => m.takeout === 'dine_in' || m.takeout === 'both')

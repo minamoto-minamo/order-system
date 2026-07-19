@@ -142,6 +142,7 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
         })
         if (!group) return
         socket.join(`group:${groupId}`)
+        socket.join(`customer-store:${socket.data.storeId}`)
       } catch (e) {
         fastify.log.error({ err: e, groupId }, 'group:join error')
       }
