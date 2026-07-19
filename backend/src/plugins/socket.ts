@@ -152,16 +152,21 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       try {
         const order = await prisma.orderItem.findFirst({
           where: { id: itemId, storeId: socket.data.storeId },
-          include: { group: { include: { session: true } } },
         })
+        if (!order) return
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
-        if (order?.status !== 'pending') return
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
-        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
-        const updated = await prisma.orderItem.update({
-          where: { id: itemId },
+        const { count } = await prisma.orderItem.updateMany({
+          where: {
+            id: itemId,
+            storeId: socket.data.storeId,
+            status: 'pending',
+            group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+          },
           data: { status: 'ready' },
         })
+        if (count !== 1) return
+        const updated = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } })
         io.to(`store:${socket.data.storeId}`)
           .to(`group:${updated.groupId}`)
           .emit('order:updated', toOrderItem(updated))
@@ -179,16 +184,21 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       try {
         const order = await prisma.orderItem.findFirst({
           where: { id: itemId, storeId: socket.data.storeId },
-          include: { group: { include: { session: true } } },
         })
+        if (!order) return
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける
-        if (order?.status !== 'ready') return
         // 会計済み（closed）のグループ・セッションの注文は状態を変更させない
-        if (order.group.status === 'closed' || order.group.session.status === 'closed') return
-        const updated = await prisma.orderItem.update({
-          where: { id: itemId },
+        const { count } = await prisma.orderItem.updateMany({
+          where: {
+            id: itemId,
+            storeId: socket.data.storeId,
+            status: 'ready',
+            group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+          },
           data: { status: 'served' },
         })
+        if (count !== 1) return
+        const updated = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } })
         io.to(`store:${socket.data.storeId}`)
           .to(`group:${updated.groupId}`)
           .emit('order:updated', toOrderItem(updated))

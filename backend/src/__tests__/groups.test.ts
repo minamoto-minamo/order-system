@@ -445,6 +445,77 @@ describe('PUT /api/groups/:id — グループ更新（席変更）', () => {
     expect(res.json()).toMatchObject({ id: GROUP_ID })
   })
 
+  it('active から bill_requested への遷移時、未提供（pending/ready）の注文明細が残っている場合 409 を返す', async () => {
+    const mockTxGroupUpdate = jest.fn()
+    const mockTxOrderItemCount = jest
+      .fn<(args: unknown) => Promise<number>>()
+      .mockResolvedValue(3)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: {
+          findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
+          update: mockTxGroupUpdate,
+        },
+        orderItem: { count: mockTxOrderItemCount },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'bill_requested' },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'groups.update.unserved_items_exist',
+        message: '未提供の注文が残っているため会計を依頼できません',
+        details: { count: 3 },
+      },
+    })
+    expect(mockTxOrderItemCount).toHaveBeenCalledWith({
+      where: { groupId: GROUP_ID, status: { in: ['pending', 'ready'] } },
+    })
+    expect(mockTxGroupUpdate).not.toHaveBeenCalled()
+  })
+
+  it('active から bill_requested への遷移時、未提供の注文明細がなければ成功する', async () => {
+    const updatedGroup: Group = {
+      id: GROUP_ID,
+      name: 'テスト',
+      guestCount: 2,
+      status: 'bill_requested',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      ...groupTax,
+      createdAt: new Date(),
+      seats: [],
+    }
+    const mockTxOrderItemCount = jest.fn<() => Promise<number>>().mockResolvedValue(0)
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: {
+          findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
+          update: () => Promise.resolve(updatedGroup),
+        },
+        orderItem: { count: mockTxOrderItemCount },
+        groupSeat: { findFirst: mockGroupSeatFindFirst },
+      }
+      return cb(tx)
+    })
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/groups/${GROUP_ID}`,
+      headers: { cookie: `token=${token(app)}` },
+      payload: { status: 'bill_requested' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ id: GROUP_ID, status: 'bill_requested' })
+  })
+
   it('bill_requested から closed へ遷移すると現在の税率を Group にスナップショットする', async () => {
     const billedSetting = {
       taxRateInHouse: { toNumber: () => 12 },

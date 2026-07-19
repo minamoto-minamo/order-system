@@ -43,6 +43,7 @@ export const ErrorCodes = {
     CourseNotApplied: 'groups.course.not_applied',
     CourseRemovalNotAllowed: 'groups.course.remove_not_allowed',
     CourseConflict: 'groups.course.conflict',
+    UnservedItemsExist: 'groups.update.unserved_items_exist',
   },
   Orders: {
     InvalidStatus: 'orders.list.invalid_status',
@@ -118,6 +119,7 @@ export const ErrorCodes = {
     TakeoutOnly: 'customer.orders.takeout_only',
     DrinkPlanMismatch: 'customer.orders.drink_plan_mismatch',
     Conflict: 'customer.orders.conflict',
+    UnservedItemsExist: 'customer.bill.unserved_items_exist',
   },
   Socket: {
     OrderCompleteFailed: 'socket.order.complete_failed',
