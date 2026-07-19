@@ -56,7 +56,12 @@ export function CreateGroupSheet({
         <div className="text-xs text-muted mb-5">{groupName}</div>
         <div className="mb-6">
           <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-          <QuantityPicker value={guestCount} onChange={onGuestCountChange} min={1} unit="名" />
+          <QuantityPicker
+            value={guestCount}
+            onChange={onGuestCountChange}
+            min={1}
+            unit={t('common.personUnit')}
+          />
         </div>
       </BottomSheetModal>
     </>

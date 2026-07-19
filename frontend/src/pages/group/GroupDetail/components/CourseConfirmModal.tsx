@@ -37,7 +37,12 @@ export function CourseConfirmModal({
       </div>
       <div className="mb-4">
         <div className="text-xs text-dim mb-2.5">{t('hall.guestCount')}</div>
-        <QuantityPicker value={courseQty} onChange={setCourseQty} min={1} unit="名" />
+        <QuantityPicker
+          value={courseQty}
+          onChange={setCourseQty}
+          min={1}
+          unit={t('common.personUnit')}
+        />
       </div>
       {course.drinkPlanId &&
         (() => {

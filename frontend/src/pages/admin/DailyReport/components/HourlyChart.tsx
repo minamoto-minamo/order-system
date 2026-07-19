@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { HourlyEntry } from './types'
 import { PALETTE } from './types'
 
@@ -10,6 +11,7 @@ export function HourlyChart({
   catNames: string[]
   catColorMap: Record<string, string>
 }) {
+  const { t } = useTranslation()
   const maxVal = Math.max(...hourly.map((h) => catNames.reduce((s, c) => s + (h[c] ?? 0), 0)), 1)
   const BAR_H = 120
 
@@ -43,7 +45,9 @@ export function HourlyChart({
                   />
                 ))}
               </div>
-              <div className="text-caption text-muted">{h.hour}時</div>
+              <div className="text-caption text-muted">
+                {t('report.hourLabel', { hour: h.hour })}
+              </div>
             </div>
           )
         })}

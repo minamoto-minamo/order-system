@@ -14,6 +14,7 @@ const ja = {
     all: 'すべて',
     readyToServe: '提供待ち',
     perPerson: '/ 人',
+    personUnit: '名',
     unknownGroup: 'グループ{{id}}',
     unknownItem: '商品{{id}}',
     unknownCategory: 'カテゴリ{{id}}',
@@ -314,6 +315,8 @@ const ja = {
     perGuest: '/ 人',
     hourlySales: '時間帯別売上',
     pieChartTitle: '日次売上構成比の円グラフ',
+    hourLabel: '{{hour}}時',
+    countUnit: '{{qty}}件',
   },
   login: {
     title: 'ログイン',
