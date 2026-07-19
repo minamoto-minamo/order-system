@@ -19,6 +19,7 @@ export const ErrorCodes = {
     NotFound: 'platform_stores.detail.not_found',
     ReservedSubdomain: 'platform_stores.save.reserved_subdomain',
     DuplicateSubdomain: 'platform_stores.save.duplicate_subdomain',
+    ActiveDataExists: 'platform_stores.delete.active_data_exists',
   },
   Sessions: {
     AlreadyOpen: 'sessions.create.already_open',
