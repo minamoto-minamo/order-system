@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next'
 
 const STATUS = {
   pending: {
-    cls: 'text-order-pending bg-order-pending-bg border-order-pending/60',
+    cls: 'text-order-pending-fg bg-order-pending-bg border-order-pending/60',
     labelKey: 'kitchen.pending',
   },
   ready: {
-    cls: 'text-order-ready   bg-order-ready-bg   border-order-ready/60',
+    cls: 'text-order-ready-fg   bg-order-ready-bg   border-order-ready/60',
     labelKey: 'common.readyToServe',
   },
   served: {

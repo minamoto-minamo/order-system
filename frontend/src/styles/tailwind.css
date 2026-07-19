@@ -56,8 +56,10 @@
   /* ── Order: 注文ステータスバッジ ── */
   --color-order-pending: #c97300;
   --color-order-pending-bg: #ffedd5;
+  --color-order-pending-fg: #8c5000;
   --color-order-ready: #d97706;
   --color-order-ready-bg: #fef3c7;
+  --color-order-ready-fg: #8c4d04;
 
   /* ── Rank: ランキング表示 ── */
   --color-gold: #b8860b;

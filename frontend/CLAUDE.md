@@ -142,7 +142,7 @@ src/
 | open     | `open` / `-border` / `-fg`                                | 営業中                 |
 | course   | `course` / `-bg`                                          | フードカテゴリ         |
 | success  | `success-bg` / `success-fg`                               | 保存完了               |
-| order    | `order-pending` / `-bg` / `order-ready` / `-bg`           | 注文ステータスバッジ   |
+| order    | `order-pending` / `-bg` / `-fg` / `order-ready` / `-bg` / `-fg` | 注文ステータスバッジ   |
 | rank     | `gold` / `-bg` / `-border` / `bronze` / `-bg` / `-border` | ランキング表示         |
 
 フォントサイズ: `text-nano`(8px) / `text-micro`(9px) / `text-caption`(10px) / `text-label`(11px) / `text-note`(13px) / `text-sub`(15px)
