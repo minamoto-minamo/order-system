@@ -9,6 +9,7 @@ type Category = { id: number; name: string; sort: number }
 type SubCategory = { id: number; name: string; sort: number; categoryId: number }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
+const mockGroupFindUniqueOrThrow = jest.fn<(...args: unknown[]) => Promise<Group>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
 const mockCategoryFindMany = jest.fn<(...args: unknown[]) => Promise<Category[]>>()
@@ -27,7 +28,10 @@ const mockTransaction =
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    group: { findFirst: mockGroupFindFirst },
+    group: {
+      findFirst: mockGroupFindFirst,
+      findUniqueOrThrow: mockGroupFindUniqueOrThrow,
+    },
     menuItem: { findMany: mockMenuItemFindMany },
     drinkPlanItem: { findMany: mockDrinkPlanItemFindMany },
     category: { findMany: mockCategoryFindMany },
@@ -104,6 +108,119 @@ describe('GET /api/customer/groups/:id — 税率設定', () => {
     expect(res.statusCode).toBe(500)
     expect(res.json()).toMatchObject({
       error: { code: 'common.setting_not_found', message: '店舗設定が見つかりません' },
+    })
+  })
+})
+
+describe('POST /api/customer/groups/:id/bill — 会計依頼', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('トランザクション内再検証で active でなくなっていた場合、状態を書き換えず 400/BillRequestNotAllowed を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const mockTxGroupUpdate = jest.fn()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve(null), update: mockTxGroupUpdate },
+        orderItem: { count: jest.fn() },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      error: { code: 'customer.bill.not_allowed', message: '会計を依頼できない状態です' },
+    })
+    expect(mockTxGroupUpdate).not.toHaveBeenCalled()
+    expect(mockGroupFindUniqueOrThrow).not.toHaveBeenCalled()
+  })
+
+  it('active だが未提供（pending/ready）の注文明細が残っている場合、状態を書き換えず 409/UnservedItemsExist を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const mockTxGroupUpdate = jest.fn()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockTxGroupUpdate },
+        orderItem: { count: () => Promise.resolve(2) },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'customer.bill.unserved_items_exist',
+        message: '未提供の注文が残っているため会計を依頼できません',
+        details: { count: 2 },
+      },
+    })
+    expect(mockTxGroupUpdate).not.toHaveBeenCalled()
+    expect(mockGroupFindUniqueOrThrow).not.toHaveBeenCalled()
+  })
+
+  it('active かつ未提供 0 件の場合は 204 を返し bill_requested に更新して group:updated を emit する', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: false,
+    })
+    const mockTxGroupUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockTxGroupUpdate },
+        orderItem: { count: () => Promise.resolve(0) },
+      }
+      return cb(tx)
+    })
+    mockGroupFindUniqueOrThrow.mockResolvedValue({
+      id: GROUP_ID,
+      name: 'A-1',
+      guestCount: 2,
+      status: 'bill_requested',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      billedTaxRateInHouse: null,
+      billedTaxRateTakeout: null,
+      billedTaxInclusive: null,
+      createdAt: new Date(),
+      seats: [],
+    } as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(204)
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith({
+      where: { id: GROUP_ID },
+      data: { status: 'bill_requested' },
+    })
+    expect(mockGroupFindUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: GROUP_ID },
+      include: { seats: true },
     })
   })
 })

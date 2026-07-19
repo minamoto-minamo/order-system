@@ -8,6 +8,13 @@ import { getTaxSettingOrThrow, SettingNotFoundError } from '../lib/taxSetting.js
 
 type TaxSetting = Awaited<ReturnType<typeof getTaxSettingOrThrow>>
 
+class BillRequestNotAllowedError extends Error {}
+class UnservedItemsExistError extends Error {
+  constructor(public count: number) {
+    super()
+  }
+}
+
 const createOrderBodySchema = {
   type: 'object',
   required: ['groupId', 'items'],
@@ -113,13 +120,6 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const group = await prisma.group.findFirst({ where: { id, storeId: request.storeId } })
     if (!group)
       return sendError(reply, 404, ErrorCodes.Customer.GroupNotFound, 'テーブルが見つかりません')
-    if (group.status !== 'active')
-      return sendError(
-        reply,
-        400,
-        ErrorCodes.Customer.BillRequestNotAllowed,
-        '会計を依頼できない状態です',
-      )
     let setting: TaxSetting
     try {
       setting = await getTaxSettingOrThrow(request.storeId)
@@ -128,9 +128,41 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         return sendError(reply, 500, ErrorCodes.Common.SettingNotFound, '店舗設定が見つかりません')
       throw e
     }
-    const updated = await prisma.group.update({
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const current = await tx.group.findFirst({
+            where: { id, storeId: request.storeId, status: 'active' },
+          })
+          if (!current) throw new BillRequestNotAllowedError()
+          const unservedCount = await tx.orderItem.count({
+            where: { groupId: id, status: { in: ['pending', 'ready'] } },
+          })
+          if (unservedCount > 0) throw new UnservedItemsExistError(unservedCount)
+          await tx.group.update({ where: { id }, data: { status: 'bill_requested' } })
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+    } catch (e) {
+      if (e instanceof BillRequestNotAllowedError)
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Customer.BillRequestNotAllowed,
+          '会計を依頼できない状態です',
+        )
+      if (e instanceof UnservedItemsExistError)
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Customer.UnservedItemsExist,
+          '未提供の注文が残っているため会計を依頼できません',
+          { count: e.count },
+        )
+      throw e
+    }
+    const updated = await prisma.group.findUniqueOrThrow({
       where: { id },
-      data: { status: 'bill_requested' },
       include: { seats: true },
     })
     fastify.io

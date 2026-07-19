@@ -165,8 +165,9 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId, storeId: socket.data.storeId },
           include: { group: { include: { session: true } } },
         })
+        if (!order) return
         // ready/served になった注文を誤って戻さないよう pending のみ受け付ける
-        if (order?.status !== 'pending') {
+        if (order.status !== 'pending') {
           socket.emit(
             'error',
             errorBody(ErrorCodes.Socket.OrderCompleteRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
@@ -181,10 +182,19 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           )
           return
         }
-        const updated = await prisma.orderItem.update({
-          where: { id: itemId },
+        // レース対策: 事前チェック後に他リクエストが割り込んでいた場合に備えCASで再検証する。
+        // ここで条件を満たさない場合はレースに負けただけなのでサイレントno-opとする
+        const { count } = await prisma.orderItem.updateMany({
+          where: {
+            id: itemId,
+            storeId: socket.data.storeId,
+            status: 'pending',
+            group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+          },
           data: { status: 'ready' },
         })
+        if (count !== 1) return
+        const updated = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } })
         io.to(`store:${socket.data.storeId}`)
           .to(`group:${updated.groupId}`)
           .emit('order:updated', toOrderItem(updated))
@@ -204,8 +214,9 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           where: { id: itemId, storeId: socket.data.storeId },
           include: { group: { include: { session: true } } },
         })
+        if (!order) return
         // pending や served 状態への誤操作を防ぐため ready のみ受け付ける
-        if (order?.status !== 'ready') {
+        if (order.status !== 'ready') {
           socket.emit(
             'error',
             errorBody(ErrorCodes.Socket.OrderServeRejected, ORDER_STATUS_REJECTED_MESSAGE).error,
@@ -220,10 +231,19 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
           )
           return
         }
-        const updated = await prisma.orderItem.update({
-          where: { id: itemId },
+        // レース対策: 事前チェック後に他リクエストが割り込んでいた場合に備えCASで再検証する。
+        // ここで条件を満たさない場合はレースに負けただけなのでサイレントno-opとする
+        const { count } = await prisma.orderItem.updateMany({
+          where: {
+            id: itemId,
+            storeId: socket.data.storeId,
+            status: 'ready',
+            group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+          },
           data: { status: 'served' },
         })
+        if (count !== 1) return
+        const updated = await prisma.orderItem.findUniqueOrThrow({ where: { id: itemId } })
         io.to(`store:${socket.data.storeId}`)
           .to(`group:${updated.groupId}`)
           .emit('order:updated', toOrderItem(updated))
