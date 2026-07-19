@@ -30,7 +30,7 @@ import subcategoriesRoutes from './routes/subcategories.js'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export async function buildApp() {
-  const app = Fastify({ logger: true })
+  const app = Fastify({ logger: true, trustProxy: true })
 
   // 登録順: cors → store → socket → auth の順を守る
   // store は Host から storeId を解決し以降のフックに供給するため socket/auth より前、

@@ -27,7 +27,14 @@ declare module 'socket.io' {
 
 const socketPlugin: FastifyPluginAsync = async (fastify) => {
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(fastify.server, {
-    cors: { origin: corsOriginValidator, credentials: true },
+    // cors.ts と同じ delegator パターン: ハンドシェイクリクエストの Host ヘッダーを origin 判定に渡す
+    cors: (req, callback) => {
+      callback(null, {
+        origin: (origin, originCallback) =>
+          corsOriginValidator(origin, req.headers.host, originCallback),
+        credentials: true,
+      })
+    },
   })
   fastify.decorate('io', io)
 
