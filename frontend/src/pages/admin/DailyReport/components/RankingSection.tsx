@@ -130,7 +130,9 @@ export function RankingSection({
                     </span>
                   </div>
                   <span className="text-label text-muted ml-2 shrink-0">
-                    {metric === 'qty' ? `${item.qty}件` : `¥${item.amount.toLocaleString()}`}
+                    {metric === 'qty'
+                      ? t('report.countUnit', { qty: item.qty })
+                      : `¥${item.amount.toLocaleString()}`}
                   </span>
                 </div>
                 <div className="h-1 bg-surface-deep rounded-sm overflow-hidden">
@@ -150,7 +152,9 @@ export function RankingSection({
               </div>
 
               <div className="text-note text-dim font-medium shrink-0 min-w-18 text-right">
-                {metric === 'amount' ? `¥${item.amount.toLocaleString()}` : `${item.qty}件`}
+                {metric === 'amount'
+                  ? `¥${item.amount.toLocaleString()}`
+                  : t('report.countUnit', { qty: item.qty })}
               </div>
             </div>
           )
