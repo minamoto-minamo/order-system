@@ -58,3 +58,8 @@ export type ModalState =
   | { type: 'editSub'; payload: { cat: Cat; sub: Sub } }
   | { type: 'addProduct' }
   | { type: 'editProduct'; payload: Product }
+
+export type DeleteTarget =
+  | { type: 'cat'; id: number; label: string }
+  | { type: 'sub'; catId: number; id: number; label: string }
+  | { type: 'product'; id: number; label: string }
