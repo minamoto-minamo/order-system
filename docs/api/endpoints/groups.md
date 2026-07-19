@@ -131,6 +131,7 @@ Response 409 — `bill_requested` / `closed` のグループに `status` 以外�
 
 Response 409: `groups.save.seat_conflict` — seatIds が他グループと競合する場合
 Response 422: `groups.save.invalid_seats` — 存在しない席が含まれる場合
+Response 409: `groups.update.unserved_items_exist` — `active` → `bill_requested` への遷移時、未提供（`pending` / `ready`）の `OrderItem` が残っている場合。`details: { count: number }`（未提供明細数）
 
 有効な状態遷移:
 
@@ -157,6 +158,8 @@ Response 422: `groups.save.invalid_seats` — 存在しない席が含まれる�
 - `courseId`: 適用するコース ID
 - `qty`: コース人数（1〜99）
 
+トランザクション開始前に取得した `Course` / `DrinkPlan` ではなく、トランザクション内で再取得した値を使って明細を作成する。適用処理中にコース内容が変更された場合でもその変更が反映される（同時編集耐性）。
+
 Response 200: group object
 
 Response 404: `groups.detail.not_found`
@@ -175,6 +178,8 @@ Response 500: `groups.course.setting_not_found` — 店舗設定が見つから�
   "qty": 3
 }
 ```
+
+トランザクション開始前に取得した `Course` ではなく、トランザクション内で再取得した値を使って人数按分の再計算を行う。適用処理中にコース内容が変更された場合でもその変更が反映される（同時編集耐性）。
 
 Response 200: 更新されたコース料金明細（order item）。コース料金が0円（無料コース）の場合は Response 204: No Content
 Response 404: `groups.detail.not_found`

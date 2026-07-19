@@ -80,6 +80,7 @@ Response 422: `orders.create.menu_items_not_found` — `menuItemId` が存在し
 Response 409: `orders.create.sold_out` — 品切れの商品が含まれる場合
 Response 422: `orders.create.takeout_mismatch` — `takeout` 設定（`dine_in`/`takeout`）と `isTakeout` が矛盾する場合
 Response 422: `orders.create.course_not_found` — `courseId` が存在しない場合
+Response 422: `orders.create.course_food_item_conflict` — `courseId` を指定し、かつ `items` のいずれかの `menuItemId` が対象コースの `foodItems`（コース内商品）に含まれる場合。`details: { courseId: number, conflictingMenuItemIds: number[] }`。コース由来の自動生成明細と衝突する追加注文を防ぐため
 Response 422: `orders.create.course_mismatch` — トランザクション開始時点で `courseId` がグループの適用中コースと一致しない場合
 Response 409: `orders.create.menu_item_deleted` — トランザクション中に対象 `menuItemId` が削除された場合
 Response 409: `orders.cancel.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合（作成処理でも同じエラーコードを使い回している）。会計依頼やコース変更などの同時更新とぶつかったケースを含む。もう一度リクエストすると解決する
