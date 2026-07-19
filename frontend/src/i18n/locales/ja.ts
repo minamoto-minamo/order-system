@@ -288,6 +288,9 @@ const ja = {
     editCategoryTitle: '大分類を編集',
     addSubCategoryTitle: '小分類を追加',
     editSubCategoryTitle: '小分類を編集',
+    deleteProductConfirm: '{{name}} を削除しますか？',
+    deleteSubCategoryConfirm: '{{name}} を削除しますか？配下の商品もすべて削除されます',
+    deleteCategoryConfirm: '{{name}} を削除しますか？配下の小分類・商品もすべて削除されます',
   },
   report: {
     sessionLabel: '営業セッション',
