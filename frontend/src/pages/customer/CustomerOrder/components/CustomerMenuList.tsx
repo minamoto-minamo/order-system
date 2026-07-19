@@ -66,6 +66,11 @@ export function CustomerMenuList({
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <div className="text-sm text-ink">{item.name}</div>
+                    {item.soldOut && (
+                      <span className="text-micro text-danger bg-danger-bg border border-danger-border px-1.25 py-px rounded-full">
+                        {t('productSettings.soldOut')}
+                      </span>
+                    )}
                     {isDrinkPlanTarget && (
                       <span className="text-micro text-info bg-info-bg border border-info-border px-1.25 py-px rounded-full">
                         <Icon src={SYMBOL_ICONS.beer} className="mr-1 align-[-0.1em]" />
@@ -77,7 +82,11 @@ export function CustomerMenuList({
                     ¥{isDrinkPlanTarget ? '0' : item.price.toLocaleString()}
                   </div>
                 </div>
-                <ZeroStartStepper qty={qty} onChange={(val) => onQtyChange(item.id, val)} />
+                <ZeroStartStepper
+                  qty={qty}
+                  onChange={(val) => onQtyChange(item.id, val)}
+                  disabled={item.soldOut}
+                />
               </div>
             )
           })}

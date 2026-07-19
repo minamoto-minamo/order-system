@@ -44,6 +44,9 @@ const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const STORE_ID = 1
 
+const mockIoEmit = jest.fn()
+const mockIoTo = jest.fn((_room: string) => ({ emit: mockIoEmit }))
+
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
@@ -61,6 +64,8 @@ async function buildTestApp() {
       })
     }
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorate('io', { to: mockIoTo, emit: jest.fn() } as any)
   await app.register(subcategoriesRoutes, { prefix: '/api/subcategories' })
   await app.ready()
   return app
@@ -126,6 +131,11 @@ describe('POST /api/subcategories — categoryId storeId 検証', () => {
     expect(mockSubCategoryCreate).toHaveBeenCalledWith({
       data: { name: 'ビール', categoryId: 2, sort: 0, storeId: STORE_ID },
     })
+    expect(mockIoTo).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(mockIoEmit).toHaveBeenCalledWith(
+      'subCategory:created',
+      expect.objectContaining({ id: 10 }),
+    )
   })
 })
 
@@ -218,6 +228,8 @@ describe('DELETE /api/subcategories/:id — 削除制御', () => {
     expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
+    expect(mockIoTo).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(mockIoEmit).toHaveBeenCalledWith('subCategory:deleted', 10)
   })
 
   it('Serializable 分離レベルでの書き込み競合（P2034）でも 409 を返す', async () => {
@@ -309,5 +321,10 @@ describe('PUT /api/subcategories/:id — categoryId storeId 検証', () => {
       where: { id: 10 },
       data: { name: '日本酒', categoryId: 2, sort: undefined },
     })
+    expect(mockIoTo).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(mockIoEmit).toHaveBeenCalledWith(
+      'subCategory:updated',
+      expect.objectContaining({ id: 10 }),
+    )
   })
 })

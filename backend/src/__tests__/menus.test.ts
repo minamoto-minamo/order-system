@@ -35,6 +35,12 @@ const SECRET = 'test-secret'
 const ADMIN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const STORE_ID = 1
 
+const mockIoEmit = jest.fn()
+// fastify.io.to(a).to(b).emit(...) のような複数ルームへのチェーンを検証できるよう、
+// to() は常に同じチェーン可能オブジェクトを返す
+const mockIoChain = { to: (room: string) => mockIoTo(room), emit: mockIoEmit }
+const mockIoTo = jest.fn((_room: string) => mockIoChain)
+
 async function buildTestApp() {
   const app = Fastify({ logger: false })
   app.decorateRequest('storeId', 0)
@@ -53,7 +59,7 @@ async function buildTestApp() {
     }
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorate('io', { to: () => ({ emit: jest.fn() }), emit: jest.fn() } as any)
+  app.decorate('io', { to: mockIoTo, emit: jest.fn() } as any)
   await app.register(menusRoutes, { prefix: '/api/menus' })
   await app.ready()
   return app
@@ -164,6 +170,83 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
       where: { id: 1 },
       data: expect.objectContaining({ subCategoryId: undefined }),
     })
+  })
+})
+
+describe('PUT /api/menus/:id — 品切れ更新のSocket配信', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function token() {
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
+  }
+
+  it('soldOut が変化すると menu:soldout を store と customer-store の両方に配信する', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
+    mockMenuItemUpdate.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: true,
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { soldOut: true },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockIoTo).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(mockIoTo).toHaveBeenCalledWith(`customer-store:${STORE_ID}`)
+    expect(mockIoEmit).toHaveBeenCalledWith('menu:soldout', 1, true)
+  })
+
+  it('soldOut が変化しない場合は menu:soldout を配信しない', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
+    mockMenuItemUpdate.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      name: 'updated-name',
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { name: 'updated-name' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockIoEmit).not.toHaveBeenCalledWith('menu:soldout', expect.anything(), expect.anything())
   })
 })
 

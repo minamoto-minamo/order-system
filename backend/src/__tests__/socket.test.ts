@@ -223,11 +223,25 @@ describe('Socket.io — group:join（客用ゲスト接続の自グループル�
     expect(socket.join).toHaveBeenCalledWith('group:group-1')
   })
 
+  it('自ストアに属するグループなら customer-store ルームにも join する', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue({ id: 'group-1', storeId: 1 })
+    await socket.handlers.get('group:join')!('group-1')
+    expect(socket.join).toHaveBeenCalledWith('customer-store:1')
+  })
+
   it('存在しない、または他ストアのグループなら join しない', async () => {
     const socket = connect(1)
     mockGroupFindFirst.mockResolvedValue(null)
     await socket.handlers.get('group:join')!('other-store-group')
     expect(socket.join).not.toHaveBeenCalled()
+  })
+
+  it('存在しない、または他ストアのグループなら customer-store ルームにも join しない', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue(null)
+    await socket.handlers.get('group:join')!('other-store-group')
+    expect(socket.join).not.toHaveBeenCalledWith(expect.stringMatching(/^customer-store:/))
   })
 })
 

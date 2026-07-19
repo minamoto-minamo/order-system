@@ -165,6 +165,17 @@ export default function GroupDetail() {
       setMenus((prev) => prev.map((m) => (m.id === item.id ? item : m))),
     [SE.menuDeleted]: (menuItemId: number) =>
       setMenus((prev) => prev.filter((m) => m.id !== menuItemId)),
+    [SE.categoryCreated]: (category: Category) => setCategories((prev) => [...prev, category]),
+    [SE.categoryUpdated]: (category: Category) =>
+      setCategories((prev) => prev.map((c) => (c.id === category.id ? category : c))),
+    [SE.categoryDeleted]: (categoryId: number) =>
+      setCategories((prev) => prev.filter((c) => c.id !== categoryId)),
+    [SE.subCategoryCreated]: (subCategory: SubCategory) =>
+      setSubCategories((prev) => [...prev, subCategory]),
+    [SE.subCategoryUpdated]: (subCategory: SubCategory) =>
+      setSubCategories((prev) => prev.map((s) => (s.id === subCategory.id ? subCategory : s))),
+    [SE.subCategoryDeleted]: (subCategoryId: number) =>
+      setSubCategories((prev) => prev.filter((s) => s.id !== subCategoryId)),
     [SE.courseCreated]: (course: Course) => setCourses((prev) => [...prev, course]),
     [SE.courseUpdated]: (course: Course) =>
       setCourses((prev) => prev.map((c) => (c.id === course.id ? course : c))),
