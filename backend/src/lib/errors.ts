@@ -54,6 +54,7 @@ export const ErrorCodes = {
     TakeoutMismatch: 'orders.create.takeout_mismatch',
     CourseNotFound: 'orders.create.course_not_found',
     CourseMismatch: 'orders.create.course_mismatch',
+    CourseFoodItemConflict: 'orders.create.course_food_item_conflict',
     SettingNotFound: 'orders.create.setting_not_found',
     Conflict: 'orders.cancel.conflict',
     NotFound: 'orders.cancel.not_found',
