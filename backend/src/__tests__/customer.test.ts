@@ -303,12 +303,29 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     })
   })
 
-  it('プラン外商品を注文すると 422 を返す', async () => {
+  it('プラン対象外商品のみの注文は拒否されず、通常単価で登録される', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
     mockMenuItemFindMany.mockResolvedValue([
       { id: 2, name: 'ウーロン茶', price: 300, soldOut: false },
     ])
     mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({
+      id: 'item-1',
+      groupId: GROUP_ID,
+      menuItemId: 2,
+      menuItemName: 'ウーロン茶',
+      price: 300,
+      originalPrice: 300,
+      qty: 1,
+      status: 'pending',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: null,
+      orderedAt: new Date(),
+    })
+    mockTx(mockCreate)
 
     const res = await app.inject({
       method: 'POST',
@@ -316,10 +333,65 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
       payload: { groupId: GROUP_ID, items: [{ menuItemId: 2, qty: 1 }] },
     })
 
-    expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({
-      error: { message: 'ドリンクプランに含まれていない商品が選択されています' },
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 2, price: 300, originalPrice: 300 }),
+      }),
+    )
+  })
+
+  it('プラン対象商品と対象外商品が混在する注文は拒否されず、対象商品のみ0円で登録される', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '生ビール', price: 600, soldOut: false },
+      { id: 2, name: 'ウーロン茶', price: 300, soldOut: false },
+    ])
+    mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockImplementation((args: any) => {
+      const { menuItemId, menuItemName, price, originalPrice, qty } = args.data
+      return Promise.resolve({
+        id: `item-${menuItemId}`,
+        groupId: GROUP_ID,
+        menuItemId,
+        menuItemName,
+        price,
+        originalPrice,
+        qty,
+        status: 'pending',
+        isTakeout: false,
+        taxRate: { toNumber: () => 10 },
+        courseId: null,
+        orderedAt: new Date(),
+      })
     })
+    mockTx(mockCreate)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: {
+        groupId: GROUP_ID,
+        items: [
+          { menuItemId: 1, qty: 1 },
+          { menuItemId: 2, qty: 1 },
+        ],
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 1, price: 0, originalPrice: 600 }),
+      }),
+    )
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 2, price: 300, originalPrice: 300 }),
+      }),
+    )
   })
 
   it('テイクアウト専用商品を注文すると 422 を返す', async () => {
