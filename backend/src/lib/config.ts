@@ -17,24 +17,36 @@ export function extractSubdomainLabel(hostname: string): string | null {
   return label
 }
 
-// Origin ヘッダーが BASE_DOMAIN 自身または BASE_DOMAIN のサブドメインかどうかを検証する
+// apex（BASE_DOMAIN 自身）とサブドメインラベルを区別するための一意な識別子
+const APEX_TENANT = Symbol('apex-tenant')
+
+// hostname が表すテナントの識別子を返す。BASE_DOMAIN と無関係な hostname は null
+function tenantIdentity(hostname: string): string | typeof APEX_TENANT | null {
+  if (hostname === getBaseDomain()) return APEX_TENANT
+  return extractSubdomainLabel(hostname)
+}
+
+// Origin のテナントとリクエスト先 Host のテナントが一致する場合のみ許可する
 export function corsOriginValidator(
   origin: string | undefined,
+  host: string | undefined,
   callback: (err: Error | null, allow: boolean) => unknown,
 ) {
   if (!origin) {
     callback(null, true)
     return
   }
-  const baseDomain = getBaseDomain()
-  let hostname: string
+  let originHostname: string
   try {
-    hostname = new URL(origin).hostname
+    originHostname = new URL(origin).hostname
   } catch {
     callback(null, false)
     return
   }
-  callback(null, hostname === baseDomain || hostname.endsWith(`.${baseDomain}`))
+  const hostHostname = host?.split(':')[0]?.toLowerCase()
+  const originTenant = tenantIdentity(originHostname)
+  const hostTenant = hostHostname ? tenantIdentity(hostHostname) : null
+  callback(null, originTenant !== null && originTenant === hostTenant)
 }
 
 export function parseDurationSeconds(d: string): number {

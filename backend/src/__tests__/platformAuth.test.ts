@@ -1,6 +1,6 @@
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 import bcrypt from 'bcryptjs'
 import Fastify from 'fastify'
 
@@ -14,8 +14,8 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 
 const { default: platformAuthRoutes } = await import('../routes/platformAuth.js')
 
-async function buildTestApp() {
-  const app = Fastify({ logger: false })
+async function buildTestApp(fastifyOpts: { trustProxy?: boolean } = {}) {
+  const app = Fastify({ logger: false, ...fastifyOpts })
   await app.register(cookie)
   await app.register(jwt, {
     secret: 'test-secret',
