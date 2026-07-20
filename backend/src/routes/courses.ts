@@ -184,6 +184,15 @@ const coursesRoutes: FastifyPluginAsync = async (fastify) => {
               'コース削除により過去の OrderItem.courseId が null 化されます',
             )
           }
+          const closedGroupCount = await tx.group.count({
+            where: { courseId, status: 'closed' },
+          })
+          if (closedGroupCount > 0) {
+            fastify.log.warn(
+              { courseId, storeId: request.storeId, closedGroupCount },
+              'コース削除により過去の closed グループの courseId 参照が失われます',
+            )
+          }
           await tx.course.delete({ where: { id: courseId } })
           return { ok: true as const }
         },

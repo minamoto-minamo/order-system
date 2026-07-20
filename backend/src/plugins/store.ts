@@ -5,13 +5,11 @@ import { resolveStoreContext } from '../lib/store.js'
 declare module 'fastify' {
   interface FastifyRequest {
     storeId: number
-    isPlatformAdmin: boolean
   }
 }
 
 export default fp(async (fastify) => {
   fastify.decorateRequest('storeId', 0)
-  fastify.decorateRequest('isPlatformAdmin', false)
 
   fastify.addHook('onRequest', async (request, reply) => {
     if (!request.url.startsWith('/api/')) return
@@ -27,7 +25,6 @@ export default fp(async (fastify) => {
       if (!request.url.startsWith('/api/platform/')) {
         return sendError(reply, 404, ErrorCodes.Common.UnknownStore, 'Not Found')
       }
-      request.isPlatformAdmin = true
       return
     }
 

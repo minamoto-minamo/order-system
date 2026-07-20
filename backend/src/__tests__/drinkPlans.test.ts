@@ -8,6 +8,7 @@ const mockDrinkPlanFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: num
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<{ id: number } | null>>()
 const mockGroupFindFirst =
   jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
+const mockGroupCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockDrinkPlanDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockDrinkPlanUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -18,7 +19,7 @@ const mockTransaction =
     (
       callback: (tx: {
         course: { findFirst: typeof mockCourseFindFirst }
-        group: { findFirst: typeof mockGroupFindFirst }
+        group: { findFirst: typeof mockGroupFindFirst; count: typeof mockGroupCount }
         orderItem: { count: typeof mockOrderItemCount }
         drinkPlan: { findFirst: typeof mockDrinkPlanFindFirst; delete: typeof mockDrinkPlanDelete }
       }) => Promise<unknown>,
@@ -30,7 +31,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     $transaction: mockTransaction,
     course: { findFirst: mockCourseFindFirst },
-    group: { findFirst: mockGroupFindFirst },
+    group: { findFirst: mockGroupFindFirst, count: mockGroupCount },
     drinkPlan: {
       findFirst: mockDrinkPlanFindFirst,
       delete: mockDrinkPlanDelete,
@@ -90,12 +91,13 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     mockTransaction.mockImplementation(async (callback) =>
       callback({
         course: { findFirst: mockCourseFindFirst },
-        group: { findFirst: mockGroupFindFirst },
+        group: { findFirst: mockGroupFindFirst, count: mockGroupCount },
         orderItem: { count: mockOrderItemCount },
         drinkPlan: { findFirst: mockDrinkPlanFindFirst, delete: mockDrinkPlanDelete },
       }),
     )
     mockOrderItemCount.mockResolvedValue(0)
+    mockGroupCount.mockResolvedValue(0)
   })
 
   function token() {
@@ -207,6 +209,45 @@ describe('DELETE /api/drink-plans/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(204)
     expect(warnSpy).not.toHaveBeenCalled()
+  })
+
+  it('closed グループの drinkPlanId 参照があれば警告ログを出して削除する', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
+    mockCourseFindFirst.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockGroupCount.mockResolvedValue(4)
+    mockDrinkPlanDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/drink-plans/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { drinkPlanId: 1, storeId: STORE_ID, closedGroupCount: 4 },
+      '飲み放題プラン削除により過去の closed グループの drinkPlanId 参照が失われます',
+    )
+  })
+
+  it('closed グループの drinkPlanId 参照がなければ警告ログを出さない（回帰確認）', async () => {
+    mockDrinkPlanFindFirst.mockResolvedValue({ id: 1 })
+    mockCourseFindFirst.mockResolvedValue(null)
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockGroupCount.mockResolvedValue(0)
+    mockOrderItemCount.mockResolvedValue(2)
+    mockDrinkPlanDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/drink-plans/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(mockDrinkPlanDelete).toHaveBeenCalledWith({ where: { id: 1 } })
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { drinkPlanId: 1, storeId: STORE_ID, referencedOrderItemCount: 2 },
+      '飲み放題プラン削除により過去グループの drinkPlanId 参照が失われます',
+    )
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
