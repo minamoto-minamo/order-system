@@ -31,7 +31,7 @@ src/
 ├── plugins/
 │   ├── auth.ts       # JWT 検証・アクセストークン失効時のリフレッシュトークンローテーション（fastify-jwt）
 │   ├── cors.ts       # CORS 設定（BASE_DOMAIN env から動的に生成。*.BASE_DOMAIN を許可）
-│   ├── store.ts      # Host からサブドメインを解決し storeId / isPlatformAdmin を request にセット
+│   ├── store.ts      # Host からサブドメインを解決し storeId を request にセット
 │   └── socket.ts     # Socket.io を同一 HTTP サーバーに載せる初期化。Host 解決と JWT 検証を個別に行う
 ├── routes/           # 1ファイル = 1リソース
 │   ├── auth.ts           # POST /auth/login, /auth/logout, GET /auth/me（スタッフ用）
@@ -77,7 +77,7 @@ src/
 
 ## マルチテナンシー
 
-- 店舗は Host のサブドメインで識別する（例: `xxx.BASE_DOMAIN`）。`plugins/store.ts` の `onRequest` フックが `lib/store.ts` の `resolveStoreContext(host)` を呼び、結果を `request.storeId` / `request.isPlatformAdmin` にセットする。
+- 店舗は Host のサブドメインで識別する（例: `xxx.BASE_DOMAIN`）。`plugins/store.ts` の `onRequest` フックが `lib/store.ts` の `resolveStoreContext(host)` を呼び、店舗コンテキストの結果を `request.storeId` にセットする。
 - `resolveStoreContext` の判定結果は4種類: `store`（通常店舗）/ `platform`（サブドメイン `admin`）/ `apex`（ベースドメインそのもの。`/api/health` 以外は 404）/ `unknown`（該当店舗なしまたは非アクティブ）。
 - `platform` コンテキストは `/api/platform/*` 以外へのアクセスを 404 にし、`store` コンテキストは `/api/platform/*` へのアクセスを 404 にする。店舗系とプラットフォーム系のルートは Host の時点で完全に分離される。
 - ルートハンドラ内で他店舗のデータに触れないよう、Prisma クエリは必ず `where: { storeId: request.storeId }` 等で絞り込む。
