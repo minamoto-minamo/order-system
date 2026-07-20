@@ -30,7 +30,7 @@ description: "Task list for 商品オプション機能"
 - [ ] T001 `backend/prisma/schema.prisma` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` モデルを追加し、`Store`/`MenuItem`/`OrderItem` に逆リレーションを追加する（[data-model.md](./data-model.md) の Prisma schema 追記イメージを反映）
 - [ ] T002 `pnpm --filter backend db:migrate` でマイグレーションを生成・適用する（T001完了後）
 - [ ] T003 [P] `shared/types/index.ts` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` / `UpsertProductOptionGroupRequest` / `UpsertProductOptionChoiceRequest` 型を追加し、`MenuItem`（`optionGroups`）、`OrderItem`（`options`）、`UpsertMenuItemRequest`（`optionGroups`）、`OrderItemInput`（`selectedChoiceIds`）を拡張する（[contracts/menu-options.md](./contracts/menu-options.md) 参照）
-- [ ] T004 [P] `backend/src/lib/errors.ts` の `ErrorCodes.orders` に `invalidOptionChoice` / `duplicateOptionGroupSelection` / `missingRequiredOption` を追加する
+- [ ] T004 [P] `backend/src/lib/errors.ts` の `ErrorCodes.Orders` と `ErrorCodes.Customer` の両方に、それぞれの既存命名パターンに倣って `invalidOptionChoice` / `duplicateOptionGroupSelection` / `missingRequiredOption` 相当のコードを追加する（customer.ts側は客用ゲスト向けエンドポイントでも同じバリデーションを行うため、`ErrorCodes.Orders`とは別に`ErrorCodes.Customer`にも追加する。T013で両方使用）
 
 **Checkpoint**: DBスキーマ・共有型・エラーコードが揃い、各User Storyの実装に着手できる
 
@@ -64,16 +64,19 @@ description: "Task list for 商品オプション機能"
 
 **Independent Test**: オプション設定済みの商品を注文し、追加課金選択肢を選んだ場合に注文明細の金額が「商品価格＋追加金額」になることを確認する
 
+**重要**: 注文作成APIは `backend/src/routes/orders.ts`（スタッフ用 `POST /orders`）と `backend/src/routes/customer.ts`（客用ゲスト向け `POST /orders`、`customer.ts:189`）の2経路が独立実装されており、価格スナップショットロジックがそれぞれに重複している（共通関数化はされていない）。spec.mdのUser Story 2は「注文画面（ホール/客用）」の両方が対象のため、以下のバリデーション・価格計算・`OrderItemOption`作成は**両ファイルに同様に実装する**。
+
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] backend unit test: `POST /orders` の選択肢実在性チェック・択一制約違反（`duplicateOptionGroupSelection`）・必須未選択（`missingRequiredOption`）・価格計算（0円下限クランプ、マイナス値許容）を検証するテストを `backend/src/routes/orders.test.ts` に追加する
+- [ ] T011 [P] [US2] backend unit test: `POST /orders`（スタッフ用）の選択肢実在性チェック・択一制約違反（`duplicateOptionGroupSelection`）・必須未選択（`missingRequiredOption`）・価格計算（0円下限クランプ、マイナス値許容）を検証するテストを `backend/src/routes/orders.test.ts` に追加する
+- [ ] T011b [P] [US2] backend unit test: `customer.ts` の `POST /orders`（客用ゲスト向け）についてT011と同内容を検証するテストを `backend/src/routes/customer.test.ts` に追加する
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] `backend/src/routes/orders.ts` の `createBodySchema` に `items[].selectedChoiceIds` を追加する
-- [ ] T013 [US2] `backend/src/routes/orders.ts` に選択肢の実在性・対象商品所属チェック、同一`ProductOptionGroup`内の択一制約チェック、`required: true`分類の必須網羅チェックを追加する（[contracts/menu-options.md](./contracts/menu-options.md) の「POST /orders」節参照、T004・T012に依存）
-- [ ] T014 [US2] `backend/src/routes/orders.ts` の`OrderItem`作成処理に、`price = originalPrice + Σ選択肢extraPrice`（0円未満は0円クランプ）の計算と、同一トランザクション内での`OrderItemOption`作成（`groupName`/`choiceName`/`extraPrice`スナップショット）を追加する（T013に依存）
-- [ ] T015 [US2] `backend/src/lib/mappers.ts` の`toOrderItem`（または相当関数）に`options`マッピングを追加する
+- [ ] T012 [US2] `backend/src/routes/orders.ts` の `createBodySchema` と `backend/src/routes/customer.ts` の `createOrderBodySchema` の両方に `items[].selectedChoiceIds` を追加する
+- [ ] T013 [US2] `backend/src/routes/orders.ts` と `backend/src/routes/customer.ts` の両方に、選択肢の実在性・対象商品所属チェック、同一`ProductOptionGroup`内の択一制約チェック、`required: true`分類の必須網羅チェックを追加する（[contracts/menu-options.md](./contracts/menu-options.md) の「POST /orders」節参照、T004・T012に依存。customer.ts側は既存の`ErrorCodes.Customer`グループに倣ったエラーコードを使う）
+- [ ] T014 [US2] `backend/src/routes/orders.ts`（`orders.ts:189-198`パターン）と `backend/src/routes/customer.ts`（`customer.ts:260-289`パターン）両方の`OrderItem`作成処理に、`price = originalPrice + Σ選択肢extraPrice`（0円未満は0円クランプ）の計算と、同一トランザクション内での`OrderItemOption`作成（`groupName`/`choiceName`/`extraPrice`スナップショット）を追加する（T013に依存）
+- [ ] T015 [US2] `backend/src/lib/mappers.ts` の`toOrderItem`（または相当関数、orders.ts/customer.ts共通で使用）に`options`マッピングを追加する
 - [ ] T016 [P] [US2] frontend: オプション選択ボトムシートコンポーネントを新規作成する（`frontend/src/features/order/components/OptionSelectSheet.tsx`、既存`BottomSheetModal`を使用。分類ごとに択一選択、必須分類が未選択の間は確定不可）
 - [ ] T017 [US2] `frontend/src/pages/group/GroupDetail/components/MenuAdd.tsx` に、オプション分類を持つ商品タップ時にT016のボトムシートを挟む導線を追加する（T016に依存）
 - [ ] T018 [US2] `frontend/src/pages/customer/CustomerOrder/components/CustomerMenuList.tsx` に同様の導線を追加する（T016に依存）
