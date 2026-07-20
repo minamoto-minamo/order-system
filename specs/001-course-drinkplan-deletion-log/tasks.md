@@ -35,12 +35,12 @@ description: "Task list template for feature implementation"
 
 > **NOTE: 先にテストを書き、実装前に FAIL することを確認する**
 
-- [ ] T001 [P] [US1] `backend/src/__tests__/courses.test.ts`の`DELETE /:id`テストに、`tx.group.count`（`closed`グループ集計）をモックして`1`より大きい値を返すケースを追加する。`fastify.log.warn`が`{ courseId, storeId, closedGroupCount }`を含む引数で呼ばれることを検証する。
-- [ ] T002 [US1] 同ファイルに、`closed`グループ参照が0件のケースを追加する。当該警告ログが呼ばれないこと、既存の`referencedOrderItemCount`ログの挙動に変化がないこと、削除が成功することを検証する（回帰確認）。（T001と同一ファイルのため直列で追加）
+- [x] T001 [P] [US1] `backend/src/__tests__/courses.test.ts`の`DELETE /:id`テストに、`tx.group.count`（`closed`グループ集計）をモックして`1`より大きい値を返すケースを追加する。`fastify.log.warn`が`{ courseId, storeId, closedGroupCount }`を含む引数で呼ばれることを検証する。
+- [x] T002 [US1] 同ファイルに、`closed`グループ参照が0件のケースを追加する。当該警告ログが呼ばれないこと、既存の`referencedOrderItemCount`ログの挙動に変化がないこと、削除が成功することを検証する（回帰確認）。（T001と同一ファイルのため直列で追加）
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] `backend/src/routes/courses.ts`の`DELETE /:id`（削除トランザクション内、既存の`referencedOrderItemCount`集計・ログの直後）に、`tx.group.count({ where: { courseId, status: 'closed' } })`を追加する。件数が1件以上なら`fastify.log.warn({ courseId, storeId: request.storeId, closedGroupCount }, 'コース削除により過去の closed グループの courseId 参照が失われます')`を出力する。削除の成否判定ロジック（`in_use`判定等）は変更しない。（Depends on: T001, T002）
+- [x] T003 [US1] `backend/src/routes/courses.ts`の`DELETE /:id`（削除トランザクション内、既存の`referencedOrderItemCount`集計・ログの直後）に、`tx.group.count({ where: { courseId, status: 'closed' } })`を追加する。件数が1件以上なら`fastify.log.warn({ courseId, storeId: request.storeId, closedGroupCount }, 'コース削除により過去の closed グループの courseId 参照が失われます')`を出力する。削除の成否判定ロジック（`in_use`判定等）は変更しない。（Depends on: T001, T002）
 
 **Checkpoint**: この時点でUser Story 1は独立して動作・検証可能。
 
@@ -56,12 +56,12 @@ description: "Task list template for feature implementation"
 
 > **NOTE: 先にテストを書き、実装前に FAIL することを確認する**
 
-- [ ] T004 [P] [US2] `backend/src/__tests__/drinkPlans.test.ts`の`DELETE /:id`テストに、`tx.group.count`（`closed`グループ集計）をモックして`1`より大きい値を返すケースを追加する。`fastify.log.warn`が`{ drinkPlanId, storeId, closedGroupCount }`を含む引数で呼ばれることを検証する。
-- [ ] T005 [US2] 同ファイルに、`closed`グループ参照が0件のケースを追加する。当該警告ログが呼ばれないこと、既存の`referencedOrderItemCount`ログ・`referencedCourse`チェックの挙動に変化がないこと、削除が成功することを検証する（回帰確認）。（T004と同一ファイルのため直列で追加）
+- [x] T004 [P] [US2] `backend/src/__tests__/drinkPlans.test.ts`の`DELETE /:id`テストに、`tx.group.count`（`closed`グループ集計）をモックして`1`より大きい値を返すケースを追加する。`fastify.log.warn`が`{ drinkPlanId, storeId, closedGroupCount }`を含む引数で呼ばれることを検証する。
+- [x] T005 [US2] 同ファイルに、`closed`グループ参照が0件のケースを追加する。当該警告ログが呼ばれないこと、既存の`referencedOrderItemCount`ログ・`referencedCourse`チェックの挙動に変化がないこと、削除が成功することを検証する（回帰確認）。（T004と同一ファイルのため直列で追加）
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] `backend/src/routes/drinkPlans.ts`の`DELETE /:id`（削除トランザクション内、既存の`referencedOrderItemCount`集計・ログの直後、`course.delete`実行前）に、`tx.group.count({ where: { drinkPlanId, status: 'closed' } })`を追加する。件数が1件以上なら`fastify.log.warn({ drinkPlanId, storeId: request.storeId, closedGroupCount }, '飲み放題プラン削除により過去の closed グループの drinkPlanId 参照が失われます')`を出力する。削除の成否判定ロジック（`in_use`判定、`referencedCourse`チェック等）は変更しない。（Depends on: T004, T005）
+- [x] T006 [US2] `backend/src/routes/drinkPlans.ts`の`DELETE /:id`（削除トランザクション内、既存の`referencedOrderItemCount`集計・ログの直後、`course.delete`実行前）に、`tx.group.count({ where: { drinkPlanId, status: 'closed' } })`を追加する。件数が1件以上なら`fastify.log.warn({ drinkPlanId, storeId: request.storeId, closedGroupCount }, '飲み放題プラン削除により過去の closed グループの drinkPlanId 参照が失われます')`を出力する。削除の成否判定ロジック（`in_use`判定、`referencedCourse`チェック等）は変更しない。（Depends on: T004, T005）
 
 **Checkpoint**: この時点でUser Story 1・2すべてが独立して動作・検証可能。
 
@@ -71,8 +71,8 @@ description: "Task list template for feature implementation"
 
 **Purpose**: 全ストーリーの回帰確認
 
-- [ ] T007 [P] `pnpm --filter backend typecheck`を実行し、型エラーがないことを確認する。
-- [ ] T008 [P] `pnpm --filter backend test`を実行し、T001/T002/T004/T005で追加したテストを含む全テストが通ることを確認する。
+- [x] T007 [P] `pnpm --filter backend typecheck`を実行し、型エラーがないことを確認する。
+- [x] T008 [P] `pnpm --filter backend test`を実行し、T001/T002/T004/T005で追加したテストを含む全テストが通ることを確認する。
 - [ ] T009 `specs/001-course-drinkplan-deletion-log/quickstart.md`の「2. 手動確認」「3. 回帰確認」の手順に従い、可能な範囲で手動確認する。
 
 ---

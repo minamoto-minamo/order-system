@@ -139,6 +139,15 @@ const drinkPlansRoutes: FastifyPluginAsync = async (fastify) => {
               '飲み放題プラン削除により過去グループの drinkPlanId 参照が失われます',
             )
           }
+          const closedGroupCount = await tx.group.count({
+            where: { drinkPlanId, status: 'closed' },
+          })
+          if (closedGroupCount > 0) {
+            fastify.log.warn(
+              { drinkPlanId, storeId: request.storeId, closedGroupCount },
+              '飲み放題プラン削除により過去の closed グループの drinkPlanId 参照が失われます',
+            )
+          }
           await tx.drinkPlan.delete({ where: { id: drinkPlanId } })
           return { ok: true as const }
         },

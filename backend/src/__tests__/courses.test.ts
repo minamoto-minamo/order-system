@@ -6,6 +6,7 @@ import Fastify from 'fastify'
 
 const mockGroupFindFirst =
   jest.fn<(...args: unknown[]) => Promise<{ id: string; status: string } | null>>()
+const mockGroupCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockCourseFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockCourseCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -17,7 +18,7 @@ const mockTransaction =
   jest.fn<
     (
       callback: (tx: {
-        group: { findFirst: typeof mockGroupFindFirst }
+        group: { findFirst: typeof mockGroupFindFirst; count: typeof mockGroupCount }
         orderItem: { count: typeof mockOrderItemCount }
         course: { findFirst: typeof mockCourseFindFirst; delete: typeof mockCourseDelete }
       }) => Promise<unknown>,
@@ -28,7 +29,7 @@ const mockTransaction =
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     $transaction: mockTransaction,
-    group: { findFirst: mockGroupFindFirst },
+    group: { findFirst: mockGroupFindFirst, count: mockGroupCount },
     course: {
       findFirst: mockCourseFindFirst,
       delete: mockCourseDelete,
@@ -88,12 +89,13 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     jest.clearAllMocks()
     mockTransaction.mockImplementation(async (callback) =>
       callback({
-        group: { findFirst: mockGroupFindFirst },
+        group: { findFirst: mockGroupFindFirst, count: mockGroupCount },
         orderItem: { count: mockOrderItemCount },
         course: { findFirst: mockCourseFindFirst, delete: mockCourseDelete },
       }),
     )
     mockOrderItemCount.mockResolvedValue(0)
+    mockGroupCount.mockResolvedValue(0)
   })
 
   function token() {
@@ -181,6 +183,43 @@ describe('DELETE /api/courses/:id — 削除制御', () => {
     })
     expect(res.statusCode).toBe(204)
     expect(warnSpy).not.toHaveBeenCalled()
+  })
+
+  it('closed グループの courseId 参照があれば警告ログを出して削除する', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockGroupCount.mockResolvedValue(2)
+    mockCourseDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { courseId: 1, storeId: STORE_ID, closedGroupCount: 2 },
+      'コース削除により過去の closed グループの courseId 参照が失われます',
+    )
+  })
+
+  it('closed グループの courseId 参照がなければ警告ログを出さない（回帰確認）', async () => {
+    mockCourseFindFirst.mockResolvedValue({ id: 1 })
+    mockGroupFindFirst.mockResolvedValue(null)
+    mockGroupCount.mockResolvedValue(0)
+    mockOrderItemCount.mockResolvedValue(3)
+    mockCourseDelete.mockResolvedValue({})
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/courses/1',
+      headers: { cookie: `token=${token()}` },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(mockCourseDelete).toHaveBeenCalledWith({ where: { id: 1 } })
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(
+      { courseId: 1, storeId: STORE_ID, referencedOrderItemCount: 3 },
+      'コース削除により過去の OrderItem.courseId が null 化されます',
+    )
   })
 
   it('存在しない ID で削除すると 404 を返す', async () => {
