@@ -40,6 +40,7 @@ const items: MenuItem[] = [
     soldOut: false,
     takeout: 'both',
     sort: 1,
+    optionGroups: [],
   },
   {
     id: 2,
@@ -50,6 +51,7 @@ const items: MenuItem[] = [
     soldOut: false,
     takeout: 'both',
     sort: 2,
+    optionGroups: [],
   },
 ]
 

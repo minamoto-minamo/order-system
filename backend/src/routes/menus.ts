@@ -1,8 +1,39 @@
 import { Prisma } from '@prisma/client'
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
+import { toMenuItem } from '../lib/mappers.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin } from '../plugins/auth.js'
+
+const menuItemInclude = {
+  optionGroups: {
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+    include: { choices: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } },
+  },
+} satisfies Prisma.MenuItemInclude
+
+const optionChoiceSchema = {
+  type: 'object',
+  required: ['name', 'extraPrice', 'sort'],
+  properties: {
+    name: { type: 'string', minLength: 1 },
+    extraPrice: { type: 'integer' },
+    sort: { type: 'integer', minimum: 0 },
+  },
+  additionalProperties: false,
+} as const
+
+const optionGroupSchema = {
+  type: 'object',
+  required: ['name', 'required', 'sort', 'choices'],
+  properties: {
+    name: { type: 'string', minLength: 1 },
+    required: { type: 'boolean' },
+    sort: { type: 'integer', minimum: 0 },
+    choices: { type: 'array', items: optionChoiceSchema },
+  },
+  additionalProperties: false,
+} as const
 
 const createBodySchema = {
   type: 'object',
@@ -15,6 +46,7 @@ const createBodySchema = {
     soldOut: { type: 'boolean' },
     takeout: { type: 'string', enum: ['dine_in', 'both', 'takeout'] },
     sort: { type: 'integer', minimum: 0 },
+    optionGroups: { type: 'array', items: optionGroupSchema },
   },
   additionalProperties: false,
 } as const
@@ -37,6 +69,7 @@ const updateBodySchema = {
     subCategoryId: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] },
     soldOut: { type: 'boolean' },
     takeout: { type: 'string', enum: ['dine_in', 'both', 'takeout'] },
+    optionGroups: { type: 'array', items: optionGroupSchema },
   },
   additionalProperties: false,
 } as const
@@ -55,16 +88,22 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
     if (takeout) where.takeout = takeout
     // クエリパラメータは常に文字列なので boolean に変換する
     if (soldOut !== undefined) where.soldOut = soldOut === 'true'
-    return prisma.menuItem.findMany({ where, orderBy: [{ sort: 'asc' }, { id: 'asc' }] })
+    const items = await prisma.menuItem.findMany({
+      where,
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+      include: menuItemInclude,
+    })
+    return items.map(toMenuItem)
   })
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
     const item = await prisma.menuItem.findFirst({
       where: { id: Number(id), storeId: request.storeId },
+      include: menuItemInclude,
     })
     if (!item) return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
-    return item
+    return toMenuItem(item)
   })
 
   fastify.patch(
@@ -83,9 +122,12 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           prisma.menuItem.update({ where: { id }, data: { sort: index } }),
         ),
       )
-      const updated = await prisma.menuItem.findMany({ where: { id: { in: validIds } } })
+      const updated = await prisma.menuItem.findMany({
+        where: { id: { in: validIds } },
+        include: menuItemInclude,
+      })
       for (const item of updated) {
-        fastify.io.to(`store:${request.storeId}`).emit('menu:updated', item)
+        fastify.io.to(`store:${request.storeId}`).emit('menu:updated', toMenuItem(item))
       }
       return reply.status(204).send()
     },
@@ -103,6 +145,12 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         soldOut?: boolean
         takeout?: string
         sort?: number
+        optionGroups?: {
+          name: string
+          required: boolean
+          sort: number
+          choices: { name: string; extraPrice: number; sort: number }[]
+        }[]
       }
       const subCat = await prisma.subCategory.findFirst({
         where: { id: body.subCategoryId, storeId: request.storeId },
@@ -132,10 +180,29 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           takeout: (body.takeout as 'dine_in' | 'both' | 'takeout') ?? 'dine_in',
           sort: body.sort ?? 0,
           storeId: request.storeId,
+          optionGroups: body.optionGroups
+            ? {
+                create: body.optionGroups.map((group) => ({
+                  name: group.name,
+                  required: group.required,
+                  sort: group.sort,
+                  storeId: request.storeId,
+                  choices: {
+                    create: group.choices.map((choice) => ({
+                      name: choice.name,
+                      extraPrice: choice.extraPrice,
+                      sort: choice.sort,
+                    })),
+                  },
+                })),
+              }
+            : undefined,
         },
+        include: menuItemInclude,
       })
-      fastify.io.to(`store:${request.storeId}`).emit('menu:created', item)
-      return reply.status(201).send(item)
+      const result = toMenuItem(item)
+      fastify.io.to(`store:${request.storeId}`).emit('menu:created', result)
+      return reply.status(201).send(result)
     },
   )
 
@@ -151,6 +218,12 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         subCategoryId: number | null
         soldOut: boolean
         takeout: string
+        optionGroups: {
+          name: string
+          required: boolean
+          sort: number
+          choices: { name: string; extraPrice: number; sort: number }[]
+        }[]
       }>
 
       try {
@@ -196,18 +269,41 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
             subCategoryId: body.subCategoryId ?? undefined,
             soldOut: body.soldOut,
             takeout: body.takeout as 'dine_in' | 'both' | 'takeout' | undefined,
+            optionGroups:
+              body.optionGroups === undefined
+                ? undefined
+                : {
+                    // 差分更新ではなく全置換。分類・選択肢の順序管理を簡略化するための設計
+                    deleteMany: {},
+                    create: body.optionGroups.map((group) => ({
+                      name: group.name,
+                      required: group.required,
+                      sort: group.sort,
+                      storeId: request.storeId,
+                      choices: {
+                        create: group.choices.map((choice) => ({
+                          name: choice.name,
+                          extraPrice: choice.extraPrice,
+                          sort: choice.sort,
+                        })),
+                      },
+                    })),
+                  },
           },
+          include: menuItemInclude,
         })
+
+        const result = toMenuItem(item)
 
         if (body.soldOut !== undefined && body.soldOut !== current.soldOut) {
           fastify.io
             .to(`store:${request.storeId}`)
             .to(`customer-store:${request.storeId}`)
-            .emit('menu:soldout', item.id, item.soldOut)
+            .emit('menu:soldout', result.id, result.soldOut)
         }
-        fastify.io.to(`store:${request.storeId}`).emit('menu:updated', item)
+        fastify.io.to(`store:${request.storeId}`).emit('menu:updated', result)
 
-        return item
+        return result
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
           return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')

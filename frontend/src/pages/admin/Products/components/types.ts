@@ -42,12 +42,32 @@ export interface Product {
   soldOut: boolean
   takeout: string
   sort: number
+  optionGroups: OptionGroupForm[]
+}
+export interface OptionChoiceForm {
+  clientId: string
+  name: string
+  extraPrice: number
+  sort: number
+}
+export interface OptionGroupForm {
+  clientId: string
+  name: string
+  required: boolean
+  sort: number
+  choices: OptionChoiceForm[]
 }
 export interface ProductFormData {
   name: string
   price: number
   subId: number
   takeout: string
+  optionGroups: {
+    name: string
+    required: boolean
+    sort: number
+    choices: { name: string; extraPrice: number; sort: number }[]
+  }[]
 }
 
 export type ModalState =

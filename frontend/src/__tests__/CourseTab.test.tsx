@@ -72,9 +72,9 @@ const categories: Category[] = [
 ]
 
 const menus: MenuItem[] = [
-  { id: 10, name: '枝豆', price: 300, categoryId: 1, subCategoryId: 1, soldOut: false, takeout: 'both', sort: 1 },
-  { id: 11, name: '唐揚げ', price: 500, categoryId: 2, subCategoryId: 2, soldOut: false, takeout: 'both', sort: 2 },
-  { id: 20, name: 'ウーロン茶', price: 0, categoryId: 2, subCategoryId: 2, soldOut: false, takeout: 'both', sort: 3 },
+  { id: 10, name: '枝豆', price: 300, categoryId: 1, subCategoryId: 1, soldOut: false, takeout: 'both', sort: 1, optionGroups: [] },
+  { id: 11, name: '唐揚げ', price: 500, categoryId: 2, subCategoryId: 2, soldOut: false, takeout: 'both', sort: 2, optionGroups: [] },
+  { id: 20, name: 'ウーロン茶', price: 0, categoryId: 2, subCategoryId: 2, soldOut: false, takeout: 'both', sort: 3, optionGroups: [] },
 ]
 
 const courses: Course[] = [

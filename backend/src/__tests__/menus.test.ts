@@ -6,6 +6,7 @@ import Fastify from 'fastify'
 
 const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockMenuItemCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockSubCategoryFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -19,6 +20,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     orderItem: { count: mockOrderItemCount },
     menuItem: {
       findFirst: mockMenuItemFindFirst,
+      create: mockMenuItemCreate,
       update: mockMenuItemUpdate,
       delete: mockMenuItemDelete,
     },
@@ -140,10 +142,12 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
     expect(mockSubCategoryFindFirst).toHaveBeenCalledWith({
       where: { id: 200, storeId: STORE_ID },
     })
-    expect(mockMenuItemUpdate).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({ categoryId: 20, subCategoryId: 200 }),
-    })
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({ categoryId: 20, subCategoryId: 200 }),
+      }),
+    )
   })
 
   it('subCategoryId: null は整合性検証をスキップして成功する', async () => {
@@ -166,10 +170,137 @@ describe('PUT /api/menus/:id — カテゴリとサブカテゴリの整合性',
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject(updated)
     expect(mockSubCategoryFindFirst).not.toHaveBeenCalled()
-    expect(mockMenuItemUpdate).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({ subCategoryId: undefined }),
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({ subCategoryId: undefined }),
+      }),
+    )
+  })
+})
+
+describe('POST/PUT /api/menus — オプション分類の全置換保存', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function token() {
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
     })
+  }
+
+  const optionGroups = [
+    {
+      name: 'サイズ',
+      required: true,
+      sort: 0,
+      choices: [
+        { name: 'メガサイズ', extraPrice: 200, sort: 0 },
+        { name: '小', extraPrice: -50, sort: 1 },
+      ],
+    },
+  ]
+
+  it('作成時に分類・選択肢をnested writeで保存する', async () => {
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+    mockMenuItemCreate.mockResolvedValue({
+      id: 1,
+      name: 'ハイボール',
+      price: 500,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      takeout: 'both',
+      sort: 0,
+      optionGroups: [],
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/menus',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        name: 'ハイボール',
+        price: 500,
+        categoryId: 10,
+        subCategoryId: 100,
+        takeout: 'both',
+        optionGroups,
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockMenuItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          optionGroups: {
+            create: [
+              expect.objectContaining({
+                storeId: STORE_ID,
+                choices: { create: optionGroups[0].choices },
+              }),
+            ],
+          },
+        }),
+      }),
+    )
+  })
+
+  it('更新時に既存分類を削除してリクエスト順で再作成する', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+    })
+    mockMenuItemUpdate.mockResolvedValue({
+      id: 1,
+      name: 'ハイボール',
+      price: 500,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      takeout: 'both',
+      sort: 0,
+      optionGroups: [],
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { optionGroups },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          optionGroups: {
+            deleteMany: {},
+            create: [
+              expect.objectContaining({
+                storeId: STORE_ID,
+                choices: { create: optionGroups[0].choices },
+              }),
+            ],
+          },
+        }),
+      }),
+    )
   })
 })
 
@@ -246,7 +377,11 @@ describe('PUT /api/menus/:id — 品切れ更新のSocket配信', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    expect(mockIoEmit).not.toHaveBeenCalledWith('menu:soldout', expect.anything(), expect.anything())
+    expect(mockIoEmit).not.toHaveBeenCalledWith(
+      'menu:soldout',
+      expect.anything(),
+      expect.anything(),
+    )
   })
 })
 

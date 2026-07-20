@@ -80,6 +80,47 @@ export function toDrinkPlan(p: {
   return { id: p.id, name: p.name, price: p.price, menuItemIds: p.items.map((i) => i.menuItemId) }
 }
 
+export function toMenuItem(m: {
+  id: number
+  name: string
+  price: number
+  categoryId: number
+  subCategoryId: number
+  soldOut: boolean
+  takeout: 'dine_in' | 'both' | 'takeout'
+  sort: number
+  optionGroups?: {
+    id: number
+    name: string
+    required: boolean
+    sort: number
+    choices: { id: number; name: string; extraPrice: number; sort: number }[]
+  }[]
+}) {
+  return {
+    id: m.id,
+    name: m.name,
+    price: m.price,
+    categoryId: m.categoryId,
+    subCategoryId: m.subCategoryId,
+    soldOut: m.soldOut,
+    takeout: m.takeout,
+    sort: m.sort,
+    optionGroups: (m.optionGroups ?? []).map((group) => ({
+      id: group.id,
+      name: group.name,
+      required: group.required,
+      sort: group.sort,
+      choices: group.choices.map((choice) => ({
+        id: choice.id,
+        name: choice.name,
+        extraPrice: choice.extraPrice,
+        sort: choice.sort,
+      })),
+    })),
+  }
+}
+
 export function toStaffSession(t: {
   id: string
   issuedAt: Date
@@ -109,6 +150,13 @@ export function toOrderItem(o: {
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean
   orderedAt: Date
+  options?: {
+    id: string
+    choiceId: number | null
+    groupName: string
+    choiceName: string
+    extraPrice: number
+  }[]
 }) {
   return {
     id: o.id,
@@ -124,5 +172,6 @@ export function toOrderItem(o: {
     isCourseCharge: o.isCourseCharge,
     isDrinkPlanCharge: o.isDrinkPlanCharge,
     orderedAt: o.orderedAt.toISOString(),
+    options: o.options ?? [],
   }
 }
