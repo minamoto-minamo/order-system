@@ -9,6 +9,7 @@ class SeatConflictError extends Error {}
 class SoldOutError extends Error {}
 class GroupStatusError extends Error {}
 class CourseAlreadyAppliedError extends Error {}
+class CourseNotFoundError extends Error {}
 class InvalidTransitionError extends Error {
   constructor(
     public from: string,
@@ -18,6 +19,11 @@ class InvalidTransitionError extends Error {
   }
 }
 class NotFoundError extends Error {}
+class UnservedItemsExistError extends Error {
+  constructor(public count: number) {
+    super()
+  }
+}
 
 const validTransitions: Record<string, string[]> = {
   active: ['bill_requested'],
@@ -88,7 +94,7 @@ type DeleteCourseTxResult = {
 }
 
 // コース/飲み放題の適用を取り消す。飲み放題対象商品の価格を元に戻し、コース・飲み放題の定額課金明細を取消済みにする。
-// コース解除（DELETE /:id/course）とコース再適用時の旧コース取り消し（POST /:id/course）の両方から呼ばれる。
+// コース解除（DELETE /:id/course）からのみ呼ばれる。
 async function unapplyCourse(
   tx: Prisma.TransactionClient,
   params: { groupId: string; storeId: number; courseId: number | null; drinkPlanId: number | null },
@@ -359,6 +365,12 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               throw new GroupStatusError()
             }
             if (!validTransitions[from]?.includes(to)) throw new InvalidTransitionError(from, to)
+            if (from === 'active' && to === 'bill_requested') {
+              const unservedCount = await tx.orderItem.count({
+                where: { groupId: id, status: { in: ['pending', 'ready'] } },
+              })
+              if (unservedCount > 0) throw new UnservedItemsExistError(unservedCount)
+            }
             if (to === 'closed') {
               const setting = await tx.setting.findUnique({ where: { storeId: request.storeId } })
               if (!setting) throw new SettingNotFoundError()
@@ -415,6 +427,14 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
         )
       if (e instanceof SeatConflictError)
         return sendError(reply, 409, ErrorCodes.Groups.SeatConflict, '選択した席はすでに使用中です')
+      if (e instanceof UnservedItemsExistError)
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Groups.UnservedItemsExist,
+          '未提供の注文が残っているため会計を依頼できません',
+          { count: e.count },
+        )
       if (e instanceof GroupStatusError)
         return sendError(
           reply,
@@ -461,13 +481,6 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
       if (!course)
         return sendError(reply, 404, ErrorCodes.Groups.CourseNotFound, 'コースが見つかりません')
 
-      const drinkPlan =
-        course.drinkPlanId != null
-          ? await prisma.drinkPlan.findFirst({
-              where: { id: course.drinkPlanId, storeId: request.storeId },
-            })
-          : null
-
       let txResult: ApplyCourseTxResult
       try {
         txResult = await prisma.$transaction(
@@ -476,18 +489,30 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
             if (currentGroup?.status !== 'active') throw new GroupStatusError()
             if (currentGroup.courseId != null) throw new CourseAlreadyAppliedError()
 
+            const currentCourse = await tx.course.findFirst({
+              where: { id: courseId, storeId: request.storeId },
+              include: { foodItems: true },
+            })
+            if (!currentCourse) throw new CourseNotFoundError()
+            const currentDrinkPlan =
+              currentCourse.drinkPlanId != null
+                ? await tx.drinkPlan.findFirst({
+                    where: { id: currentCourse.drinkPlanId, storeId: request.storeId },
+                  })
+                : null
+
             const createdItems = []
-            if (course.price > 0) {
+            if (currentCourse.price > 0) {
               const chargeItem = await tx.orderItem.create({
                 data: {
                   groupId: id,
                   menuItemId: null,
-                  menuItemName: course.name,
-                  price: course.price,
+                  menuItemName: currentCourse.name,
+                  price: currentCourse.price,
                   qty,
                   status: 'served',
                   isTakeout: false,
-                  courseId: course.id,
+                  courseId: currentCourse.id,
                   isCourseCharge: true,
                   isDrinkPlanCharge: false,
                   storeId: request.storeId,
@@ -495,18 +520,18 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               })
               createdItems.push(chargeItem)
             }
-            if (drinkPlan && drinkPlan.price > 0) {
+            if (currentDrinkPlan && currentDrinkPlan.price > 0) {
               // 飲み放題は人数按分ではなくグループ単位の定額課金
               const drinkPlanChargeItem = await tx.orderItem.create({
                 data: {
                   groupId: id,
                   menuItemId: null,
-                  menuItemName: drinkPlan.name,
-                  price: drinkPlan.price,
+                  menuItemName: currentDrinkPlan.name,
+                  price: currentDrinkPlan.price,
                   qty: 1,
                   status: 'served',
                   isTakeout: false,
-                  courseId: course.id,
+                  courseId: currentCourse.id,
                   isCourseCharge: true,
                   isDrinkPlanCharge: true,
                   storeId: request.storeId,
@@ -514,13 +539,13 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
               })
               createdItems.push(drinkPlanChargeItem)
             }
-            if (course.foodItems.length > 0) {
-              const menuItemIds = course.foodItems.map((fi) => fi.menuItemId)
+            if (currentCourse.foodItems.length > 0) {
+              const menuItemIds = currentCourse.foodItems.map((fi) => fi.menuItemId)
               const menuItems = await tx.menuItem.findMany({
                 where: { id: { in: menuItemIds }, storeId: request.storeId },
               })
               const menuItemMap = new Map(menuItems.map((m) => [m.id, m]))
-              for (const fi of course.foodItems) {
+              for (const fi of currentCourse.foodItems) {
                 const menuItem = menuItemMap.get(fi.menuItemId)
                 if (!menuItem) continue
                 if (menuItem.soldOut) throw new SoldOutError()
@@ -534,7 +559,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                     originalPrice: menuItem.price,
                     qty: fi.qty * qty,
                     isTakeout: false,
-                    courseId: course.id,
+                    courseId: currentCourse.id,
                     storeId: request.storeId,
                   },
                 })
@@ -544,9 +569,9 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
             // 飲み放題プラン対象商品は、コース適用前に既に注文済みの分も遡って0円にする（テイクアウトはプラン対象外）
             const updatedOrderItems = []
-            if (drinkPlan) {
+            if (currentDrinkPlan) {
               const planItems = await tx.drinkPlanItem.findMany({
-                where: { drinkPlanId: drinkPlan.id },
+                where: { drinkPlanId: currentDrinkPlan.id },
                 select: { menuItemId: true },
               })
               const planMenuItemIds = planItems.map((p) => p.menuItemId)
@@ -572,7 +597,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
 
             const updatedGroup = await tx.group.update({
               where: { id },
-              data: { courseId: course.id, drinkPlanId: course.drinkPlanId },
+              data: { courseId: currentCourse.id, drinkPlanId: currentCourse.drinkPlanId },
               include: { seats: true },
             })
             return { createdItems, updatedOrderItems, updatedGroup }
@@ -596,6 +621,8 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
             ErrorCodes.Groups.CourseAlreadyApplied,
             '既にコースが適用されています',
           )
+        if (e instanceof CourseNotFoundError)
+          return sendError(reply, 404, ErrorCodes.Groups.CourseNotFound, 'コースが見つかりません')
         if (e instanceof SoldOutError)
           return sendError(
             reply,
@@ -672,22 +699,23 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
           ErrorCodes.Groups.CourseNotApplied,
           'コースが適用されていません',
         )
-
-      const course = await prisma.course.findFirst({
-        where: { id: group.courseId, storeId: request.storeId },
-        include: { foodItems: true },
-      })
-      const foodItemQtyByMenuItemId = new Map(
-        (course?.foodItems ?? []).map((fi) => [fi.menuItemId, fi.qty]),
-      )
+      const courseId = group.courseId
 
       let txResult: UpdateCourseQtyTxResult
       try {
         txResult = await prisma.$transaction(
           async (tx) => {
             const currentGroup = await tx.group.findUnique({ where: { id } })
-            if (currentGroup?.status !== 'active' || currentGroup.courseId !== group.courseId)
+            if (currentGroup?.status !== 'active' || currentGroup.courseId !== courseId)
               throw new GroupStatusError()
+
+            const currentCourse = await tx.course.findFirst({
+              where: { id: courseId, storeId: request.storeId },
+              include: { foodItems: true },
+            })
+            const foodItemQtyByMenuItemId = new Map(
+              (currentCourse?.foodItems ?? []).map((fi) => [fi.menuItemId, fi.qty]),
+            )
 
             const chargeItem = await tx.orderItem.findFirst({
               where: {
@@ -695,7 +723,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 storeId: request.storeId,
                 isCourseCharge: true,
                 isDrinkPlanCharge: false,
-                courseId: group.courseId,
+                courseId,
                 status: { not: 'cancelled' },
               },
             })
@@ -711,7 +739,7 @@ const groupsRoutes: FastifyPluginAsync = async (fastify) => {
                 where: {
                   groupId: id,
                   storeId: request.storeId,
-                  courseId: group.courseId,
+                  courseId,
                   isCourseCharge: false,
                   status: { not: 'cancelled' },
                 },

@@ -58,6 +58,7 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
           storeId: request.storeId,
         },
       })
+      fastify.io.to(`store:${request.storeId}`).emit('subCategory:created', sub)
       return reply.status(201).send(sub)
     },
   )
@@ -90,10 +91,12 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
             'カテゴリが見つかりません',
           )
       }
-      return prisma.subCategory.update({
+      const sub = await prisma.subCategory.update({
         where: { id: Number(id) },
         data: { name: body.name, categoryId: body.categoryId, sort: body.sort },
       })
+      fastify.io.to(`store:${request.storeId}`).emit('subCategory:updated', sub)
+      return sub
     },
   )
 
@@ -141,6 +144,7 @@ const subcategoriesRoutes: FastifyPluginAsync = async (fastify) => {
         '使用中のサブカテゴリは削除できません',
       )
     }
+    fastify.io.to(`store:${request.storeId}`).emit('subCategory:deleted', subCategoryId)
     return reply.status(204).send()
   })
 }

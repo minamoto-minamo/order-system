@@ -83,9 +83,12 @@ Response 404: `customer.group.not_found`
 
 会計を依頼する（グループのステータスを `bill_requested` に変更）。
 
+会計依頼の可否は check-then-act ではなく、Serializable トランザクション内でグループ状態と未提供明細を再検証してから確定する。
+
 Response 204: No Content
 Response 404: `customer.group.not_found`
 Response 400: `customer.bill.not_allowed` — グループが `active` でない場合（既に `bill_requested` / `closed`）
+Response 409: `customer.bill.unserved_items_exist` — 未提供（`pending` / `ready`）の `OrderItem` が残っている場合。`details: { count: number }`（未提供明細数）
 Response 500: `common.setting_not_found` — 店舗の税率設定が存在しない場合
 
 成功時は Socket.io `group:updated`（payload: 更新後の group object）を `store:${storeId}` と `group:${id}` の両ルームへ emit する。
@@ -123,7 +126,7 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
   - `menuItemId`: integer（`minimum: 1`）、必須
   - `qty`: integer（`minimum: 1, maximum: 99`）、必須
 - `POST /api/orders`（スタッフ用、[Orders](./orders.md)）と異なり `isTakeout` / `courseId` は受け付けない。作成される `OrderItem` は常に `isTakeout: false`、`courseId: null`、`isCourseCharge: false`、`isDrinkPlanCharge: false` 固定（客用画面はテイクアウト・コース注文を扱わない）
-- `price` は `menuItemMap` から取得した注文時点の `MenuItem.price`。グループにドリンクプラン（`drinkPlanId`）が適用されており、かつ注文商品がそのプランの対象商品なら `price: 0` で作成される。`originalPrice` には常に注文時点の `MenuItem.price` を保持する（飲み放題解除時の復元用）
+- `price` は `menuItemMap` から取得した注文時点の `MenuItem.price`。グループにドリンクプラン（`drinkPlanId`）が適用されている場合、`items` の各行ごとにプラン対象商品かどうかを個別に判定する。プラン対象商品は `price: 0`、プラン対象外の商品は通常どおり `originalPrice`（注文時点の `MenuItem.price`）で課金され、両者が混在する1リクエストも全体拒否せずそのまま部分受理する（プラン対象外の商品だけを理由に注文全体が拒否されることはない）。`originalPrice` には常に注文時点の `MenuItem.price` を保持する（飲み放題解除時の復元用）
 
 バリデーション順序と対応エラー:
 
@@ -132,7 +135,6 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
 3. Response 422: `customer.orders.menu_items_not_found` — 存在しない `menuItemId` を含む。`details: { menuItemIds: number[] }`（見つからなかった ID の配列）
 4. Response 409: `customer.orders.sold_out` — 品切れ商品を含む。`details: { menuItemIds: number[], menuItemNames: string[] }`
 5. Response 422: `customer.orders.takeout_only` — `takeout: 'takeout'`（テイクアウト専用）の商品を含む
-6. Response 422: `customer.orders.drink_plan_mismatch` — グループにドリンクプランが適用中で、プラン対象外の商品を含む
 
 上記チェックを通過した後、DB トランザクション内でグループの現在ステータスを再取得して `active` であることを再確認してから `OrderItem` を作成する。会計依頼（`bill_requested`）等による同時更新との競合を防ぐためで、再確認時点で `active` でなくなっていた場合も Response 400: `customer.orders.closed` を返す（トランザクションはロールバックされ、作成は行われない）。トランザクションは Serializable 分離レベルで実行される。
 

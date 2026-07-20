@@ -166,11 +166,13 @@ Response 404: `platform_stores.detail.not_found`
 削除手順:
 
 1. 先に `Store.isActive` を `false` に更新する（`resolveStoreContext` が非アクティブな店舗を `unknown` 扱いにするため、以降そのテナントへのリクエストは Host 解決の時点で 404 になる）
-2. `OrderItem` → `Group` → `Session` → `Course` → `DrinkPlan` → `MenuItem` → `SubCategory` → `Category` → `Seat` → `SeatTable` → `Staff` → `Setting` → `Store` の順に単一トランザクションで削除する（`GroupSeat` / `CourseFoodItem` / `DrinkPlanItem` / `RefreshToken` は `onDelete: Cascade` で自動削除）
-3. 削除トランザクションが失敗した場合は `isActive` を `true` に戻し、元の例外を再送出する（500 相当）
+2. 削除トランザクション開始前に、営業中の `Session`（`status: 'open'`）件数とアクティブな `Group`（`status` が `active` / `bill_requested`）件数を確認する。いずれかが1件以上あれば削除を中断する
+3. `OrderItem` → `Group` → `Session` → `Course` → `DrinkPlan` → `MenuItem` → `SubCategory` → `Category` → `Seat` → `SeatTable` → `Staff` → `Setting` → `Store` の順に単一トランザクションで削除する（`GroupSeat` / `CourseFoodItem` / `DrinkPlanItem` / `RefreshToken` は `onDelete: Cascade` で自動削除）。トランザクションには `{ timeout: 30_000 }` が明示設定されている
+4. 削除トランザクションが失敗した場合（営業中データが存在する場合を含む）は `isActive` を `true` に戻し、元の例外を再送出する（営業中データ存在時は 409、それ以外は 500 相当）
 
 Response 204: No Content
 Response 404: `platform_stores.detail.not_found`
+Response 409: `platform_stores.delete.active_data_exists` — 営業中の `Session`（`status: 'open'`）または `active` / `bill_requested` の `Group` が存在する場合。`details: { openSessionCount: number, activeGroupCount: number }`
 
 ## Notes
 

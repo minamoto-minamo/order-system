@@ -1,6 +1,6 @@
 import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 import bcrypt from 'bcryptjs'
 import Fastify from 'fastify'
 
@@ -33,8 +33,8 @@ function buildMockIo() {
   return { inFn, disconnectSockets }
 }
 
-async function buildTestApp(io = buildMockIo()) {
-  const app = Fastify({ logger: false })
+async function buildTestApp(io = buildMockIo(), fastifyOpts: { trustProxy?: boolean } = {}) {
+  const app = Fastify({ logger: false, ...fastifyOpts })
   app.decorateRequest('storeId', 0)
   app.addHook('onRequest', async (request) => {
     request.storeId = STORE_ID
@@ -124,6 +124,44 @@ describe('POST /api/auth/login', () => {
     expect(mockIssueRefreshToken).not.toHaveBeenCalled()
     expect(res.cookies.length).toBe(0)
     await app.close()
+  })
+
+  describe('レート制限（プロキシ配下）', () => {
+    const originalNodeEnv = process.env.NODE_ENV
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv
+    })
+
+    it('X-Forwarded-For で異なるクライアントIPからのログイン失敗は、それぞれ独立してレート制限される', async () => {
+      process.env.NODE_ENV = 'production'
+      const app = await buildTestApp(buildMockIo(), { trustProxy: true })
+      mockFindUniqueStaff.mockResolvedValue(STAFF)
+
+      const attemptFrom = (ip: string) =>
+        app.inject({
+          method: 'POST',
+          url: '/api/auth/login',
+          headers: { 'x-forwarded-for': ip },
+          payload: { username: 'taro', password: 'wrong-password' },
+        })
+
+      // 上限(5回)まではハンドラに到達する
+      for (let i = 0; i < 5; i++) {
+        await attemptFrom('10.0.0.1')
+      }
+      expect(mockFindUniqueStaff).toHaveBeenCalledTimes(5)
+
+      // 同一IPからの6回目はレート制限に阻まれ、ハンドラに到達しない
+      await attemptFrom('10.0.0.1')
+      expect(mockFindUniqueStaff).toHaveBeenCalledTimes(5)
+
+      // 別IPからのリクエストは独立してカウントされるため、ハンドラに到達する
+      await attemptFrom('10.0.0.2')
+      expect(mockFindUniqueStaff).toHaveBeenCalledTimes(6)
+
+      await app.close()
+    })
   })
 })
 

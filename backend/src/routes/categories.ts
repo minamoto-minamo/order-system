@@ -41,6 +41,7 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
       const category = await prisma.category.create({
         data: { name: body.name, sort: body.sort ?? 0, storeId: request.storeId },
       })
+      fastify.io.to(`store:${request.storeId}`).emit('category:created', category)
       return reply.status(201).send(category)
     },
   )
@@ -56,10 +57,12 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
       })
       if (!existing)
         return sendError(reply, 404, ErrorCodes.Categories.NotFound, 'カテゴリが見つかりません')
-      return prisma.category.update({
+      const category = await prisma.category.update({
         where: { id: Number(id) },
         data: { name: body.name, sort: body.sort },
       })
+      fastify.io.to(`store:${request.storeId}`).emit('category:updated', category)
+      return category
     },
   )
 
@@ -100,6 +103,7 @@ const categoriesRoutes: FastifyPluginAsync = async (fastify) => {
         return sendError(reply, 404, ErrorCodes.Categories.NotFound, 'カテゴリが見つかりません')
       return sendError(reply, 409, ErrorCodes.Categories.InUse, '使用中のカテゴリは削除できません')
     }
+    fastify.io.to(`store:${request.storeId}`).emit('category:deleted', categoryId)
     return reply.status(204).send()
   })
 }

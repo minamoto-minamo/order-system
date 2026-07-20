@@ -17,6 +17,7 @@ import { Icon, IconButton } from '@/components/primitives'
 import { AppHeader } from '@/features/navigation/components'
 import { useSocketListeners } from '@/hooks/useSocketListeners'
 import { api } from '@/lib/api'
+import { applyQueuedOrderEvents, type QueuedOrderEvent } from '@/lib/applyQueuedOrderEvents'
 import { EP } from '@/lib/endpoints'
 import { SOCKET_EVENTS as SE } from '@/lib/events'
 import { ACTION_ICONS, SYMBOL_ICONS } from '@/lib/icons'
@@ -74,10 +75,19 @@ export default function GroupDetail() {
   const [loadError, setLoadError] = useState(false)
   const [submittingAction, setSubmittingAction] = useState<SubmittingAction | null>(null)
   const submittingRef = useRef(false)
+  // fetchAll 実行中に届いた注文関連Socketイベントは、RESTスナップショットで上書きされないよう
+  // ここに保留し、フェッチ完了後に順番どおり再適用する。世代カウンタは多重フェッチ（再接続連打）時に
+  // 最新でなくなったフェッチの結果を破棄するために使う。
+  const fetchGenRef = useRef(0)
+  const queueRef = useRef<QueuedOrderEvent[]>([])
+  const isFetchingRef = useRef(false)
 
   useEffect(() => {
-    const fetchAll = () =>
-      Promise.all([
+    const fetchAll = () => {
+      const gen = ++fetchGenRef.current
+      queueRef.current = []
+      isFetchingRef.current = true
+      return Promise.all([
         api.get<Group>(EP.group(groupId)),
         api.get<OrderItem[]>(`${EP.orders}?groupId=${groupId}`),
         api.get<MenuItem[]>(EP.menus),
@@ -88,10 +98,11 @@ export default function GroupDetail() {
         api.get<Seat[]>(EP.seats),
       ])
         .then(([g, o, m, c, sc, cr, dp, s]) => {
+          if (fetchGenRef.current !== gen) return
           setLoadError(false)
           setGroup(g)
           setTab(g.status === 'active' ? 'menu' : 'history')
-          setItems(o)
+          setItems(applyQueuedOrderEvents(o, queueRef.current))
           setMenus(m)
           setCategories(c)
           setSubCategories(sc)
@@ -99,7 +110,15 @@ export default function GroupDetail() {
           setDrinkPlans(dp)
           setSeats(s)
         })
-        .catch(() => setLoadError(true))
+        .catch(() => {
+          if (fetchGenRef.current !== gen) return
+          setLoadError(true)
+        })
+        .finally(() => {
+          if (fetchGenRef.current !== gen) return
+          isFetchingRef.current = false
+        })
+    }
     fetchAll()
     socket.on('connect', fetchAll)
     return () => {
@@ -109,18 +128,33 @@ export default function GroupDetail() {
 
   useSocketListeners({
     // Socket と初期ロードの二重受信を防ぐため id 重複チェックを行う
+    // fetchAll 実行中は直接反映せず保留キューへ積み、フェッチ完了後にまとめて再適用する
     [SE.orderCreated]: (o: OrderItem) => {
-      if (o.groupId === groupId)
-        setItems((prev) => (prev.some((i) => i.id === o.id) ? prev : [...prev, o]))
+      if (o.groupId !== groupId) return
+      if (isFetchingRef.current) {
+        queueRef.current.push({ type: 'created', item: o })
+        return
+      }
+      setItems((prev) => (prev.some((i) => i.id === o.id) ? prev : [...prev, o]))
     },
     [SE.orderUpdated]: (o: OrderItem) => {
-      if (o.groupId === groupId) setItems((prev) => prev.map((i) => (i.id === o.id ? o : i)))
+      if (o.groupId !== groupId) return
+      if (isFetchingRef.current) {
+        queueRef.current.push({ type: 'updated', item: o })
+        return
+      }
+      setItems((prev) => prev.map((i) => (i.id === o.id ? o : i)))
     },
     // orderCancelled は id だけ届くため、アイテム全体はローカルで status だけ更新
-    [SE.orderCancelled]: (id: string) =>
+    [SE.orderCancelled]: (id: string) => {
+      if (isFetchingRef.current) {
+        queueRef.current.push({ type: 'cancelled', id })
+        return
+      }
       setItems((prev) =>
         prev.map((i) => (i.id === id ? { ...i, status: 'cancelled' as const } : i)),
-      ),
+      )
+    },
     [SE.groupUpdated]: (g: Group) => {
       if (g.id === groupId) setGroup(g)
     },
@@ -131,6 +165,17 @@ export default function GroupDetail() {
       setMenus((prev) => prev.map((m) => (m.id === item.id ? item : m))),
     [SE.menuDeleted]: (menuItemId: number) =>
       setMenus((prev) => prev.filter((m) => m.id !== menuItemId)),
+    [SE.categoryCreated]: (category: Category) => setCategories((prev) => [...prev, category]),
+    [SE.categoryUpdated]: (category: Category) =>
+      setCategories((prev) => prev.map((c) => (c.id === category.id ? category : c))),
+    [SE.categoryDeleted]: (categoryId: number) =>
+      setCategories((prev) => prev.filter((c) => c.id !== categoryId)),
+    [SE.subCategoryCreated]: (subCategory: SubCategory) =>
+      setSubCategories((prev) => [...prev, subCategory]),
+    [SE.subCategoryUpdated]: (subCategory: SubCategory) =>
+      setSubCategories((prev) => prev.map((s) => (s.id === subCategory.id ? subCategory : s))),
+    [SE.subCategoryDeleted]: (subCategoryId: number) =>
+      setSubCategories((prev) => prev.filter((s) => s.id !== subCategoryId)),
     [SE.courseCreated]: (course: Course) => setCourses((prev) => [...prev, course]),
     [SE.courseUpdated]: (course: Course) =>
       setCourses((prev) => prev.map((c) => (c.id === course.id ? course : c))),
@@ -312,14 +357,14 @@ export default function GroupDetail() {
           group?.status === 'active' ? (
             <div className="flex items-center gap-2">
               <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-dim"
                 onClick={() => setShowQr(true)}
                 aria-label={t('group.showQr')}
               >
                 <Icon src={ACTION_ICONS.qr} />
               </IconButton>
               <IconButton
-                className="w-8 h-8 flex items-center justify-center rounded-md text-dim"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-md text-dim"
                 onClick={() => setShowSeatModal(true)}
                 aria-label={t('group.changeSeat')}
               >

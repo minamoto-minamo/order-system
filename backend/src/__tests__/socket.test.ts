@@ -10,20 +10,25 @@ import {
   jest,
 } from '@jest/globals'
 import Fastify from 'fastify'
+import { ErrorCodes, errorBody } from '../lib/errors.js'
 
 process.env.JWT_SECRET = 'test-secret'
 process.env.ACCESS_TOKEN_EXPIRES_IN = '15m'
 process.env.BASE_DOMAIN = 'localhost'
 
+// socket.ts 内の非公開定数と同一文字列（ガード違反時の単一の汎用メッセージ）
+const REJECTED_MESSAGE = '操作を反映できませんでした。画面を更新してください'
+
 type FakeOrderItem = {
   id: string
   status: string
-  group: { status: string; session: { status: string } }
+  group?: { status: string; session: { status: string } }
 }
 type FakeGroup = { id: string; storeId: number }
 
 const mockOrderItemFindFirst = jest.fn<(...args: unknown[]) => Promise<FakeOrderItem | null>>()
-const mockOrderItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockOrderItemUpdateMany = jest.fn<(...args: unknown[]) => Promise<{ count: number }>>()
+const mockOrderItemFindUniqueOrThrow = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStaffFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<FakeGroup | null>>()
 const mockVerifyRefreshToken = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -31,7 +36,11 @@ const mockResolveStoreContext = jest.fn<(...args: unknown[]) => Promise<unknown>
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    orderItem: { findFirst: mockOrderItemFindFirst, update: mockOrderItemUpdate },
+    orderItem: {
+      findFirst: mockOrderItemFindFirst,
+      updateMany: mockOrderItemUpdateMany,
+      findUniqueOrThrow: mockOrderItemFindUniqueOrThrow,
+    },
     staff: { findFirst: mockStaffFindFirst },
     group: { findFirst: mockGroupFindFirst },
   },
@@ -223,11 +232,25 @@ describe('Socket.io — group:join（客用ゲスト接続の自グループル�
     expect(socket.join).toHaveBeenCalledWith('group:group-1')
   })
 
+  it('自ストアに属するグループなら customer-store ルームにも join する', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue({ id: 'group-1', storeId: 1 })
+    await socket.handlers.get('group:join')!('group-1')
+    expect(socket.join).toHaveBeenCalledWith('customer-store:1')
+  })
+
   it('存在しない、または他ストアのグループなら join しない', async () => {
     const socket = connect(1)
     mockGroupFindFirst.mockResolvedValue(null)
     await socket.handlers.get('group:join')!('other-store-group')
     expect(socket.join).not.toHaveBeenCalled()
+  })
+
+  it('存在しない、または他ストアのグループなら customer-store ルームにも join しない', async () => {
+    const socket = connect(1)
+    mockGroupFindFirst.mockResolvedValue(null)
+    await socket.handlers.get('group:join')!('other-store-group')
+    expect(socket.join).not.toHaveBeenCalledWith(expect.stringMatching(/^customer-store:/))
   })
 })
 
@@ -250,7 +273,30 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
     return socket
   }
 
-  it('会計済み（closed）グループの注文は order:complete で更新しない', async () => {
+  it('対象明細が見つからない場合、order:complete で更新しない', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue(null)
+    await socket.handlers.get('order:complete')!('item-1')
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).not.toHaveBeenCalled()
+  })
+
+  it('対象明細が pending 以外の場合は order:complete で更新せず、error を通知する', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'ready',
+      group: { status: 'active', session: { status: 'open' } },
+    })
+    await socket.handlers.get('order:complete')!('item-1')
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderCompleteRejected, REJECTED_MESSAGE).error,
+    )
+  })
+
+  it('会計済み（closed）グループの注文は order:complete で更新せず、error を通知する', async () => {
     const socket = connect()
     mockOrderItemFindFirst.mockResolvedValue({
       id: 'item-1',
@@ -258,10 +304,14 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
       group: { status: 'closed', session: { status: 'open' } },
     })
     await socket.handlers.get('order:complete')!('item-1')
-    expect(mockOrderItemUpdate).not.toHaveBeenCalled()
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderCompleteRejected, REJECTED_MESSAGE).error,
+    )
   })
 
-  it('セッションが closed の注文は order:complete で更新しない', async () => {
+  it('セッションが closed の注文は order:complete で更新せず、error を通知する', async () => {
     const socket = connect()
     mockOrderItemFindFirst.mockResolvedValue({
       id: 'item-1',
@@ -269,17 +319,44 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
       group: { status: 'active', session: { status: 'closed' } },
     })
     await socket.handlers.get('order:complete')!('item-1')
-    expect(mockOrderItemUpdate).not.toHaveBeenCalled()
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderCompleteRejected, REJECTED_MESSAGE).error,
+    )
   })
 
-  it('active なグループ・open なセッションの注文は order:complete で更新する', async () => {
+  it('事前チェック時点では pending でも、更新直前にキャンセル等で状態が変わっていた場合（updateMany count: 0）、order:complete は明細を更新せず error も emit しない（サイレントno-op）', async () => {
     const socket = connect()
     mockOrderItemFindFirst.mockResolvedValue({
       id: 'item-1',
       status: 'pending',
       group: { status: 'active', session: { status: 'open' } },
     })
-    mockOrderItemUpdate.mockResolvedValue({
+    mockOrderItemUpdateMany.mockResolvedValue({ count: 0 })
+    await socket.handlers.get('order:complete')!('item-1')
+    expect(mockOrderItemUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'item-1',
+        storeId: 1,
+        status: 'pending',
+        group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+      },
+      data: { status: 'ready' },
+    })
+    expect(mockOrderItemFindUniqueOrThrow).not.toHaveBeenCalled()
+    expect(socket.emit).not.toHaveBeenCalled()
+  })
+
+  it('active なグループ・open なセッションの注文は order:complete で更新し、error は通知しない', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'pending',
+      group: { status: 'active', session: { status: 'open' } },
+    })
+    mockOrderItemUpdateMany.mockResolvedValue({ count: 1 })
+    mockOrderItemFindUniqueOrThrow.mockResolvedValue({
       id: 'item-1',
       groupId: 'g1',
       menuItemId: 1,
@@ -296,12 +373,34 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
       orderedAt: new Date(),
     })
     await socket.handlers.get('order:complete')!('item-1')
-    expect(mockOrderItemUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'item-1' }, data: { status: 'ready' } }),
+    expect(mockOrderItemFindUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'item-1' } })
+    expect(socket.emit).not.toHaveBeenCalledWith('error', expect.anything())
+  })
+
+  it('対象明細が見つからない場合、order:serve で更新しない', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue(null)
+    await socket.handlers.get('order:serve')!('item-1')
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).not.toHaveBeenCalled()
+  })
+
+  it('対象明細が ready 以外の場合は order:serve で更新せず、error を通知する', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'pending',
+      group: { status: 'active', session: { status: 'open' } },
+    })
+    await socket.handlers.get('order:serve')!('item-1')
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderServeRejected, REJECTED_MESSAGE).error,
     )
   })
 
-  it('会計済み（closed）グループの注文は order:serve で更新しない', async () => {
+  it('会計済み（closed）グループの注文は order:serve で更新せず、error を通知する', async () => {
     const socket = connect()
     mockOrderItemFindFirst.mockResolvedValue({
       id: 'item-1',
@@ -309,7 +408,77 @@ describe('Socket.io — order:complete / order:serve の group/session 状態チ
       group: { status: 'closed', session: { status: 'open' } },
     })
     await socket.handlers.get('order:serve')!('item-1')
-    expect(mockOrderItemUpdate).not.toHaveBeenCalled()
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderServeRejected, REJECTED_MESSAGE).error,
+    )
+  })
+
+  it('セッションが closed の注文は order:serve で更新せず、error を通知する', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'ready',
+      group: { status: 'active', session: { status: 'closed' } },
+    })
+    await socket.handlers.get('order:serve')!('item-1')
+    expect(mockOrderItemUpdateMany).not.toHaveBeenCalled()
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      errorBody(ErrorCodes.Socket.OrderServeRejected, REJECTED_MESSAGE).error,
+    )
+  })
+
+  it('事前チェック時点では ready でも、更新直前にキャンセル等で状態が変わっていた場合（updateMany count: 0）、order:serve は明細を更新せず error も emit しない（サイレントno-op）', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'ready',
+      group: { status: 'active', session: { status: 'open' } },
+    })
+    mockOrderItemUpdateMany.mockResolvedValue({ count: 0 })
+    await socket.handlers.get('order:serve')!('item-1')
+    expect(mockOrderItemUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'item-1',
+        storeId: 1,
+        status: 'ready',
+        group: { status: { not: 'closed' }, session: { status: { not: 'closed' } } },
+      },
+      data: { status: 'served' },
+    })
+    expect(mockOrderItemFindUniqueOrThrow).not.toHaveBeenCalled()
+    expect(socket.emit).not.toHaveBeenCalled()
+  })
+
+  it('active なグループ・open なセッションの注文は order:serve で更新し、error は通知しない', async () => {
+    const socket = connect()
+    mockOrderItemFindFirst.mockResolvedValue({
+      id: 'item-1',
+      status: 'ready',
+      group: { status: 'active', session: { status: 'open' } },
+    })
+    mockOrderItemUpdateMany.mockResolvedValue({ count: 1 })
+    mockOrderItemFindUniqueOrThrow.mockResolvedValue({
+      id: 'item-1',
+      groupId: 'g1',
+      menuItemId: 1,
+      menuItemName: 'test',
+      price: 100,
+      qty: 1,
+      status: 'served',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      taxInclusive: false,
+      courseId: null,
+      isCourseCharge: false,
+      isDrinkPlanCharge: false,
+      orderedAt: new Date(),
+    })
+    await socket.handlers.get('order:serve')!('item-1')
+    expect(mockOrderItemFindUniqueOrThrow).toHaveBeenCalledWith({ where: { id: 'item-1' } })
+    expect(socket.emit).not.toHaveBeenCalledWith('error', expect.anything())
   })
 })
 

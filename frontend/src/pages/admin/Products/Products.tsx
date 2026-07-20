@@ -1,7 +1,7 @@
 import type { Category, MenuItem, SubCategory } from '@order-system/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { InputModal } from '@/components/composite'
+import { BottomSheetModal, InputModal } from '@/components/composite'
 import { RetryableLoadError } from '@/components/feedback'
 import { AppHeader } from '@/features/navigation/components'
 import { api } from '@/lib/api'
@@ -12,7 +12,7 @@ import { useToastStore } from '@/stores/toast'
 import { CategorySidebar } from './components/CategorySidebar'
 import { ProductList } from './components/ProductList'
 import { ProductModal } from './components/ProductModal'
-import type { Cat, ModalState, Product, ProductFormData } from './components/types'
+import type { Cat, DeleteTarget, ModalState, Product, ProductFormData } from './components/types'
 
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
@@ -23,6 +23,7 @@ export default function Products() {
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null)
   const [expandedCats, setExpandedCats] = useState<Record<number, boolean>>({})
   const [modal, setModal] = useState<ModalState>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
@@ -310,8 +311,8 @@ export default function Products() {
           onConfirm={(v) => editCat(modal.payload.id, v)}
           onClose={() => setModal(null)}
           onDelete={() => {
-            deleteCat(modal.payload.id)
             setModal(null)
+            setDeleteTarget({ type: 'cat', id: modal.payload.id, label: modal.payload.label })
           }}
         />
       )}
@@ -332,8 +333,13 @@ export default function Products() {
           onConfirm={(v) => editSub(modal.payload.cat.id, modal.payload.sub.id, v)}
           onClose={() => setModal(null)}
           onDelete={() => {
-            deleteSub(modal.payload.cat.id, modal.payload.sub.id)
             setModal(null)
+            setDeleteTarget({
+              type: 'sub',
+              catId: modal.payload.cat.id,
+              id: modal.payload.sub.id,
+              label: modal.payload.sub.label,
+            })
           }}
         />
       )}
@@ -356,11 +362,37 @@ export default function Products() {
             setModal(null)
           }}
           onDelete={() => {
-            deleteProduct(modal.payload.id)
             setModal(null)
+            setDeleteTarget({ type: 'product', id: modal.payload.id, label: modal.payload.name })
           }}
         />
       )}
+
+      {/* 削除確認 */}
+      <BottomSheetModal
+        show={!!deleteTarget}
+        title={
+          deleteTarget
+            ? deleteTarget.type === 'product'
+              ? t('productSettings.deleteProductConfirm', { name: deleteTarget.label })
+              : deleteTarget.type === 'sub'
+                ? t('productSettings.deleteSubCategoryConfirm', { name: deleteTarget.label })
+                : t('productSettings.deleteCategoryConfirm', { name: deleteTarget.label })
+            : ''
+        }
+        onClose={() => setDeleteTarget(null)}
+        secondaryAction={{ label: t('common.cancel'), onClick: () => setDeleteTarget(null) }}
+        primaryAction={{
+          label: t('common.delete'),
+          onClick: () => {
+            if (!deleteTarget) return
+            if (deleteTarget.type === 'cat') deleteCat(deleteTarget.id)
+            else if (deleteTarget.type === 'sub') deleteSub(deleteTarget.catId, deleteTarget.id)
+            else deleteProduct(deleteTarget.id)
+            setDeleteTarget(null)
+          },
+        }}
+      />
     </>
   )
 }

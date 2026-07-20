@@ -179,6 +179,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([]) },
         orderItem: { create: mockOrderItemCreate },
+        course: { findFirst: mockCourseFindFirst },
         group: {
           findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
           update: () => Promise.resolve(updatedGroup),
@@ -325,6 +326,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
       const tx = {
         menuItem: { findMany: () => Promise.resolve([]) },
         orderItem: { create: mockOrderItemCreate },
+        course: { findFirst: mockCourseFindFirst },
         group: {
           findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
           update: () => Promise.resolve(updatedGroup),
@@ -407,6 +409,8 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         menuItem: { findMany: () => Promise.resolve([]) },
         orderItem: { create: mockOrderItemCreate },
         drinkPlanItem: { findMany: () => Promise.resolve([]) },
+        course: { findFirst: mockCourseFindFirst },
+        drinkPlan: { findFirst: mockDrinkPlanFindFirst },
         group: {
           findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
           update: () => Promise.resolve(updatedGroup),
@@ -491,6 +495,7 @@ describe('POST /api/groups/:id/course — コース適用', () => {
         },
         orderItem: { create: mockOrderItemCreate },
         drinkPlanItem: { findMany: () => Promise.resolve([]) },
+        course: { findFirst: mockCourseFindFirst },
         group: {
           findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
           update: () => Promise.resolve(updatedGroup),
@@ -578,6 +583,8 @@ describe('POST /api/groups/:id/course — コース適用', () => {
           findMany: mockOrderItemFindMany,
         },
         drinkPlanItem: { findMany: () => Promise.resolve([{ menuItemId: 20 }]) },
+        course: { findFirst: mockCourseFindFirst },
+        drinkPlan: { findFirst: mockDrinkPlanFindFirst },
         group: {
           findUnique: () => Promise.resolve({ id: GROUP_ID, status: 'active' }),
           update: () => Promise.resolve(updatedGroup),
@@ -1247,6 +1254,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
           update: mockOrderItemUpdateInTx,
           findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
         },
+        course: { findFirst: mockCourseFindFirst },
       }
       return cb(tx)
     })
@@ -1301,6 +1309,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
           update: mockOrderItemUpdateInTx,
           findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
         },
+        course: { findFirst: mockCourseFindFirst },
       }
       return cb(tx)
     })
@@ -1343,6 +1352,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
           update: mockOrderItemUpdateInTx,
           findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
         },
+        course: { findFirst: mockCourseFindFirst },
       }
       return cb(tx)
     })
@@ -1427,6 +1437,7 @@ describe('PUT /api/groups/:id/course — コース人数変更', () => {
           findMany: mockOrderItemFindManyInTx,
           update: mockOrderItemUpdateInTx,
         },
+        course: { findFirst: mockCourseFindFirst },
       }
       return cb(tx)
     })

@@ -14,6 +14,7 @@ const ja = {
     all: 'すべて',
     readyToServe: '提供待ち',
     perPerson: '/ 人',
+    personUnit: '名',
     unknownGroup: 'グループ{{id}}',
     unknownItem: '商品{{id}}',
     unknownCategory: 'カテゴリ{{id}}',
@@ -288,6 +289,9 @@ const ja = {
     editCategoryTitle: '大分類を編集',
     addSubCategoryTitle: '小分類を追加',
     editSubCategoryTitle: '小分類を編集',
+    deleteProductConfirm: '{{name}} を削除しますか？',
+    deleteSubCategoryConfirm: '{{name}} を削除しますか？配下に商品がある場合は削除できません',
+    deleteCategoryConfirm: '{{name}} を削除しますか？配下に小分類・商品がある場合は削除できません',
   },
   report: {
     sessionLabel: '営業セッション',
@@ -311,6 +315,8 @@ const ja = {
     perGuest: '/ 人',
     hourlySales: '時間帯別売上',
     pieChartTitle: '日次売上構成比の円グラフ',
+    hourLabel: '{{hour}}時',
+    countUnit: '{{qty}}件',
   },
   login: {
     title: 'ログイン',

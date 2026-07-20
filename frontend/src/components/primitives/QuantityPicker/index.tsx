@@ -16,17 +16,21 @@ export function QuantityPicker({ value, onChange, min = 1, max, unit }: Quantity
       <button
         type="button"
         onClick={dec}
-        className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim cursor-pointer flex items-center justify-center"
+        className="min-w-11 min-h-11 p-0 cursor-pointer flex items-center justify-center"
       >
-        −
+        <span className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim flex items-center justify-center">
+          −
+        </span>
       </button>
       <span className="text-2xl font-medium text-ink min-w-10 text-center">{value}</span>
       <button
         type="button"
         onClick={inc}
-        className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim cursor-pointer flex items-center justify-center"
+        className="min-w-11 min-h-11 p-0 cursor-pointer flex items-center justify-center"
       >
-        ＋
+        <span className="w-10 h-10 rounded-full border border-line bg-white text-xl text-dim flex items-center justify-center">
+          ＋
+        </span>
       </button>
       {unit && <span className="text-note text-muted">{unit}</span>}
     </div>

@@ -1,10 +1,19 @@
 import bcrypt from 'bcryptjs'
-import type { FastifyPluginAsync } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { ErrorCodes, sendError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import { requirePlatformAdmin } from '../plugins/auth.js'
 
 const RESERVED_SUBDOMAINS = new Set(['admin'])
+
+class ActiveDataExistsError extends Error {
+  constructor(
+    public openSessionCount: number,
+    public activeGroupCount: number,
+  ) {
+    super('active data exists')
+  }
+}
 
 const DEFAULT_SETTING = {
   storeName: '居酒屋',
@@ -37,6 +46,12 @@ const updateBodySchema = {
 
 // passwordHash 等の内部情報を含めないための明示的な select
 const select = { id: true, subdomain: true, name: true, isActive: true, createdAt: true }
+
+// 店舗無効化直後、旧スタッフ端末がアクセストークン失効まで操作を継続できてしまわないよう、
+// 既存の Socket.io 接続を強制切断する（auth.ts/staff.ts と同じ disconnectSockets パターン）
+function deactivateStoreSockets(fastify: FastifyInstance, storeId: number) {
+  fastify.io.in(`store:${storeId}`).disconnectSockets(true)
+}
 
 const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', requirePlatformAdmin)
@@ -100,6 +115,7 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     if (!existing)
       return sendError(reply, 404, ErrorCodes.PlatformStores.NotFound, '店舗が見つかりません')
     const store = await prisma.store.update({ where: { id: Number(id) }, data: body, select })
+    if (store.isActive === false) deactivateStoreSockets(fastify, store.id)
     return store
   })
 
@@ -114,24 +130,36 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
     // resolveStoreContext は isActive: false の店舗を unknown 扱いにするため、
     // 以降のリクエストは Host 解決の時点で 404 になる。
     await prisma.store.update({ where: { id: storeId }, data: { isActive: false } })
+    deactivateStoreSockets(fastify, storeId)
 
     try {
       // FK 依存の逆順で削除する（GroupSeat/CourseFoodItem/DrinkPlanItem/RefreshToken は onDelete: Cascade で自動削除される）
-      await prisma.$transaction([
-        prisma.orderItem.deleteMany({ where: { storeId } }),
-        prisma.group.deleteMany({ where: { storeId } }),
-        prisma.session.deleteMany({ where: { storeId } }),
-        prisma.course.deleteMany({ where: { storeId } }),
-        prisma.drinkPlan.deleteMany({ where: { storeId } }),
-        prisma.menuItem.deleteMany({ where: { storeId } }),
-        prisma.subCategory.deleteMany({ where: { storeId } }),
-        prisma.category.deleteMany({ where: { storeId } }),
-        prisma.seat.deleteMany({ where: { storeId } }),
-        prisma.seatTable.deleteMany({ where: { storeId } }),
-        prisma.staff.deleteMany({ where: { storeId } }),
-        prisma.setting.deleteMany({ where: { storeId } }),
-        prisma.store.delete({ where: { id: storeId } }),
-      ])
+      await prisma.$transaction(
+        async (tx) => {
+          const openSessionCount = await tx.session.count({ where: { storeId, status: 'open' } })
+          const activeGroupCount = await tx.group.count({
+            where: { storeId, status: { in: ['active', 'bill_requested'] } },
+          })
+          if (openSessionCount > 0 || activeGroupCount > 0) {
+            throw new ActiveDataExistsError(openSessionCount, activeGroupCount)
+          }
+
+          await tx.orderItem.deleteMany({ where: { storeId } })
+          await tx.group.deleteMany({ where: { storeId } })
+          await tx.session.deleteMany({ where: { storeId } })
+          await tx.course.deleteMany({ where: { storeId } })
+          await tx.drinkPlan.deleteMany({ where: { storeId } })
+          await tx.menuItem.deleteMany({ where: { storeId } })
+          await tx.subCategory.deleteMany({ where: { storeId } })
+          await tx.category.deleteMany({ where: { storeId } })
+          await tx.seat.deleteMany({ where: { storeId } })
+          await tx.seatTable.deleteMany({ where: { storeId } })
+          await tx.staff.deleteMany({ where: { storeId } })
+          await tx.setting.deleteMany({ where: { storeId } })
+          await tx.store.delete({ where: { id: storeId } })
+        },
+        { timeout: 30_000 },
+      )
     } catch (err) {
       request.log.error(
         { err, storeId, subdomain: existing.subdomain },
@@ -143,6 +171,15 @@ const platformStoresRoutes: FastifyPluginAsync = async (fastify) => {
         request.log.error(
           { err: restoreErr, storeId, subdomain: existing.subdomain },
           'Failed to restore store active state after delete failure',
+        )
+      }
+      if (err instanceof ActiveDataExistsError) {
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.PlatformStores.ActiveDataExists,
+          '営業中のセッションまたはアクティブなグループが存在するため削除できません',
+          { openSessionCount: err.openSessionCount, activeGroupCount: err.activeGroupCount },
         )
       }
       throw err

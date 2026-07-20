@@ -13,8 +13,11 @@ const mockStoreFindUnique =
   >()
 const mockStoreUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockStoreDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
-const mockTransaction = jest.fn<(ops: Promise<unknown>[]) => Promise<unknown>>()
+const mockTransaction =
+  jest.fn<(fn: (tx: unknown) => Promise<unknown>, opts?: unknown) => Promise<unknown>>()
 
+const mockSessionCount = jest.fn<(...args: unknown[]) => Promise<number>>()
+const mockGroupCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockOrderItemDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockGroupDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockSessionDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -28,21 +31,25 @@ const mockSeatTableDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>
 const mockStaffDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockSettingDeleteMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 
+const tx = {
+  session: { count: mockSessionCount, deleteMany: mockSessionDeleteMany },
+  group: { count: mockGroupCount, deleteMany: mockGroupDeleteMany },
+  orderItem: { deleteMany: mockOrderItemDeleteMany },
+  course: { deleteMany: mockCourseDeleteMany },
+  drinkPlan: { deleteMany: mockDrinkPlanDeleteMany },
+  menuItem: { deleteMany: mockMenuItemDeleteMany },
+  subCategory: { deleteMany: mockSubCategoryDeleteMany },
+  category: { deleteMany: mockCategoryDeleteMany },
+  seat: { deleteMany: mockSeatDeleteMany },
+  seatTable: { deleteMany: mockSeatTableDeleteMany },
+  staff: { deleteMany: mockStaffDeleteMany },
+  setting: { deleteMany: mockSettingDeleteMany },
+  store: { delete: mockStoreDelete },
+}
+
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
     store: { findUnique: mockStoreFindUnique, update: mockStoreUpdate, delete: mockStoreDelete },
-    orderItem: { deleteMany: mockOrderItemDeleteMany },
-    group: { deleteMany: mockGroupDeleteMany },
-    session: { deleteMany: mockSessionDeleteMany },
-    course: { deleteMany: mockCourseDeleteMany },
-    drinkPlan: { deleteMany: mockDrinkPlanDeleteMany },
-    menuItem: { deleteMany: mockMenuItemDeleteMany },
-    subCategory: { deleteMany: mockSubCategoryDeleteMany },
-    category: { deleteMany: mockCategoryDeleteMany },
-    seat: { deleteMany: mockSeatDeleteMany },
-    seatTable: { deleteMany: mockSeatTableDeleteMany },
-    staff: { deleteMany: mockStaffDeleteMany },
-    setting: { deleteMany: mockSettingDeleteMany },
     $transaction: mockTransaction,
   },
 }))
@@ -52,8 +59,15 @@ const { default: platformStoresRoutes } = await import('../routes/platformStores
 const SECRET = 'test-secret'
 const STORE_ID = 42
 
-async function buildTestApp() {
+function buildMockIo() {
+  const disconnectSockets = jest.fn()
+  const inFn = jest.fn((_room: string) => ({ disconnectSockets }))
+  return { inFn, disconnectSockets }
+}
+
+async function buildTestApp(io = buildMockIo()) {
   const app = Fastify({ logger: false })
+  app.decorate('io', { in: io.inFn } as never)
   await app.register(cookie)
   await app.register(jwt, { secret: SECRET })
   await app.register(platformStoresRoutes, { prefix: '/api/platform/stores' })
@@ -63,9 +77,10 @@ async function buildTestApp() {
 
 describe('DELETE /api/platform/stores/:id', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
 
   beforeAll(async () => {
-    app = await buildTestApp()
+    app = await buildTestApp(io)
   })
 
   afterAll(async () => {
@@ -74,7 +89,9 @@ describe('DELETE /api/platform/stores/:id', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockTransaction.mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops))
+    mockTransaction.mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(tx))
+    mockSessionCount.mockResolvedValue(0)
+    mockGroupCount.mockResolvedValue(0)
     for (const mock of [
       mockOrderItemDeleteMany,
       mockGroupDeleteMany,
@@ -137,6 +154,11 @@ describe('DELETE /api/platform/stores/:id', () => {
       data: { isActive: false },
     })
     expect(mockTransaction).toHaveBeenCalledTimes(1)
+    expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 30_000 })
+    expect(mockSessionCount).toHaveBeenCalledWith({ where: { storeId: STORE_ID, status: 'open' } })
+    expect(mockGroupCount).toHaveBeenCalledWith({
+      where: { storeId: STORE_ID, status: { in: ['active', 'bill_requested'] } },
+    })
     expect(mockOrderItemDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockGroupDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockSessionDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
@@ -150,6 +172,62 @@ describe('DELETE /api/platform/stores/:id', () => {
     expect(mockStaffDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockSettingDeleteMany).toHaveBeenCalledWith({ where: { storeId: STORE_ID } })
     expect(mockStoreDelete).toHaveBeenCalledWith({ where: { id: STORE_ID } })
+    expect(io.inFn).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+  })
+
+  it('営業中のセッションがある場合は 409 を返し、カスケード削除を実行せず isActive を復元する', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockSessionCount.mockResolvedValue(1)
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'platform_stores.delete.active_data_exists',
+        details: { openSessionCount: 1, activeGroupCount: 0 },
+      },
+    })
+    expect(mockOrderItemDeleteMany).not.toHaveBeenCalled()
+    expect(mockStoreDelete).not.toHaveBeenCalled()
+    expect(mockStoreUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: STORE_ID },
+      data: { isActive: false },
+    })
+    expect(mockStoreUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: STORE_ID },
+      data: { isActive: true },
+    })
+  })
+
+  it('アクティブなグループがある場合は 409 を返し、カスケード削除を実行せず isActive を復元する', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockGroupCount.mockResolvedValue(2)
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'platform_stores.delete.active_data_exists',
+        details: { openSessionCount: 0, activeGroupCount: 2 },
+      },
+    })
+    expect(mockOrderItemDeleteMany).not.toHaveBeenCalled()
+    expect(mockStoreDelete).not.toHaveBeenCalled()
+    expect(mockStoreUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: STORE_ID },
+      data: { isActive: true },
+    })
   })
 
   it('削除トランザクションが失敗すると isActive を true へ戻してログを出す', async () => {
@@ -179,5 +257,95 @@ describe('DELETE /api/platform/stores/:id', () => {
     )
 
     logError.mockRestore()
+  })
+})
+
+describe('PUT /api/platform/stores/:id', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  const io = buildMockIo()
+
+  beforeAll(async () => {
+    app = await buildTestApp(io)
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function platformCookie() {
+    const token = app.jwt.sign({
+      type: 'platform' as const,
+      adminId: 'admin-1',
+      username: 'platform-admin',
+    })
+    return `platform_token=${token}`
+  }
+
+  it('isActive: false への更新で対象店舗の Socket 接続を切断する', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'test',
+      isActive: false,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { isActive: false },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).toHaveBeenCalledWith(`store:${STORE_ID}`)
+    expect(io.disconnectSockets).toHaveBeenCalledWith(true)
+  })
+
+  it('isActive: true への更新（再有効化）では切断しない', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: false })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'test',
+      isActive: true,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { isActive: true },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
+  })
+
+  it('isActive を含まない更新（既存値が true）では切断しない', async () => {
+    mockStoreFindUnique.mockResolvedValue({ id: STORE_ID, subdomain: 'e2e-test', isActive: true })
+    mockStoreUpdate.mockResolvedValue({
+      id: STORE_ID,
+      subdomain: 'e2e-test',
+      name: 'new-name',
+      isActive: true,
+      createdAt: new Date(),
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/platform/stores/${STORE_ID}`,
+      headers: { cookie: platformCookie() },
+      payload: { name: 'new-name' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(io.inFn).not.toHaveBeenCalled()
   })
 })

@@ -119,7 +119,12 @@ export function CourseTab({
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-caption text-muted mb-1">{t('group.courseQtyChange')}</div>
-                <QuantityPicker value={editingQty} onChange={setEditingQty} min={1} unit="名" />
+                <QuantityPicker
+                  value={editingQty}
+                  onChange={setEditingQty}
+                  min={1}
+                  unit={t('common.personUnit')}
+                />
               </div>
               <div className="flex gap-2">
                 <BaseButton

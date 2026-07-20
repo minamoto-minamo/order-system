@@ -19,6 +19,7 @@ export const ErrorCodes = {
     NotFound: 'platform_stores.detail.not_found',
     ReservedSubdomain: 'platform_stores.save.reserved_subdomain',
     DuplicateSubdomain: 'platform_stores.save.duplicate_subdomain',
+    ActiveDataExists: 'platform_stores.delete.active_data_exists',
   },
   Sessions: {
     AlreadyOpen: 'sessions.create.already_open',
@@ -43,6 +44,7 @@ export const ErrorCodes = {
     CourseNotApplied: 'groups.course.not_applied',
     CourseRemovalNotAllowed: 'groups.course.remove_not_allowed',
     CourseConflict: 'groups.course.conflict',
+    UnservedItemsExist: 'groups.update.unserved_items_exist',
   },
   Orders: {
     InvalidStatus: 'orders.list.invalid_status',
@@ -54,6 +56,7 @@ export const ErrorCodes = {
     TakeoutMismatch: 'orders.create.takeout_mismatch',
     CourseNotFound: 'orders.create.course_not_found',
     CourseMismatch: 'orders.create.course_mismatch',
+    CourseFoodItemConflict: 'orders.create.course_food_item_conflict',
     SettingNotFound: 'orders.create.setting_not_found',
     Conflict: 'orders.cancel.conflict',
     NotFound: 'orders.cancel.not_found',
@@ -118,10 +121,13 @@ export const ErrorCodes = {
     TakeoutOnly: 'customer.orders.takeout_only',
     DrinkPlanMismatch: 'customer.orders.drink_plan_mismatch',
     Conflict: 'customer.orders.conflict',
+    UnservedItemsExist: 'customer.bill.unserved_items_exist',
   },
   Socket: {
     OrderCompleteFailed: 'socket.order.complete_failed',
     OrderServeFailed: 'socket.order.serve_failed',
+    OrderCompleteRejected: 'socket.order.complete_rejected',
+    OrderServeRejected: 'socket.order.serve_rejected',
   },
 } as const
 

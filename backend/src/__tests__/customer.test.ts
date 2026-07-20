@@ -9,6 +9,7 @@ type Category = { id: number; name: string; sort: number }
 type SubCategory = { id: number; name: string; sort: number; categoryId: number }
 
 const mockGroupFindFirst = jest.fn<(...args: unknown[]) => Promise<Group | null>>()
+const mockGroupFindUniqueOrThrow = jest.fn<(...args: unknown[]) => Promise<Group>>()
 const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<MenuItem[]>>()
 const mockDrinkPlanItemFindMany = jest.fn<(...args: unknown[]) => Promise<DrinkPlanItem[]>>()
 const mockCategoryFindMany = jest.fn<(...args: unknown[]) => Promise<Category[]>>()
@@ -27,7 +28,10 @@ const mockTransaction =
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
-    group: { findFirst: mockGroupFindFirst },
+    group: {
+      findFirst: mockGroupFindFirst,
+      findUniqueOrThrow: mockGroupFindUniqueOrThrow,
+    },
     menuItem: { findMany: mockMenuItemFindMany },
     drinkPlanItem: { findMany: mockDrinkPlanItemFindMany },
     category: { findMany: mockCategoryFindMany },
@@ -104,6 +108,119 @@ describe('GET /api/customer/groups/:id — 税率設定', () => {
     expect(res.statusCode).toBe(500)
     expect(res.json()).toMatchObject({
       error: { code: 'common.setting_not_found', message: '店舗設定が見つかりません' },
+    })
+  })
+})
+
+describe('POST /api/customer/groups/:id/bill — 会計依頼', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('トランザクション内再検証で active でなくなっていた場合、状態を書き換えず 400/BillRequestNotAllowed を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const mockTxGroupUpdate = jest.fn()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve(null), update: mockTxGroupUpdate },
+        orderItem: { count: jest.fn() },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      error: { code: 'customer.bill.not_allowed', message: '会計を依頼できない状態です' },
+    })
+    expect(mockTxGroupUpdate).not.toHaveBeenCalled()
+    expect(mockGroupFindUniqueOrThrow).not.toHaveBeenCalled()
+  })
+
+  it('active だが未提供（pending/ready）の注文明細が残っている場合、状態を書き換えず 409/UnservedItemsExist を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    const mockTxGroupUpdate = jest.fn()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockTxGroupUpdate },
+        orderItem: { count: () => Promise.resolve(2) },
+      }
+      return cb(tx)
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'customer.bill.unserved_items_exist',
+        message: '未提供の注文が残っているため会計を依頼できません',
+        details: { count: 2 },
+      },
+    })
+    expect(mockTxGroupUpdate).not.toHaveBeenCalled()
+    expect(mockGroupFindUniqueOrThrow).not.toHaveBeenCalled()
+  })
+
+  it('active かつ未提供 0 件の場合は 204 を返し bill_requested に更新して group:updated を emit する', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockSettingFindUnique.mockResolvedValue({
+      taxRateInHouse: { toNumber: () => 10 },
+      taxRateTakeout: { toNumber: () => 8 },
+      taxInclusive: false,
+    })
+    const mockTxGroupUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+    mockTransaction.mockImplementation(async (cb) => {
+      const tx = {
+        group: { findFirst: () => Promise.resolve({ id: GROUP_ID, status: 'active' }), update: mockTxGroupUpdate },
+        orderItem: { count: () => Promise.resolve(0) },
+      }
+      return cb(tx)
+    })
+    mockGroupFindUniqueOrThrow.mockResolvedValue({
+      id: GROUP_ID,
+      name: 'A-1',
+      guestCount: 2,
+      status: 'bill_requested',
+      sessionId: 1,
+      courseId: null,
+      drinkPlanId: null,
+      billedTaxRateInHouse: null,
+      billedTaxRateTakeout: null,
+      billedTaxInclusive: null,
+      createdAt: new Date(),
+      seats: [],
+    } as any)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/customer/groups/${GROUP_ID}/bill`,
+    })
+
+    expect(res.statusCode).toBe(204)
+    expect(mockTxGroupUpdate).toHaveBeenCalledWith({
+      where: { id: GROUP_ID },
+      data: { status: 'bill_requested' },
+    })
+    expect(mockGroupFindUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: GROUP_ID },
+      include: { seats: true },
     })
   })
 })
@@ -303,12 +420,29 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
     })
   })
 
-  it('プラン外商品を注文すると 422 を返す', async () => {
+  it('プラン対象外商品のみの注文は拒否されず、通常単価で登録される', async () => {
     mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
     mockMenuItemFindMany.mockResolvedValue([
       { id: 2, name: 'ウーロン茶', price: 300, soldOut: false },
     ])
     mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockResolvedValue({
+      id: 'item-1',
+      groupId: GROUP_ID,
+      menuItemId: 2,
+      menuItemName: 'ウーロン茶',
+      price: 300,
+      originalPrice: 300,
+      qty: 1,
+      status: 'pending',
+      isTakeout: false,
+      taxRate: { toNumber: () => 10 },
+      courseId: null,
+      orderedAt: new Date(),
+    })
+    mockTx(mockCreate)
 
     const res = await app.inject({
       method: 'POST',
@@ -316,10 +450,65 @@ describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円
       payload: { groupId: GROUP_ID, items: [{ menuItemId: 2, qty: 1 }] },
     })
 
-    expect(res.statusCode).toBe(422)
-    expect(res.json()).toMatchObject({
-      error: { message: 'ドリンクプランに含まれていない商品が選択されています' },
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 2, price: 300, originalPrice: 300 }),
+      }),
+    )
+  })
+
+  it('プラン対象商品と対象外商品が混在する注文は拒否されず、対象商品のみ0円で登録される', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: 5 })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 1, name: '生ビール', price: 600, soldOut: false },
+      { id: 2, name: 'ウーロン茶', price: 300, soldOut: false },
+    ])
+    mockDrinkPlanItemFindMany.mockResolvedValue([{ menuItemId: 1 }])
+    mockSettingFindUnique.mockResolvedValue({ taxRateInHouse: { toNumber: () => 10 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockCreate = jest.fn<any>().mockImplementation((args: any) => {
+      const { menuItemId, menuItemName, price, originalPrice, qty } = args.data
+      return Promise.resolve({
+        id: `item-${menuItemId}`,
+        groupId: GROUP_ID,
+        menuItemId,
+        menuItemName,
+        price,
+        originalPrice,
+        qty,
+        status: 'pending',
+        isTakeout: false,
+        taxRate: { toNumber: () => 10 },
+        courseId: null,
+        orderedAt: new Date(),
+      })
     })
+    mockTx(mockCreate)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: {
+        groupId: GROUP_ID,
+        items: [
+          { menuItemId: 1, qty: 1 },
+          { menuItemId: 2, qty: 1 },
+        ],
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 1, price: 0, originalPrice: 600 }),
+      }),
+    )
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ menuItemId: 2, price: 300, originalPrice: 300 }),
+      }),
+    )
   })
 
   it('テイクアウト専用商品を注文すると 422 を返す', async () => {
