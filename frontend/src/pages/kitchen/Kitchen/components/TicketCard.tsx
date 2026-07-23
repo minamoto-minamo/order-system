@@ -44,8 +44,13 @@ export function TicketCard({
         </div>
       </div>
       <div className="mb-2.5 flex items-start gap-2">
-        <div className="min-w-0 flex-1 truncate text-caption font-medium text-ink">
-          {order.item}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-caption font-medium text-ink">{order.item}</div>
+          {order.options.map((option) => (
+            <div key={option.groupName} className="truncate text-xs text-muted">
+              {option.groupName}: {option.choiceName}
+            </div>
+          ))}
         </div>
         <div className="shrink-0 rounded-full bg-surface-deep px-2 py-0.5 text-caption text-secondary">
           ×{order.qty}

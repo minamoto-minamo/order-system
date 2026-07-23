@@ -7,14 +7,27 @@ import { HistoryCourseBlock } from './HistoryCourseBlock'
 import { ActiveItemRow, type ItemGroup, ServedItemRow } from './HistoryRows'
 import { HistoryTotalsFooter } from './HistoryTotalsFooter'
 
-function groupItems(list: OrderItem[]): ItemGroup[] {
+export function groupItems(list: OrderItem[]): ItemGroup[] {
   return list.reduce<ItemGroup[]>((acc, item) => {
-    const key = `${item.menuItemId}-${item.price}`
+    const options = [...item.options].sort((a, b) => {
+      const aKey = a.choiceId?.toString() ?? a.choiceName
+      const bKey = b.choiceId?.toString() ?? b.choiceName
+      return aKey.localeCompare(bKey)
+    })
+    const key = `${item.menuItemId}-${item.price}-${options
+      .map((option) => option.choiceId ?? option.choiceName)
+      .join(',')}`
     const existing = acc.find((g) => g.key === key)
     if (existing) {
       existing.totalQty += item.qty
     } else {
-      acc.push({ key, menuItemName: item.menuItemName, price: item.price, totalQty: item.qty })
+      acc.push({
+        key,
+        menuItemName: item.menuItemName,
+        price: item.price,
+        totalQty: item.qty,
+        options: options.map(({ groupName, choiceName }) => ({ groupName, choiceName })),
+      })
     }
     return acc
   }, [])

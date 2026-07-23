@@ -143,6 +143,11 @@ const ja = {
     changeSeatToast: '席を変更しました',
     showQr: 'QRコードを表示',
   },
+  orderOption: {
+    required: '必須',
+    qty: '数量',
+    selectButton: 'オプションを選ぶ',
+  },
   admin: {
     menuTitle: '管理者メニュー',
     products: '商品設定',

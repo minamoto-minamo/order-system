@@ -35,6 +35,7 @@ export function buildDisplay(
     groupName: g?.name ?? getGroupName(o.groupId),
     seats: seatLabels,
     item: o.menuItemName,
+    options: (o.options ?? []).map(({ groupName, choiceName }) => ({ groupName, choiceName })),
     qty: o.qty,
     catId: m?.categoryId ?? 0,
     subId: m?.subCategoryId ?? 0,

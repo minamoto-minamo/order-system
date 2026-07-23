@@ -52,6 +52,7 @@ describe('buildDisplay', () => {
       groupName: 'G1',
       seats: 'A1・A2',
       item: '枝豆',
+      options: [],
       qty: 2,
       catId: 3,
       subId: 7,

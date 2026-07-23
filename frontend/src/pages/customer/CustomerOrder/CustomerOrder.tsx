@@ -9,6 +9,10 @@ import {
   TabNavigation,
 } from '@/components/composite'
 import { BaseButton, Icon, IconButton } from '@/components/primitives'
+import {
+  type OptionedOrderLine,
+  OptionSelectSheet,
+} from '@/features/order/components/OptionSelectSheet'
 import { useSocketListeners } from '@/hooks/useSocketListeners'
 import { api } from '@/lib/api'
 import { ApiError, apiErrorMessage } from '@/lib/apiError'
@@ -53,6 +57,8 @@ export default function CustomerOrder() {
   const [activeCatId, setActiveCatId] = useState<number | null>(null)
   const [activeSubId, setActiveSubId] = useState<number | null>(null)
   const [qtys, setQtys] = useState<Record<number, number>>({})
+  const [optionedLines, setOptionedLines] = useState<OptionedOrderLine[]>([])
+  const [optionTarget, setOptionTarget] = useState<MenuItem | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [calling, setCalling] = useState(false)
@@ -140,10 +146,19 @@ export default function CustomerOrder() {
   const setQty = (id: number, val: number) =>
     setQtys((prev) => ({ ...prev, [id]: Math.max(0, val) }))
 
-  const orderItems = Object.entries(qtys)
-    .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ item: menus.find((m) => m.id === Number(id))!, qty }))
-    .filter((x) => x.item != null)
+  const orderItems: ({
+    item: MenuItem
+    qty: number
+    selectedChoiceIds?: number[]
+  } & Partial<OptionedOrderLine>)[] = [
+    ...Object.entries(qtys)
+      .filter(([, qty]) => qty > 0)
+      .flatMap(([id, qty]) => {
+        const item = menus.find((menu) => menu.id === Number(id))
+        return item ? [{ item, qty }] : []
+      }),
+    ...optionedLines,
+  ]
 
   const handleSubmit = async () => {
     if (submitting || orderItems.length === 0) return
@@ -151,11 +166,16 @@ export default function CustomerOrder() {
     try {
       const created = await api.post<OrderItem[]>(EP.customerOrders, {
         groupId,
-        items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty })),
+        items: orderItems.map(({ item, qty, selectedChoiceIds }) => ({
+          menuItemId: item.id,
+          qty,
+          selectedChoiceIds,
+        })),
       })
       // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
       setItems((prev) => [...prev, ...created.filter((c) => !prev.some((i) => i.id === c.id))])
       setQtys({})
+      setOptionedLines([])
       setConfirmOpen(false)
       showToast(t('customerOrder.orderSuccess'))
       setTab('history')
@@ -169,6 +189,7 @@ export default function CustomerOrder() {
           for (const id of soldOutIds) delete next[id]
           return next
         })
+        setOptionedLines((prev) => prev.filter((line) => !soldOutIds.includes(line.item.id)))
         soldOutNames = details?.menuItemNames ?? []
         api.get<CustomerMenusResponse>(EP.customerMenus(groupId)).then((m) => {
           setMenus(m.menus)
@@ -297,6 +318,7 @@ export default function CustomerOrder() {
           drinkPlanMenuItemIds={drinkPlanMenuItemIds}
           getQty={getQty}
           onQtyChange={setQty}
+          onSelectOptionItem={setOptionTarget}
           footerVisible={orderItems.length > 0}
         />
       ) : (
@@ -321,6 +343,16 @@ export default function CustomerOrder() {
         submitting={submitting}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleSubmit}
+      />
+      <OptionSelectSheet
+        key={optionTarget?.id ?? 'empty'}
+        item={optionTarget}
+        open={optionTarget != null}
+        onClose={() => setOptionTarget(null)}
+        onAdd={(line) => {
+          setOptionedLines((prev) => [...prev, line])
+          setOptionTarget(null)
+        }}
       />
 
       <BottomSheetModal

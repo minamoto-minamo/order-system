@@ -4,9 +4,12 @@ import { Icon } from '@/components/primitives'
 import { SYMBOL_ICONS } from '@/lib/icons'
 import { BottomSheetModal } from '../BottomSheetModal'
 
-interface OrderItem {
+export interface OrderItem {
   item: MenuItem
   qty: number
+  clientId?: string
+  selectedChoiceIds?: number[]
+  options?: { groupName: string; choiceName: string; extraPrice: number }[]
 }
 
 export function MenuConfirmModal({
@@ -25,7 +28,12 @@ export function MenuConfirmModal({
   onConfirm: () => void
 }) {
   const { t } = useTranslation()
-  const total = items.reduce((sum, { item, qty }) => sum + item.price * qty, 0)
+  const linePrice = (item: OrderItem) =>
+    Math.max(
+      0,
+      item.item.price + (item.options ?? []).reduce((sum, option) => sum + option.extraPrice, 0),
+    )
+  const total = items.reduce((sum, item) => sum + linePrice(item) * item.qty, 0)
   return (
     <BottomSheetModal
       show={open}
@@ -50,12 +58,22 @@ export function MenuConfirmModal({
         <div className="text-sub font-medium text-ink">{t('group.reviewTitle')}</div>
       </div>
       <div className="px-5">
-        {items.map(({ item, qty }) => (
-          <div key={item.id} className="flex items-center py-3.5 border-b border-surface gap-3">
-            <span className="flex-1 text-note text-ink">{item.name}</span>
-            <span className="text-note text-muted shrink-0">×{qty}</span>
+        {items.map((orderItem) => (
+          <div
+            key={orderItem.clientId ?? orderItem.item.id}
+            className="flex items-center py-3.5 border-b border-surface gap-3"
+          >
+            <div className="flex-1 text-note text-ink">
+              <div>{orderItem.item.name}</div>
+              {(orderItem.options ?? []).map((option) => (
+                <div key={option.groupName} className="text-xs text-muted">
+                  {option.groupName}: {option.choiceName}
+                </div>
+              ))}
+            </div>
+            <span className="text-note text-muted shrink-0">×{orderItem.qty}</span>
             <span className="text-note text-ink w-20 text-right shrink-0">
-              ¥{(item.price * qty).toLocaleString()}
+              ¥{(linePrice(orderItem) * orderItem.qty).toLocaleString()}
             </span>
           </div>
         ))}

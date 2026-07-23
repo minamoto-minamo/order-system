@@ -27,10 +27,10 @@ description: "Task list for 商品オプション機能"
 
 **⚠️ CRITICAL**: このフェーズが完了するまでUser Story の実装は開始できない
 
-- [ ] T001 `backend/prisma/schema.prisma` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` モデルを追加し、`Store`/`MenuItem`/`OrderItem` に逆リレーションを追加する（[data-model.md](./data-model.md) の Prisma schema 追記イメージを反映）
-- [ ] T002 `pnpm --filter backend db:migrate` でマイグレーションを生成・適用する（T001完了後）
-- [ ] T003 [P] `shared/types/index.ts` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` / `UpsertProductOptionGroupRequest` / `UpsertProductOptionChoiceRequest` 型を追加し、`MenuItem`（`optionGroups`）、`OrderItem`（`options`）、`UpsertMenuItemRequest`（`optionGroups`）、`OrderItemInput`（`selectedChoiceIds`）を拡張する（[contracts/menu-options.md](./contracts/menu-options.md) 参照）
-- [ ] T004 [P] `backend/src/lib/errors.ts` の `ErrorCodes.Orders` と `ErrorCodes.Customer` の両方に、それぞれの既存命名パターンに倣って `invalidOptionChoice` / `duplicateOptionGroupSelection` / `missingRequiredOption` 相当のコードを追加する（customer.ts側は客用ゲスト向けエンドポイントでも同じバリデーションを行うため、`ErrorCodes.Orders`とは別に`ErrorCodes.Customer`にも追加する。T013で両方使用）
+- [x] T001 `backend/prisma/schema.prisma` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` モデルを追加し、`Store`/`MenuItem`/`OrderItem` に逆リレーションを追加する（[data-model.md](./data-model.md) の Prisma schema 追記イメージを反映）
+- [x] T002 `pnpm --filter backend db:migrate` でマイグレーションを生成・適用する（T001完了後）
+- [x] T003 [P] `shared/types/index.ts` に `ProductOptionGroup` / `ProductOptionChoice` / `OrderItemOption` / `UpsertProductOptionGroupRequest` / `UpsertProductOptionChoiceRequest` 型を追加し、`MenuItem`（`optionGroups`）、`OrderItem`（`options`）、`UpsertMenuItemRequest`（`optionGroups`）、`OrderItemInput`（`selectedChoiceIds`）を拡張する（[contracts/menu-options.md](./contracts/menu-options.md) 参照）
+- [x] T004 [P] `backend/src/lib/errors.ts` の `ErrorCodes.Orders` と `ErrorCodes.Customer` の両方に、それぞれの既存命名パターンに倣って `invalidOptionChoice` / `duplicateOptionGroupSelection` / `missingRequiredOption` 相当のコードを追加する（customer.ts側は客用ゲスト向けエンドポイントでも同じバリデーションを行うため、`ErrorCodes.Orders`とは別に`ErrorCodes.Customer`にも追加する。T013で両方使用）
 
 **Checkpoint**: DBスキーマ・共有型・エラーコードが揃い、各User Storyの実装に着手できる
 
@@ -44,15 +44,15 @@ description: "Task list for 商品オプション機能"
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] backend unit test: `POST /menus` / `PUT /menus/:id` に `optionGroups` を含めた場合の全置換保存（作成・更新・削除の反映）を検証するテストを `backend/src/routes/menus.test.ts` に追加する
+- [x] T005 [P] [US1] backend unit test: `POST /menus` / `PUT /menus/:id` に `optionGroups` を含めた場合の全置換保存（作成・更新・削除の反映）を検証するテストを `backend/src/routes/menus.test.ts` に追加する
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] `backend/src/lib/mappers.ts` の `toMenuItem`（または相当関数）に `optionGroups`（`choices`含む）のマッピングを追加する（`toCourse`の`foodItems`マッピングパターン踏襲）
-- [ ] T007 [US1] `backend/src/routes/menus.ts` の `createBodySchema` / `updateBodySchema`（JSON Schema）に `optionGroups` 配列（`name`, `required`, `sort`, `choices: [{name, extraPrice, sort}]`）を追加する
-- [ ] T008 [US1] `backend/src/routes/menus.ts` の `POST /menus` / `PUT /menus/:id` に `optionGroups` の nested write（`deleteMany` + `create` の全置換、`courses.ts:145-150`パターン踏襲）を実装する（T006, T007に依存）
-- [ ] T009 [P] [US1] frontend: オプション分類・選択肢の追加・編集・削除フォームコンポーネントを新規作成する（`frontend/src/pages/admin/Products/OptionGroupEditor.tsx`）。分類の追加・削除、各分類内の選択肢（名前・追加金額）の追加・削除、必須/任意トグルを持つ
-- [ ] T010 [US1] `frontend/src/pages/admin/Products/ProductModal.tsx` に T009のコンポーネントを組み込み、保存時に `optionGroups` を `UpsertMenuItemRequest` に含めてAPI呼び出しする（T009に依存）
+- [x] T006 [US1] `backend/src/lib/mappers.ts` の `toMenuItem`（または相当関数）に `optionGroups`（`choices`含む）のマッピングを追加する（`toCourse`の`foodItems`マッピングパターン踏襲）
+- [x] T007 [US1] `backend/src/routes/menus.ts` の `createBodySchema` / `updateBodySchema`（JSON Schema）に `optionGroups` 配列（`name`, `required`, `sort`, `choices: [{name, extraPrice, sort}]`）を追加する
+- [x] T008 [US1] `backend/src/routes/menus.ts` の `POST /menus` / `PUT /menus/:id` に `optionGroups` の nested write（`deleteMany` + `create` の全置換、`courses.ts:145-150`パターン踏襲）を実装する（T006, T007に依存）
+- [x] T009 [P] [US1] frontend: オプション分類・選択肢の追加・編集・削除フォームコンポーネントを新規作成する（`frontend/src/pages/admin/Products/OptionGroupEditor.tsx`）。分類の追加・削除、各分類内の選択肢（名前・追加金額）の追加・削除、必須/任意トグルを持つ
+- [x] T010 [US1] `frontend/src/pages/admin/Products/ProductModal.tsx` に T009のコンポーネントを組み込み、保存時に `optionGroups` を `UpsertMenuItemRequest` に含めてAPI呼び出しする（T009に依存）
 
 **Checkpoint**: 管理画面でオプション分類・選択肢の設定が完結し、独立して検証可能（[quickstart.md](./quickstart.md) シナリオ1）
 
@@ -68,19 +68,19 @@ description: "Task list for 商品オプション機能"
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] backend unit test: `POST /orders`（スタッフ用）の選択肢実在性チェック・択一制約違反（`duplicateOptionGroupSelection`）・必須未選択（`missingRequiredOption`）・価格計算（0円下限クランプ、マイナス値許容）を検証するテストを `backend/src/routes/orders.test.ts` に追加する
-- [ ] T011b [P] [US2] backend unit test: `customer.ts` の `POST /orders`（客用ゲスト向け）についてT011と同内容を検証するテストを `backend/src/routes/customer.test.ts` に追加する
+- [x] T011 [P] [US2] backend unit test: `POST /orders`（スタッフ用）の選択肢実在性チェック・択一制約違反（`duplicateOptionGroupSelection`）・必須未選択（`missingRequiredOption`）・価格計算（0円下限クランプ、マイナス値許容）を検証するテストを `backend/src/routes/orders.test.ts` に追加する
+- [x] T011b [P] [US2] backend unit test: `customer.ts` の `POST /orders`（客用ゲスト向け）についてT011と同内容を検証するテストを `backend/src/routes/customer.test.ts` に追加する
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] `backend/src/routes/orders.ts` の `createBodySchema` と `backend/src/routes/customer.ts` の `createOrderBodySchema` の両方に `items[].selectedChoiceIds` を追加する
-- [ ] T013 [US2] `backend/src/routes/orders.ts` と `backend/src/routes/customer.ts` の両方に、選択肢の実在性・対象商品所属チェック、同一`ProductOptionGroup`内の択一制約チェック、`required: true`分類の必須網羅チェックを追加する（[contracts/menu-options.md](./contracts/menu-options.md) の「POST /orders」節参照、T004・T012に依存。customer.ts側は既存の`ErrorCodes.Customer`グループに倣ったエラーコードを使う）
-- [ ] T014 [US2] `backend/src/routes/orders.ts`（`orders.ts:189-198`パターン）と `backend/src/routes/customer.ts`（`customer.ts:260-289`パターン）両方の`OrderItem`作成処理に、`price = originalPrice + Σ選択肢extraPrice`（0円未満は0円クランプ）の計算と、同一トランザクション内での`OrderItemOption`作成（`groupName`/`choiceName`/`extraPrice`スナップショット）を追加する（T013に依存）
-- [ ] T015 [US2] `backend/src/lib/mappers.ts` の`toOrderItem`（または相当関数、orders.ts/customer.ts共通で使用）に`options`マッピングを追加する
-- [ ] T016 [P] [US2] frontend: オプション選択ボトムシートコンポーネントを新規作成する（`frontend/src/features/order/components/OptionSelectSheet.tsx`、既存`BottomSheetModal`を使用。分類ごとに択一選択、必須分類が未選択の間は確定不可）
-- [ ] T017 [US2] `frontend/src/pages/group/GroupDetail/components/MenuAdd.tsx` に、オプション分類を持つ商品タップ時にT016のボトムシートを挟む導線を追加する（T016に依存）
-- [ ] T018 [US2] `frontend/src/pages/customer/CustomerOrder/components/CustomerMenuList.tsx` に同様の導線を追加する（T016に依存）
-- [ ] T019 [US2] 注文確定時のリクエストに`selectedChoiceIds`を含める処理を、`MenuAdd.tsx`/`CustomerMenuList.tsx`双方の注文確定処理（`MenuConfirmModal`呼び出し元）に追加する（T017, T018に依存）
+- [x] T012 [US2] `backend/src/routes/orders.ts` の `createBodySchema` と `backend/src/routes/customer.ts` の `createOrderBodySchema` の両方に `items[].selectedChoiceIds` を追加する
+- [x] T013 [US2] `backend/src/routes/orders.ts` と `backend/src/routes/customer.ts` の両方に、選択肢の実在性・対象商品所属チェック、同一`ProductOptionGroup`内の択一制約チェック、`required: true`分類の必須網羅チェックを追加する（[contracts/menu-options.md](./contracts/menu-options.md) の「POST /orders」節参照、T004・T012に依存。customer.ts側は既存の`ErrorCodes.Customer`グループに倣ったエラーコードを使う）
+- [x] T014 [US2] `backend/src/routes/orders.ts`（`orders.ts:189-198`パターン）と `backend/src/routes/customer.ts`（`customer.ts:260-289`パターン）両方の`OrderItem`作成処理に、`price = originalPrice + Σ選択肢extraPrice`（0円未満は0円クランプ）の計算と、同一トランザクション内での`OrderItemOption`作成（`groupName`/`choiceName`/`extraPrice`スナップショット）を追加する（T013に依存）
+- [x] T015 [US2] `backend/src/lib/mappers.ts` の`toOrderItem`（または相当関数、orders.ts/customer.ts共通で使用）に`options`マッピングを追加する
+- [x] T016 [P] [US2] frontend: オプション選択ボトムシートコンポーネントを新規作成する（`frontend/src/features/order/components/OptionSelectSheet.tsx`、既存`BottomSheetModal`を使用。分類ごとに択一選択、必須分類が未選択の間は確定不可）
+- [x] T017 [US2] `frontend/src/pages/group/GroupDetail/components/MenuAdd.tsx` に、オプション分類を持つ商品タップ時にT016のボトムシートを挟む導線を追加する（T016に依存）
+- [x] T018 [US2] `frontend/src/pages/customer/CustomerOrder/components/CustomerMenuList.tsx` に同様の導線を追加する（T016に依存）
+- [x] T019 [US2] 注文確定時のリクエストに`selectedChoiceIds`を含める処理を、`MenuAdd.tsx`/`CustomerMenuList.tsx`双方の注文確定処理（`MenuConfirmModal`呼び出し元）に追加する（T017, T018に依存）
 
 **Checkpoint**: 注文時のオプション選択と金額反映が完結し、US1と独立して検証可能（[quickstart.md](./quickstart.md) シナリオ2・4）
 
@@ -94,9 +94,9 @@ description: "Task list for 商品オプション機能"
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] `frontend/src/pages/kitchen/Kitchen/components/TicketCard.tsx` に、`OrderItem.options`（選択されたオプション名）を商品名と併記する表示を追加する
-- [ ] T021 [P] [US3] frontend unit test: T020の表示コンポーネントがオプション名を正しく表示することを検証するテストを追加する
-- [ ] T022 [US3] `frontend/src/pages/group/GroupDetail/components/BillFooter.tsx` の合計金額計算が`OrderItem.price`（オプション加算済み）をそのまま合算しており、追加のロジック変更が不要であることを確認する（変更不要な場合はコード変更なしでチェックのみ、追加ロジックが必要と判明した場合はここに実装を追加する）
+- [x] T020 [US3] `frontend/src/pages/kitchen/Kitchen/components/TicketCard.tsx` に、`OrderItem.options`（選択されたオプション名）を商品名と併記する表示を追加する
+- [x] T021 [P] [US3] frontend unit test: T020の表示コンポーネントがオプション名を正しく表示することを検証するテストを追加する
+- [x] T022 [US3] `frontend/src/pages/group/GroupDetail/components/BillFooter.tsx` の合計金額計算が`OrderItem.price`（オプション加算済み）をそのまま合算しており、追加のロジック変更が不要であることを確認する（変更不要な場合はコード変更なしでチェックのみ、追加ロジックが必要と判明した場合はここに実装を追加する）→ 確認済み。`calculateTaxTotals`（`lib/taxTotals.ts`）は`i.price`をそのまま合算しており、`price`は`orders.ts`/`customer.ts`側で既にオプション加算済みの値のため変更不要
 
 **Checkpoint**: 厨房表示・会計金額の反映が完結し、全User Storyが独立して検証可能（[quickstart.md](./quickstart.md) シナリオ3・5）
 
@@ -106,10 +106,10 @@ description: "Task list for 商品オプション機能"
 
 **Purpose**: 全Storyを跨ぐ検証・後片付け
 
-- [ ] T023 `pnpm typecheck` を実行し、frontend/backend/sharedすべてで型エラーがないことを確認する
-- [ ] T024 `pnpm lint` を実行し、Biomeのリントエラーがないことを確認する
-- [ ] T025 `pnpm test` を実行し、T005・T011・T021のテストを含む全単体テストが通ることを確認する
-- [ ] T026 [quickstart.md](./quickstart.md) のシナリオ1〜5をe2eで手動検証する（Claude側で実行）
+- [x] T023 `pnpm typecheck` を実行し、frontend/backend/sharedすべてで型エラーがないことを確認する
+- [x] T024 `pnpm lint` を実行し、Biomeのリントエラーがないことを確認する（003-product-options変更ファイルは`npx biome check`で個別確認済み。リポジトリ全体には本機能と無関係な既存lintエラーが別途あるため対象外）
+- [x] T025 `pnpm test` を実行し、T005・T011・T021のテストを含む全単体テストが通ることを確認する
+- [x] T026 [quickstart.md](./quickstart.md) のシナリオ1〜5をe2eで手動検証する（Claude側で実行）→ シナリオ1は既存e2e（`e2e/s06-product-settings.spec.ts`）で10/10通過確認済み。シナリオ2〜5はChromiumヘッドレスで一時検証テストを実行し全通過（必須未選択で確定不可／追加課金の金額反映／マイナス値の0円クランプ／厨房チケットへのオプション名表示と会計合計反映／オプション分類削除後も過去注文明細が不変であること）。検証用一時ファイルは確認後に削除済み
 
 ---
 

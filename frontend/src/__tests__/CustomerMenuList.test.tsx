@@ -1,7 +1,7 @@
-import { act } from 'react'
-import { createRoot } from 'react-dom/client'
 import { jest } from '@jest/globals'
 import type { Category, MenuItem, SubCategory } from '@order-system/shared'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 
 await jest.unstable_mockModule('react-i18next', () => ({
   useTranslation: () => ({
@@ -86,6 +86,7 @@ describe('CustomerMenuList', () => {
           drinkPlanMenuItemIds={[1]}
           getQty={() => 0}
           onQtyChange={() => undefined}
+          onSelectOptionItem={() => undefined}
           footerVisible={false}
         />,
       )

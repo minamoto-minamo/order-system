@@ -1,6 +1,12 @@
 import { useTranslation } from 'react-i18next'
 
-export type ItemGroup = { key: string; menuItemName: string; price: number; totalQty: number }
+export type ItemGroup = {
+  key: string
+  menuItemName: string
+  price: number
+  totalQty: number
+  options: { groupName: string; choiceName: string }[]
+}
 
 export function ActiveItemRow({ group }: { group: ItemGroup }) {
   const { t } = useTranslation()
@@ -11,6 +17,11 @@ export function ActiveItemRow({ group }: { group: ItemGroup }) {
           {group.menuItemName}
           <span className="text-label text-muted ml-1.5">×{group.totalQty}</span>
         </div>
+        {group.options.map((option) => (
+          <div key={option.groupName} className="text-xs text-muted">
+            {option.groupName}: {option.choiceName}
+          </div>
+        ))}
         <div className="flex items-center gap-2">
           <span className="text-caption text-muted">{t('customerOrder.notServed')}</span>
           <span className="text-label text-muted">¥{group.price.toLocaleString()}</span>
@@ -28,6 +39,11 @@ export function ServedItemRow({ group }: { group: ItemGroup }) {
           {group.menuItemName}
           <span className="text-label text-muted ml-1.5">×{group.totalQty}</span>
         </div>
+        {group.options.map((option) => (
+          <div key={option.groupName} className="text-xs text-muted">
+            {option.groupName}: {option.choiceName}
+          </div>
+        ))}
         <div className="text-label text-muted mt-0.5">
           ¥{group.price.toLocaleString()} · ¥{(group.price * group.totalQty).toLocaleString()}
         </div>

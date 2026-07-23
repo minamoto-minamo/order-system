@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { MenuConfirmModal, SlideUpFooter } from '@/components/composite'
 import { BaseButton, Icon, ZeroStartStepper } from '@/components/primitives'
 import { SubCategorySidebar } from '@/features/menu/components'
+import {
+  type OptionedOrderLine,
+  OptionSelectSheet,
+} from '@/features/order/components/OptionSelectSheet'
 import { SYMBOL_ICONS } from '@/lib/icons'
 
 export function MenuAdd({
@@ -17,13 +21,22 @@ export function MenuAdd({
   categories: Category[]
   subCategories: SubCategory[]
   activeDrinkPlan: DrinkPlan | null
-  onAdd: (items: { item: MenuItem; qty: number }[], isTakeout: boolean) => Promise<void>
+  onAdd: (
+    items: ({
+      item: MenuItem
+      qty: number
+      selectedChoiceIds?: number[]
+    } & Partial<OptionedOrderLine>)[],
+    isTakeout: boolean,
+  ) => Promise<void>
 }) {
   const { t } = useTranslation()
   const [orderType, setOrderType] = useState<'dine_in' | 'takeout'>('dine_in')
   const [activeCatId, setActiveCatId] = useState<number | null>(null)
   const [activeSubId, setActiveSubId] = useState<number | null>(null)
   const [qtys, setQtys] = useState<Record<number, number>>({})
+  const [optionedLines, setOptionedLines] = useState<OptionedOrderLine[]>([])
+  const [optionTarget, setOptionTarget] = useState<MenuItem | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -49,7 +62,9 @@ export function MenuAdd({
   const getQty = (id: number) => qtys[id] ?? 0
   const setQty = (id: number, val: number) =>
     setQtys((prev) => ({ ...prev, [id]: Math.max(0, val) }))
-  const totalCount = Object.values(qtys).reduce((s, v) => s + v, 0)
+  const totalCount =
+    Object.values(qtys).reduce((s, v) => s + v, 0) +
+    optionedLines.reduce((s, line) => s + line.qty, 0)
 
   const handleCatChange = (id: number) => {
     setActiveCatId(id)
@@ -62,16 +77,26 @@ export function MenuAdd({
     try {
       await onAdd(orderItems, orderType === 'takeout')
       setQtys({})
+      setOptionedLines([])
       setConfirmOpen(false)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const orderItems = Object.entries(qtys)
-    .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ item: menus.find((i) => i.id === Number(id))!, qty }))
-    .filter((x) => x.item != null)
+  const orderItems: ({
+    item: MenuItem
+    qty: number
+    selectedChoiceIds?: number[]
+  } & Partial<OptionedOrderLine>)[] = [
+    ...Object.entries(qtys)
+      .filter(([, qty]) => qty > 0)
+      .flatMap(([id, qty]) => {
+        const item = menus.find((menu) => menu.id === Number(id))
+        return item ? [{ item, qty }] : []
+      }),
+    ...optionedLines,
+  ]
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -102,6 +127,7 @@ export function MenuAdd({
           onClick={() => {
             setOrderType((prev) => (prev === 'takeout' ? 'dine_in' : 'takeout'))
             setQtys({})
+            setOptionedLines([])
           }}
         >
           {t('group.takeout')}
@@ -146,11 +172,22 @@ export function MenuAdd({
                     ¥{isDrinkPlanTarget ? '0' : item.price.toLocaleString()}
                   </div>
                 </div>
-                <ZeroStartStepper
-                  qty={qty}
-                  onChange={(val) => setQty(item.id, val)}
-                  disabled={item.soldOut}
-                />
+                {item.optionGroups.length > 0 ? (
+                  <BaseButton
+                    variant="secondary"
+                    className="shrink-0 py-2 px-3 text-xs"
+                    disabled={item.soldOut}
+                    onClick={() => setOptionTarget(item)}
+                  >
+                    {t('orderOption.selectButton')}
+                  </BaseButton>
+                ) : (
+                  <ZeroStartStepper
+                    qty={qty}
+                    onChange={(val) => setQty(item.id, val)}
+                    disabled={item.soldOut}
+                  />
+                )}
               </div>
             )
           })}
@@ -174,6 +211,16 @@ export function MenuAdd({
         submitting={submitting}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleAdd}
+      />
+      <OptionSelectSheet
+        key={optionTarget?.id ?? 'empty'}
+        item={optionTarget}
+        open={optionTarget != null}
+        onClose={() => setOptionTarget(null)}
+        onAdd={(line) => {
+          setOptionedLines((prev) => [...prev, line])
+          setOptionTarget(null)
+        }}
       />
     </div>
   )
