@@ -64,6 +64,7 @@ const menus: MenuItem[] = [
     soldOut: false,
     takeout: 'both',
     sort: 1,
+    optionGroups: [],
   },
 ]
 
@@ -175,7 +176,9 @@ describe('Products 削除確認フロー', () => {
       findButtonByText(container, '削除').click()
     })
 
-    expect(container.textContent).toContain('ビール を削除しますか？配下に商品がある場合は削除できません')
+    expect(container.textContent).toContain(
+      'ビール を削除しますか？配下に商品がある場合は削除できません',
+    )
     expect(apiDelete).not.toHaveBeenCalled()
 
     await act(async () => {

@@ -1,9 +1,10 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/composite'
 import { BaseButton, Icon } from '@/components/primitives'
 import { useForm } from '@/hooks/useForm'
 import { ACTION_ICONS } from '@/lib/icons'
+import { OptionGroupEditor } from './OptionGroupEditor'
 import type { Cat, Product, ProductFormData } from './types'
 import { TO_OPTIONS } from './types'
 
@@ -44,6 +45,7 @@ export function ProductModal({
     takeout: product?.takeout ?? 'both',
   })
   const { name, price, subId, takeout } = form
+  const [optionGroups, setOptionGroups] = useState(product?.optionGroups ?? [])
 
   const contextLabel =
     !product && subId
@@ -57,21 +59,48 @@ export function ProductModal({
       : null
 
   const isEdit = !!product
-  const canSubmit = name.trim() !== '' && Number(price) > 0 && subId !== null
+  const canSubmit =
+    name.trim() !== '' &&
+    Number(price) > 0 &&
+    subId !== null &&
+    optionGroups.every(
+      (group) =>
+        group.name.trim() !== '' &&
+        group.choices.every(
+          (choice) => choice.name.trim() !== '' && Number.isInteger(choice.extraPrice),
+        ),
+    )
 
   return (
     <BottomSheetModal
       show
       onClose={onClose}
       secondaryAction={
-        isEdit ? { label: t('common.delete'), onClick: onDelete!, variant: 'danger' } : undefined
+        isEdit
+          ? { label: t('common.delete'), onClick: onDelete ?? onClose, variant: 'danger' }
+          : undefined
       }
       primaryAction={{
         label: isEdit ? t('common.save') : t('common.add'),
         disabled: !canSubmit,
         onClick: () =>
           canSubmit &&
-          onConfirm({ name: name.trim(), price: Number(price), subId: subId!, takeout }),
+          onConfirm({
+            name: name.trim(),
+            price: Number(price),
+            subId: subId ?? 0,
+            takeout,
+            optionGroups: optionGroups.map((group, groupIndex) => ({
+              name: group.name.trim(),
+              sort: groupIndex,
+              choices: group.choices.map((choice, choiceIndex) => ({
+                name: choice.name.trim(),
+                sort: choiceIndex,
+                extraPrice: choice.extraPrice,
+              })),
+              required: group.required,
+            })),
+          }),
       }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -150,13 +179,15 @@ export function ProductModal({
         ))}
       </select>
 
+      <OptionGroupEditor optionGroups={optionGroups} onChange={setOptionGroups} />
+
       {isEdit && (
         <div className="mb-2.5">
           <BaseButton
-            className={`w-full py-1.75 rounded-lg text-caption border ${product!.soldOut ? 'border-danger-glow bg-danger-bg text-danger' : 'border-line text-muted'}`}
+            className={`w-full py-1.75 rounded-lg text-caption border ${product?.soldOut ? 'border-danger-glow bg-danger-bg text-danger' : 'border-line text-muted'}`}
             onClick={onToggleSoldOut}
           >
-            {product!.soldOut ? t('productSettings.soldOutActive') : t('productSettings.soldOut')}
+            {product?.soldOut ? t('productSettings.soldOutActive') : t('productSettings.soldOut')}
           </BaseButton>
         </div>
       )}

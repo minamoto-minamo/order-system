@@ -687,6 +687,126 @@ describe('POST /api/orders — テイクアウト可否チェック', () => {
   })
 })
 
+describe('POST /api/orders — 商品オプション', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: null,
+    })
+  })
+
+  const optionedMenu = {
+    id: 1,
+    name: 'ソーダ',
+    price: 100,
+    soldOut: false,
+    takeout: 'both',
+    optionGroups: [
+      {
+        id: 10,
+        name: 'サイズ',
+        required: true,
+        choices: [
+          { id: 101, name: 'メガサイズ', extraPrice: 200 },
+          { id: 102, name: '小', extraPrice: -200 },
+        ],
+      },
+    ],
+  }
+
+  it('対象商品に属さない選択肢を 400 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([optionedMenu])
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1, selectedChoiceIds: [999] }] },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({ error: { code: 'orders.create.invalid_option_choice' } })
+  })
+
+  it('同一分類からの複数選択を 400 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([optionedMenu])
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 1, qty: 1, selectedChoiceIds: [101, 102] }],
+      },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      error: { code: 'orders.create.duplicate_option_group_selection' },
+    })
+  })
+
+  it('必須分類が未選択なら 400 を返す', async () => {
+    mockMenuItemFindMany.mockResolvedValue([optionedMenu])
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1 }] },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({ error: { code: 'orders.create.missing_required_option' } })
+  })
+
+  it('選択肢の金額を加算し、0円未満は0円にクランプして保存する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([optionedMenu])
+    const mockCreate = jest.fn<any>().mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 'item-1',
+        groupId: GROUP_ID,
+        menuItemId: data.menuItemId,
+        menuItemName: data.menuItemName,
+        price: data.price,
+        qty: data.qty,
+        status: 'pending',
+        isTakeout: false,
+        courseId: null,
+        isCourseCharge: false,
+        isDrinkPlanCharge: false,
+        orderedAt: new Date(),
+        options: [],
+      }),
+    )
+    mockTx(mockCreate)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [{ menuItemId: 1, qty: 1, selectedChoiceIds: [102] }] },
+    })
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          price: 0,
+          originalPrice: 100,
+          options: expect.objectContaining({
+            create: [expect.objectContaining({ choiceId: 102, extraPrice: -200 })],
+          }),
+        }),
+        include: { options: true },
+      }),
+    )
+  })
+})
+
 describe('PUT /api/orders/:id/cancel — group/session close 後のガード', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
   beforeAll(async () => {

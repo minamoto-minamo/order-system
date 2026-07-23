@@ -14,6 +14,20 @@ import { ProductList } from './components/ProductList'
 import { ProductModal } from './components/ProductModal'
 import type { Cat, DeleteTarget, ModalState, Product, ProductFormData } from './components/types'
 
+const toOptionGroupForms = (optionGroups: MenuItem['optionGroups']) =>
+  optionGroups.map((group) => ({
+    clientId: `group-${group.id}`,
+    name: group.name,
+    required: group.required,
+    sort: group.sort,
+    choices: group.choices.map((choice) => ({
+      clientId: `choice-${choice.id}`,
+      name: choice.name,
+      extraPrice: choice.extraPrice,
+      sort: choice.sort,
+    })),
+  }))
+
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
   const { t } = useTranslation()
@@ -55,6 +69,7 @@ export default function Products() {
             soldOut: m.soldOut,
             takeout: m.takeout,
             sort: m.sort,
+            optionGroups: toOptionGroupForms(m.optionGroups),
           })),
         )
       })
@@ -145,7 +160,7 @@ export default function Products() {
   }
 
   // ── 商品操作 ───────────────────────────────────────────────
-  const addProduct = async ({ name, price, subId, takeout }: ProductFormData) => {
+  const addProduct = async ({ name, price, subId, takeout, optionGroups }: ProductFormData) => {
     const cat = cats.find((c) => c.subs.some((s) => s.id === subId))
     if (!cat) return
     try {
@@ -156,6 +171,7 @@ export default function Products() {
         subCategoryId: subId,
         soldOut: false,
         takeout,
+        optionGroups,
       })
       setProducts((prev) => [
         ...prev,
@@ -168,6 +184,7 @@ export default function Products() {
           soldOut: item.soldOut,
           takeout: item.takeout,
           sort: item.sort,
+          optionGroups: toOptionGroupForms(item.optionGroups),
         },
       ])
       setModal(null)
@@ -176,7 +193,10 @@ export default function Products() {
     }
   }
 
-  const editProduct = async (id: number, { name, price, subId, takeout }: ProductFormData) => {
+  const editProduct = async (
+    id: number,
+    { name, price, subId, takeout, optionGroups }: ProductFormData,
+  ) => {
     const cat = cats.find((c) => c.subs.some((s) => s.id === subId))
     if (!cat) return
     try {
@@ -186,9 +206,29 @@ export default function Products() {
         categoryId: cat.id,
         subCategoryId: subId,
         takeout,
+        optionGroups,
       })
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, name, price, catId: cat.id, subId, takeout } : p)),
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                name,
+                price,
+                catId: cat.id,
+                subId,
+                takeout,
+                optionGroups: optionGroups.map((group, groupIndex) => ({
+                  ...group,
+                  clientId: `group-new-${groupIndex}`,
+                  choices: group.choices.map((choice, choiceIndex) => ({
+                    ...choice,
+                    clientId: `choice-new-${groupIndex}-${choiceIndex}`,
+                  })),
+                })),
+              }
+            : p,
+        ),
       )
       setModal(null)
     } catch (e) {

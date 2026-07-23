@@ -10,6 +10,7 @@ export interface DisplayOrder {
   groupName: string
   seats: string
   item: string
+  options: { groupName: string; choiceName: string }[]
   qty: number
   catId: number
   subId: number

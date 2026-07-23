@@ -47,6 +47,7 @@ describe('OrderHistory', () => {
         isCourseCharge: false,
         isDrinkPlanCharge: false,
         orderedAt: '2026-07-11T10:00:00.000Z',
+        options: [],
       },
     ]
 

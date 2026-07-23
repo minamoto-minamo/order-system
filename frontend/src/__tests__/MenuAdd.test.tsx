@@ -71,6 +71,7 @@ const menus: MenuItem[] = [
     soldOut: false,
     takeout: 'both',
     sort: 1,
+    optionGroups: [],
   },
 ]
 const activeDrinkPlan: DrinkPlan = { id: 5, name: '飲み放題', price: 1500, menuItemIds: [1] }

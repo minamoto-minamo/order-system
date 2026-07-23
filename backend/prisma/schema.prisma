@@ -59,6 +59,7 @@ model Store {
   courses       Course[]
   groups        Group[]
   orderItems    OrderItem[]
+  optionGroups  ProductOptionGroup[]
   setting       Setting?
   staff         Staff[]
 
@@ -166,6 +167,7 @@ model MenuItem {
   drinkPlanItems  DrinkPlanItem[]
   courseFoodItems CourseFoodItem[]
   orderItems      OrderItem[]
+  optionGroups    ProductOptionGroup[]
 
   @@index([categoryId])
   @@index([subCategoryId])
@@ -289,11 +291,56 @@ model OrderItem {
   group    Group     @relation(fields: [groupId], references: [id])
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  options  OrderItemOption[]
 
   @@index([groupId])
   @@index([status])
   @@index([orderedAt])
   @@index([storeId])
+}
+
+model ProductOptionGroup {
+  id         Int     @id @default(autoincrement())
+  storeId    Int
+  menuItemId Int
+  name       String
+  required   Boolean @default(false)
+  sort       Int     @default(0)
+
+  store    Store    @relation(fields: [storeId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  choices  ProductOptionChoice[]
+
+  @@index([menuItemId])
+  @@index([storeId])
+}
+
+model ProductOptionChoice {
+  id         Int    @id @default(autoincrement())
+  groupId    Int
+  name       String
+  extraPrice Int    @default(0)
+  sort       Int    @default(0)
+
+  group            ProductOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemOptions OrderItemOption[]
+
+  @@index([groupId])
+}
+
+model OrderItemOption {
+  id          String @id @default(uuid())
+  orderItemId String
+  choiceId    Int?
+  groupName   String
+  choiceName  String
+  extraPrice  Int
+
+  orderItem OrderItem            @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  choice    ProductOptionChoice? @relation(fields: [choiceId], references: [id], onDelete: SetNull)
+
+  @@index([orderItemId])
+  @@index([choiceId])
 }
 
 model Setting {

@@ -274,13 +274,21 @@ export default function GroupDetail() {
     })
   }
 
-  const handleAdd = async (orderItems: { item: MenuItem; qty: number }[], isTakeout: boolean) => {
+  const handleAdd = async (
+    orderItems: { item: MenuItem; qty: number; selectedChoiceIds?: number[] }[],
+    isTakeout: boolean,
+  ) => {
     if (!group || orderItems.length === 0) return
     await runSubmitting('add', async () => {
       try {
         const created = await api.post<OrderItem[]>(EP.orders, {
           groupId: group.id,
-          items: orderItems.map(({ item, qty }) => ({ menuItemId: item.id, qty, isTakeout })),
+          items: orderItems.map(({ item, qty, selectedChoiceIds }) => ({
+            menuItemId: item.id,
+            qty,
+            isTakeout,
+            selectedChoiceIds,
+          })),
         })
         // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
         setItems((prev) => [...prev, ...created.filter((c) => !prev.some((i) => i.id === c.id))])

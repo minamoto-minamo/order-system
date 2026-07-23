@@ -47,6 +47,14 @@ export interface Group {
 
 export type OrderItemStatus = 'pending' | 'ready' | 'served' | 'cancelled'
 
+export interface OrderItemOption {
+  id: string
+  choiceId: number | null
+  groupName: string
+  choiceName: string
+  extraPrice: number
+}
+
 export interface OrderItem {
   id: string
   groupId: string
@@ -60,6 +68,7 @@ export interface OrderItem {
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean
   orderedAt: string
+  options: OrderItemOption[]
 }
 
 export interface Category {
@@ -77,6 +86,21 @@ export interface SubCategory {
 
 export type TakeoutType = 'dine_in' | 'both' | 'takeout'
 
+export interface ProductOptionChoice {
+  id: number
+  name: string
+  extraPrice: number
+  sort: number
+}
+
+export interface ProductOptionGroup {
+  id: number
+  name: string
+  required: boolean
+  sort: number
+  choices: ProductOptionChoice[]
+}
+
 export interface MenuItem {
   id: number
   name: string
@@ -86,6 +110,7 @@ export interface MenuItem {
   soldOut: boolean
   takeout: TakeoutType
   sort: number
+  optionGroups: ProductOptionGroup[]
 }
 
 export interface DrinkPlan {
@@ -199,6 +224,7 @@ export interface OrderItemInput {
   menuItemId: number
   qty: number
   isTakeout?: boolean
+  selectedChoiceIds?: number[]
 }
 
 export interface CreateOrderBatchRequest {
@@ -219,6 +245,20 @@ export interface UpsertMenuItemRequest {
   subCategoryId: number
   soldOut: boolean
   takeout: TakeoutType
+  optionGroups?: UpsertProductOptionGroupRequest[]
+}
+
+export interface UpsertProductOptionGroupRequest {
+  name: string
+  required: boolean
+  sort: number
+  choices: UpsertProductOptionChoiceRequest[]
+}
+
+export interface UpsertProductOptionChoiceRequest {
+  name: string
+  extraPrice: number
+  sort: number
 }
 
 export interface UpsertCategoryRequest {

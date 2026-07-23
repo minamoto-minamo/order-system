@@ -22,6 +22,7 @@ const createBodySchema = {
           menuItemId: { type: 'integer', minimum: 1 },
           qty: { type: 'integer', minimum: 1, maximum: 99 },
           isTakeout: { type: 'boolean' },
+          selectedChoiceIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
         },
         additionalProperties: false,
       },
@@ -64,14 +65,23 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     if (sessionId) {
       where.group = { sessionId: Number(sessionId) }
     }
-    const items = await prisma.orderItem.findMany({ where, orderBy: { orderedAt: 'asc' } })
+    const items = await prisma.orderItem.findMany({
+      where,
+      orderBy: { orderedAt: 'asc' },
+      include: { options: true },
+    })
     return items.map(toOrderItem)
   })
 
   fastify.post('/', { schema: { body: createBodySchema } }, async (request, reply) => {
     const body = request.body as {
       groupId: string
-      items: { menuItemId: number; qty: number; isTakeout?: boolean }[]
+      items: {
+        menuItemId: number
+        qty: number
+        isTakeout?: boolean
+        selectedChoiceIds?: number[]
+      }[]
       courseId?: number | null
     }
 
@@ -91,6 +101,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const menuItemIds = body.items.map((i) => i.menuItemId)
     const menuItems = await prisma.menuItem.findMany({
       where: { id: { in: menuItemIds }, storeId: request.storeId },
+      include: { optionGroups: { include: { choices: true } } },
     })
     const menuItemMap = new Map(menuItems.map((m) => [m.id, m]))
 
@@ -122,6 +133,67 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         ErrorCodes.Orders.TakeoutMismatch,
         'テイクアウト設定に合わない商品が含まれています',
       )
+    }
+
+    const choicesByItem = new Map<
+      number,
+      Map<
+        number,
+        { choiceId: number; groupId: number; groupName: string; name: string; extraPrice: number }
+      >
+    >()
+    for (const menuItem of menuItems) {
+      choicesByItem.set(
+        menuItem.id,
+        new Map(
+          (menuItem.optionGroups ?? []).flatMap((group) =>
+            group.choices.map((choice) => [
+              choice.id,
+              {
+                choiceId: choice.id,
+                groupId: group.id,
+                groupName: group.name,
+                name: choice.name,
+                extraPrice: choice.extraPrice,
+              },
+            ]),
+          ),
+        ),
+      )
+    }
+    for (const item of body.items) {
+      const selectedChoiceIds = item.selectedChoiceIds ?? []
+      const choices = choicesByItem.get(item.menuItemId) ?? new Map()
+      if (selectedChoiceIds.some((choiceId) => !choices.has(choiceId)))
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Orders.InvalidOptionChoice,
+          '無効なオプション選択です',
+        )
+
+      const selectedGroupIds = selectedChoiceIds.flatMap((choiceId) => {
+        const choice = choices.get(choiceId)
+        return choice ? [choice.groupId] : []
+      })
+      if (new Set(selectedGroupIds).size !== selectedGroupIds.length)
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Orders.DuplicateOptionGroupSelection,
+          '同じオプション分類から複数選択できません',
+        )
+
+      const requiredGroupIds = (menuItemMap.get(item.menuItemId)?.optionGroups ?? [])
+        .filter((group) => group.required)
+        .map((group) => group.id)
+      if (requiredGroupIds.some((groupId) => !selectedGroupIds.includes(groupId)))
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Orders.MissingRequiredOption,
+          '必須オプションを選択してください',
+        )
     }
 
     if (body.courseId != null) {
@@ -186,20 +258,39 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
               // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
               const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
               // 注文時点の MenuItem 単価を保持し、飲み放題解除時の復元にも使う
-              const originalPrice = menuItemMap.get(item.menuItemId)!.price
+              const menuItem = menuItemMap.get(item.menuItemId)
+              const originalPrice = menuItem?.price ?? 0
+              const selectedOptions = (item.selectedChoiceIds ?? []).flatMap((choiceId) => {
+                const option = choicesByItem.get(item.menuItemId)?.get(choiceId)
+                return option ? [option] : []
+              })
               return tx.orderItem.create({
                 data: {
                   groupId: body.groupId,
                   menuItemId: item.menuItemId,
                   // 注文時点の名称・価格をスナップショット保存（後から変更しても履歴が壊れない）
-                  menuItemName: menuItemMap.get(item.menuItemId)!.name,
-                  price: isPlanItem ? 0 : originalPrice,
+                  menuItemName: menuItem?.name ?? '',
+                  price: isPlanItem
+                    ? 0
+                    : Math.max(
+                        0,
+                        originalPrice + selectedOptions.reduce((sum, o) => sum + o.extraPrice, 0),
+                      ),
                   originalPrice,
                   qty: item.qty,
                   isTakeout,
                   courseId: body.courseId ?? null,
                   storeId: request.storeId,
+                  options: {
+                    create: selectedOptions.map((option) => ({
+                      choiceId: option.choiceId,
+                      groupName: option.groupName,
+                      choiceName: option.name,
+                      extraPrice: option.extraPrice,
+                    })),
+                  },
                 },
+                include: { options: true },
               })
             }),
           )

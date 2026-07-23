@@ -16,6 +16,7 @@ function makeItem(overrides: Partial<OrderItem> & { id: string }): OrderItem {
     isCourseCharge: false,
     isDrinkPlanCharge: false,
     orderedAt: '2026-07-04T00:00:00.000Z',
+    options: [],
     ...rest,
   }
 }

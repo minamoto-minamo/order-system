@@ -38,6 +38,7 @@ const order: OrderItem = {
   isCourseCharge: false,
   isDrinkPlanCharge: false,
   orderedAt: '2024-01-01T10:00:00.000Z',
+  options: [],
 }
 
 const getGroupName = (id: string) => `不明(${id})`
@@ -51,6 +52,7 @@ describe('buildDisplay', () => {
       groupName: 'G1',
       seats: 'A1・A2',
       item: '枝豆',
+      options: [],
       qty: 2,
       catId: 3,
       subId: 7,

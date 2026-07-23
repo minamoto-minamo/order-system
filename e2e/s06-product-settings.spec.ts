@@ -95,3 +95,49 @@ test('品切れトグルを切り替えられる', async ({ page }) => {
       .getByText(ja.productSettings.soldOut),
   ).toBeVisible()
 })
+
+test('オプション分類・選択肢を追加して保存でき、再表示で保持される', async ({ page }) => {
+  await page.goto(ROUTES.adminProducts)
+  await page.getByText(SEED.menuItems.beer).first().click()
+
+  await page.getByText(ja.productSettings.addOptionGroup).click()
+  await page.getByPlaceholder(ja.productSettings.optionGroupNamePlaceholder).fill('氷の状態')
+
+  await page.getByText(ja.productSettings.addOptionChoice).click()
+  await page.getByPlaceholder(ja.productSettings.optionChoiceNamePlaceholder).first().fill('ロック')
+  await page.getByLabel(ja.productSettings.optionExtraPrice).first().fill('0')
+
+  await page.getByText(ja.productSettings.addOptionChoice).click()
+  await page.getByPlaceholder(ja.productSettings.optionChoiceNamePlaceholder).nth(1).fill('ソーダ')
+  await page.getByLabel(ja.productSettings.optionExtraPrice).nth(1).fill('0')
+
+  await page.getByRole('button', { name: ja.common.save }).click()
+
+  await page.getByText(SEED.menuItems.beer).first().click()
+  await expect(page.getByPlaceholder(ja.productSettings.optionGroupNamePlaceholder)).toHaveValue(
+    '氷の状態',
+  )
+  await expect(
+    page.getByPlaceholder(ja.productSettings.optionChoiceNamePlaceholder).first(),
+  ).toHaveValue('ロック')
+  await expect(
+    page.getByPlaceholder(ja.productSettings.optionChoiceNamePlaceholder).nth(1),
+  ).toHaveValue('ソーダ')
+})
+
+test('選択肢の追加金額にマイナス値を設定して保存・再表示できる', async ({ page }) => {
+  await page.goto(ROUTES.adminProducts)
+  await page.getByText(SEED.menuItems.beer).first().click()
+
+  await page.getByText(ja.productSettings.addOptionGroup).click()
+  await page.getByPlaceholder(ja.productSettings.optionGroupNamePlaceholder).fill('サイズ')
+
+  await page.getByText(ja.productSettings.addOptionChoice).click()
+  await page.getByPlaceholder(ja.productSettings.optionChoiceNamePlaceholder).fill('小盛り')
+  await page.getByLabel(ja.productSettings.optionExtraPrice).fill('-50')
+
+  await page.getByRole('button', { name: ja.common.save }).click()
+
+  await page.getByText(SEED.menuItems.beer).first().click()
+  await expect(page.getByLabel(ja.productSettings.optionExtraPrice)).toHaveValue('-50')
+})
