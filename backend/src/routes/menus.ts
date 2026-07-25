@@ -10,6 +10,15 @@ const menuItemInclude = {
     orderBy: [{ sort: 'asc' }, { id: 'asc' }],
     include: { choices: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } },
   },
+  setFrames: {
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+    include: {
+      choices: {
+        orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+        include: { menuItem: { select: { name: true, price: true, soldOut: true } } },
+      },
+    },
+  },
 } satisfies Prisma.MenuItemInclude
 
 const optionChoiceSchema = {
@@ -35,6 +44,27 @@ const optionGroupSchema = {
   additionalProperties: false,
 } as const
 
+const setFrameChoiceSchema = {
+  type: 'object',
+  required: ['menuItemId', 'sort'],
+  properties: {
+    menuItemId: { type: 'integer', minimum: 1 },
+    sort: { type: 'integer', minimum: 0 },
+  },
+  additionalProperties: false,
+} as const
+
+const setFrameSchema = {
+  type: 'object',
+  required: ['name', 'sort', 'choices'],
+  properties: {
+    name: { type: 'string', minLength: 1 },
+    sort: { type: 'integer', minimum: 0 },
+    choices: { type: 'array', items: setFrameChoiceSchema },
+  },
+  additionalProperties: false,
+} as const
+
 const createBodySchema = {
   type: 'object',
   required: ['name', 'price', 'categoryId', 'subCategoryId'],
@@ -47,6 +77,8 @@ const createBodySchema = {
     takeout: { type: 'string', enum: ['dine_in', 'both', 'takeout'] },
     sort: { type: 'integer', minimum: 0 },
     optionGroups: { type: 'array', items: optionGroupSchema },
+    isSet: { type: 'boolean' },
+    setFrames: { type: 'array', items: setFrameSchema },
   },
   additionalProperties: false,
 } as const
@@ -70,9 +102,34 @@ const updateBodySchema = {
     soldOut: { type: 'boolean' },
     takeout: { type: 'string', enum: ['dine_in', 'both', 'takeout'] },
     optionGroups: { type: 'array', items: optionGroupSchema },
+    isSet: { type: 'boolean' },
+    setFrames: { type: 'array', items: setFrameSchema },
   },
   additionalProperties: false,
 } as const
+
+type SetFramesInput = {
+  name: string
+  sort: number
+  choices: { menuItemId: number; sort: number }[]
+}[]
+
+async function validateSetFrameChoices(
+  storeId: number,
+  setFrames: SetFramesInput,
+  excludedMenuItemId?: number,
+) {
+  const menuItemIds = setFrames.flatMap((frame) => frame.choices.map((choice) => choice.menuItemId))
+  if (menuItemIds.length === 0) return true
+  const items = await prisma.menuItem.findMany({
+    where: { id: { in: menuItemIds }, storeId },
+    select: { id: true, isSet: true },
+  })
+  return (
+    items.length === new Set(menuItemIds).size &&
+    items.every((item) => !item.isSet && item.id !== excludedMenuItemId)
+  )
+}
 
 const menusRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request) => {
@@ -145,12 +202,14 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         soldOut?: boolean
         takeout?: string
         sort?: number
+        isSet?: boolean
         optionGroups?: {
           name: string
           required: boolean
           sort: number
           choices: { name: string; extraPrice: number; sort: number }[]
         }[]
+        setFrames?: SetFramesInput
       }
       const subCat = await prisma.subCategory.findFirst({
         where: { id: body.subCategoryId, storeId: request.storeId },
@@ -170,6 +229,27 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           'サブカテゴリがカテゴリと一致しません',
         )
       }
+      const isSet = body.isSet ?? false
+      if (isSet && (body.optionGroups?.length ?? 0) > 0) {
+        return sendError(
+          reply,
+          422,
+          ErrorCodes.Menus.SetWithOptionsNotAllowed,
+          'セットメニューにオプションは設定できません',
+        )
+      }
+      if (
+        isSet &&
+        body.setFrames &&
+        !(await validateSetFrameChoices(request.storeId, body.setFrames))
+      ) {
+        return sendError(
+          reply,
+          422,
+          ErrorCodes.Menus.SetFrameChoiceMenuItemNotFound,
+          'セット枠の選択肢の商品が見つかりません',
+        )
+      }
       const item = await prisma.menuItem.create({
         data: {
           name: body.name,
@@ -179,6 +259,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           soldOut: body.soldOut ?? false,
           takeout: (body.takeout as 'dine_in' | 'both' | 'takeout') ?? 'dine_in',
           sort: body.sort ?? 0,
+          isSet,
           storeId: request.storeId,
           optionGroups: body.optionGroups
             ? {
@@ -197,6 +278,22 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
                 })),
               }
             : undefined,
+          setFrames:
+            isSet && body.setFrames
+              ? {
+                  create: body.setFrames.map((frame) => ({
+                    name: frame.name,
+                    sort: frame.sort,
+                    storeId: request.storeId,
+                    choices: {
+                      create: frame.choices.map((choice) => ({
+                        menuItemId: choice.menuItemId,
+                        sort: choice.sort,
+                      })),
+                    },
+                  })),
+                }
+              : undefined,
         },
         include: menuItemInclude,
       })
@@ -218,17 +315,20 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
         subCategoryId: number | null
         soldOut: boolean
         takeout: string
+        isSet: boolean
         optionGroups: {
           name: string
           required: boolean
           sort: number
           choices: { name: string; extraPrice: number; sort: number }[]
         }[]
+        setFrames: SetFramesInput
       }>
 
       try {
         const current = await prisma.menuItem.findFirst({
           where: { id: Number(id), storeId: request.storeId },
+          include: { optionGroups: { select: { id: true } } },
         })
         if (!current)
           return sendError(reply, 404, ErrorCodes.Menus.NotFound, 'メニューが見つかりません')
@@ -260,6 +360,29 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
           }
         }
 
+        const isSet = body.isSet ?? current.isSet
+        const optionGroups = body.optionGroups ?? current.optionGroups
+        if (isSet && optionGroups.length > 0) {
+          return sendError(
+            reply,
+            422,
+            ErrorCodes.Menus.SetWithOptionsNotAllowed,
+            'セットメニューにオプションは設定できません',
+          )
+        }
+        if (
+          isSet &&
+          body.setFrames &&
+          !(await validateSetFrameChoices(request.storeId, body.setFrames, Number(id)))
+        ) {
+          return sendError(
+            reply,
+            422,
+            ErrorCodes.Menus.SetFrameChoiceMenuItemNotFound,
+            'セット枠の選択肢の商品が見つかりません',
+          )
+        }
+
         const item = await prisma.menuItem.update({
           where: { id: Number(id) },
           data: {
@@ -269,6 +392,7 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
             subCategoryId: body.subCategoryId ?? undefined,
             soldOut: body.soldOut,
             takeout: body.takeout as 'dine_in' | 'both' | 'takeout' | undefined,
+            isSet: body.isSet,
             optionGroups:
               body.optionGroups === undefined
                 ? undefined
@@ -284,6 +408,23 @@ const menusRoutes: FastifyPluginAsync = async (fastify) => {
                         create: group.choices.map((choice) => ({
                           name: choice.name,
                           extraPrice: choice.extraPrice,
+                          sort: choice.sort,
+                        })),
+                      },
+                    })),
+                  },
+            setFrames:
+              body.setFrames === undefined
+                ? undefined
+                : {
+                    deleteMany: {},
+                    create: body.setFrames.map((frame) => ({
+                      name: frame.name,
+                      sort: frame.sort,
+                      storeId: request.storeId,
+                      choices: {
+                        create: frame.choices.map((choice) => ({
+                          menuItemId: choice.menuItemId,
                           sort: choice.sort,
                         })),
                       },

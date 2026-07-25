@@ -5,6 +5,7 @@ import { BaseButton, Icon } from '@/components/primitives'
 import { useForm } from '@/hooks/useForm'
 import { ACTION_ICONS } from '@/lib/icons'
 import { OptionGroupEditor } from './OptionGroupEditor'
+import { SetFrameEditor } from './SetFrameEditor'
 import type { Cat, Product, ProductFormData } from './types'
 import { TO_OPTIONS } from './types'
 
@@ -18,6 +19,7 @@ type ProductForm = {
 export function ProductModal({
   product,
   cats,
+  products,
   initialSubId,
   onConfirm,
   onClose,
@@ -26,6 +28,7 @@ export function ProductModal({
 }: {
   product?: Product
   cats: Cat[]
+  products: Product[]
   initialSubId?: number | null
   onConfirm: (data: ProductFormData) => void
   onClose: () => void
@@ -46,6 +49,8 @@ export function ProductModal({
   })
   const { name, price, subId, takeout } = form
   const [optionGroups, setOptionGroups] = useState(product?.optionGroups ?? [])
+  const [isSet, setIsSet] = useState(product?.isSet ?? false)
+  const [setFrames, setSetFrames] = useState(product?.setFrames ?? [])
 
   const contextLabel =
     !product && subId
@@ -63,13 +68,18 @@ export function ProductModal({
     name.trim() !== '' &&
     Number(price) > 0 &&
     subId !== null &&
-    optionGroups.every(
-      (group) =>
-        group.name.trim() !== '' &&
-        group.choices.every(
-          (choice) => choice.name.trim() !== '' && Number.isInteger(choice.extraPrice),
-        ),
-    )
+    (isSet
+      ? setFrames.every(
+          (frame) =>
+            frame.name.trim() !== '' && frame.choices.every((choice) => choice.menuItemId > 0),
+        )
+      : optionGroups.every(
+          (group) =>
+            group.name.trim() !== '' &&
+            group.choices.every(
+              (choice) => choice.name.trim() !== '' && Number.isInteger(choice.extraPrice),
+            ),
+        ))
 
   return (
     <BottomSheetModal
@@ -90,16 +100,29 @@ export function ProductModal({
             price: Number(price),
             subId: subId ?? 0,
             takeout,
-            optionGroups: optionGroups.map((group, groupIndex) => ({
-              name: group.name.trim(),
-              sort: groupIndex,
-              choices: group.choices.map((choice, choiceIndex) => ({
-                name: choice.name.trim(),
-                sort: choiceIndex,
-                extraPrice: choice.extraPrice,
-              })),
-              required: group.required,
-            })),
+            optionGroups: isSet
+              ? []
+              : optionGroups.map((group, groupIndex) => ({
+                  name: group.name.trim(),
+                  sort: groupIndex,
+                  choices: group.choices.map((choice, choiceIndex) => ({
+                    name: choice.name.trim(),
+                    sort: choiceIndex,
+                    extraPrice: choice.extraPrice,
+                  })),
+                  required: group.required,
+                })),
+            isSet,
+            setFrames: isSet
+              ? setFrames.map((frame, frameIndex) => ({
+                  name: frame.name.trim(),
+                  sort: frameIndex,
+                  choices: frame.choices.map((choice, choiceIndex) => ({
+                    menuItemId: choice.menuItemId,
+                    sort: choiceIndex,
+                  })),
+                }))
+              : [],
           }),
       }}
     >
@@ -179,7 +202,20 @@ export function ProductModal({
         ))}
       </select>
 
-      <OptionGroupEditor optionGroups={optionGroups} onChange={setOptionGroups} />
+      <label className="flex items-center gap-1.5 text-caption text-muted mt-1">
+        <input
+          type="checkbox"
+          checked={isSet}
+          onChange={(event) => setIsSet(event.target.checked)}
+        />
+        {t('productSettings.isSet')}
+      </label>
+
+      {isSet ? (
+        <SetFrameEditor setFrames={setFrames} products={products} onChange={setSetFrames} />
+      ) : (
+        <OptionGroupEditor optionGroups={optionGroups} onChange={setOptionGroups} />
+      )}
 
       {isEdit && (
         <div className="mb-2.5">

@@ -1,7 +1,7 @@
-import { act, type ReactNode } from 'react'
-import { createRoot } from 'react-dom/client'
 import { jest } from '@jest/globals'
 import type { Category, DrinkPlan, MenuItem, SubCategory } from '@order-system/shared'
+import { act, type ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
 
 await jest.unstable_mockModule('react-i18next', () => ({
   useTranslation: () => ({
@@ -72,6 +72,8 @@ const menus: MenuItem[] = [
     takeout: 'both',
     sort: 1,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
 ]
 const activeDrinkPlan: DrinkPlan = { id: 5, name: '飲み放題', price: 1500, menuItemIds: [1] }

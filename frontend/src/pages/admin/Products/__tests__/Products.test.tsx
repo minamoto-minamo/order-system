@@ -65,6 +65,8 @@ const menus: MenuItem[] = [
     takeout: 'both',
     sort: 1,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
 ]
 

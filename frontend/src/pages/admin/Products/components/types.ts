@@ -43,6 +43,8 @@ export interface Product {
   takeout: string
   sort: number
   optionGroups: OptionGroupForm[]
+  isSet: boolean
+  setFrames: SetFrameForm[]
 }
 export interface OptionChoiceForm {
   clientId: string
@@ -57,6 +59,17 @@ export interface OptionGroupForm {
   sort: number
   choices: OptionChoiceForm[]
 }
+export interface SetFrameChoiceForm {
+  clientId: string
+  menuItemId: number
+  sort: number
+}
+export interface SetFrameForm {
+  clientId: string
+  name: string
+  sort: number
+  choices: SetFrameChoiceForm[]
+}
 export interface ProductFormData {
   name: string
   price: number
@@ -67,6 +80,12 @@ export interface ProductFormData {
     required: boolean
     sort: number
     choices: { name: string; extraPrice: number; sort: number }[]
+  }[]
+  isSet: boolean
+  setFrames: {
+    name: string
+    sort: number
+    choices: { menuItemId: number; sort: number }[]
   }[]
 }
 

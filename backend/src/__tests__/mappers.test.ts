@@ -133,6 +133,8 @@ describe('toOrderItem', () => {
       courseId: null,
       isCourseCharge: false,
       isDrinkPlanCharge: false,
+      isSetCharge: false,
+      setOrderItemId: null,
       orderedAt: '2024-06-01T12:00:00.000Z',
       options: [],
     })
@@ -150,6 +152,15 @@ describe('toOrderItem', () => {
     expect(toOrderItem({ ...base, isDrinkPlanCharge: true })).toMatchObject({
       isDrinkPlanCharge: true,
     })
+  })
+
+  it('セット親子関係を変換する', () => {
+    expect(toOrderItem({ ...base, isSetCharge: true, setOrderItemId: 'set-parent' })).toMatchObject(
+      {
+        isSetCharge: true,
+        setOrderItemId: 'set-parent',
+      },
+    )
   })
 })
 

@@ -44,13 +44,37 @@ async function forceCleanupStore(subdomain: string) {
         if (!ordersRes.ok()) {
           throw new Error(`テスト店舗の注文取得に失敗しました: ${ordersRes.status()}`)
         }
-        const orders = (await ordersRes.json()) as Array<{ id: string; qty: number }>
+        const orders = (await ordersRes.json()) as Array<{
+          id: string
+          qty: number
+          isSetCharge: boolean
+          setOrderItemId: string | null
+        }>
+        // セットの内訳（子明細）は単独キャンセル不可（409）。親明細は status:'served' で
+        // 作成されるためこの一覧（pending/ready）には現れないが、親をキャンセルすれば
+        // 同一トランザクションで子明細も連動キャンセルされる。子明細だけがこの一覧に残る
+        // ケースに備え、子明細から親idを収集して代わりにキャンセルする（qtyは子と同じ値で全キャンセルする）。
+        const directlyCancellable = orders.filter(
+          (order) => order.isSetCharge || order.setOrderItemId == null,
+        )
+        const setParentQtyById = new Map<string, number>()
         for (const order of orders) {
+          if (!order.isSetCharge && order.setOrderItemId != null) {
+            setParentQtyById.set(order.setOrderItemId, order.qty)
+          }
+        }
+        for (const order of directlyCancellable) {
           const cancelRes = await ctx.put(`/api/orders/${order.id}/cancel`, {
             data: { qty: order.qty },
           })
           if (!cancelRes.ok()) {
             throw new Error(`テスト店舗の注文キャンセルに失敗しました: ${cancelRes.status()}`)
+          }
+        }
+        for (const [parentId, qty] of setParentQtyById) {
+          const cancelRes = await ctx.put(`/api/orders/${parentId}/cancel`, { data: { qty } })
+          if (!cancelRes.ok()) {
+            throw new Error(`テスト店舗のセット親明細キャンセルに失敗しました: ${cancelRes.status()}`)
           }
         }
 

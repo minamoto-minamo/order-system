@@ -37,6 +37,8 @@ const order: OrderItem = {
   courseId: null,
   isCourseCharge: false,
   isDrinkPlanCharge: false,
+  isSetCharge: false,
+  setOrderItemId: null,
   orderedAt: '2024-01-01T10:00:00.000Z',
   options: [],
 }

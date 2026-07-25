@@ -67,6 +67,8 @@ export interface OrderItem {
   courseId: number | null
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean
+  isSetCharge: boolean
+  setOrderItemId: string | null
   orderedAt: string
   options: OrderItemOption[]
 }
@@ -101,6 +103,22 @@ export interface ProductOptionGroup {
   choices: ProductOptionChoice[]
 }
 
+export interface SetFrameChoice {
+  id: number
+  menuItemId: number
+  name: string
+  price: number
+  soldOut: boolean
+  sort: number
+}
+
+export interface SetFrame {
+  id: number
+  name: string
+  sort: number
+  choices: SetFrameChoice[]
+}
+
 export interface MenuItem {
   id: number
   name: string
@@ -111,6 +129,8 @@ export interface MenuItem {
   takeout: TakeoutType
   sort: number
   optionGroups: ProductOptionGroup[]
+  isSet: boolean
+  setFrames: SetFrame[]
 }
 
 export interface DrinkPlan {
@@ -225,6 +245,7 @@ export interface OrderItemInput {
   qty: number
   isTakeout?: boolean
   selectedChoiceIds?: number[]
+  selectedFrameChoiceIds?: number[]
 }
 
 export interface CreateOrderBatchRequest {
@@ -246,6 +267,8 @@ export interface UpsertMenuItemRequest {
   soldOut: boolean
   takeout: TakeoutType
   optionGroups?: UpsertProductOptionGroupRequest[]
+  isSet?: boolean
+  setFrames?: UpsertSetFrameRequest[]
 }
 
 export interface UpsertProductOptionGroupRequest {
@@ -258,6 +281,17 @@ export interface UpsertProductOptionGroupRequest {
 export interface UpsertProductOptionChoiceRequest {
   name: string
   extraPrice: number
+  sort: number
+}
+
+export interface UpsertSetFrameRequest {
+  name: string
+  sort: number
+  choices: UpsertSetFrameChoiceRequest[]
+}
+
+export interface UpsertSetFrameChoiceRequest {
+  menuItemId: number
   sort: number
 }
 

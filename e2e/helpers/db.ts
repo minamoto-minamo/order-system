@@ -8,6 +8,7 @@ const prisma = new PrismaClient({
 export async function resetDb(storeId: number) {
   await prisma.orderItem.deleteMany({ where: { storeId } })
   await prisma.productOptionGroup.deleteMany({ where: { storeId } })
+  await prisma.setFrame.deleteMany({ where: { storeId } })
   await prisma.groupSeat.deleteMany({ where: { group: { storeId } } })
   await prisma.group.deleteMany({ where: { storeId } })
   await prisma.session.deleteMany({ where: { storeId } })

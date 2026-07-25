@@ -39,7 +39,8 @@ export function OrderHistory({
   onCancelTap: (item: OrderItem) => void
 }) {
   const { t } = useTranslation()
-  const { active, served, cancelled, courseCharges, courseDishes } = partitionOrderItems(items)
+  const { active, served, cancelled, courseCharges, courseDishes, setCharges, setDishes } =
+    partitionOrderItems(items)
 
   return (
     <div className="flex-1 overflow-y-auto pb-5">
@@ -142,6 +143,40 @@ export function OrderHistory({
                     )}
                   </div>
                 ))}
+              </div>
+            )
+          })}
+        </OrderHistorySection>
+      )}
+
+      {setCharges.length > 0 && (
+        <OrderHistorySection title={t('group.setTab')}>
+          {setCharges.map((item) => {
+            const dishes = setDishes.filter((d) => d.setOrderItemId === item.id)
+            return (
+              <div key={item.id} className="px-5 py-2.5 border-b border-surface flex gap-2.5">
+                <div className="flex-1">
+                  <div className="text-note text-secondary">
+                    {item.menuItemName}
+                    <span className="text-label text-muted ml-1.5">×{item.qty}</span>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between text-label text-muted">
+                    <span>¥{item.price.toLocaleString()}</span>
+                    <span>¥{(item.price * item.qty).toLocaleString()}</span>
+                  </div>
+                  {dishes.map((d) => (
+                    <div key={d.id} className="mt-1 text-note text-secondary">
+                      {d.menuItemName}
+                    </div>
+                  ))}
+                </div>
+                <IconButton
+                  className="w-8 h-8 flex items-center justify-center rounded-md text-lg text-dim"
+                  onClick={() => onCancelTap(item)}
+                  aria-label={t('group.cancelOrder')}
+                >
+                  <Icon src={ACTION_ICONS.close} />
+                </IconButton>
               </div>
             )
           })}

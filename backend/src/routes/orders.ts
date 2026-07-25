@@ -23,6 +23,7 @@ const createBodySchema = {
           qty: { type: 'integer', minimum: 1, maximum: 99 },
           isTakeout: { type: 'boolean' },
           selectedChoiceIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
+          selectedFrameChoiceIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
         },
         additionalProperties: false,
       },
@@ -44,7 +45,10 @@ const cancelBodySchema = {
 const VALID_ORDER_STATUSES = new Set(['pending', 'ready', 'served', 'cancelled'])
 
 type CreateOrderResult = OrderItem[]
-type CancelOrderTxResult = OrderItem | null | { conflict: true; courseCharge?: true }
+type CancelOrderTxResult =
+  | { order: OrderItem; children: OrderItem[] }
+  | null
+  | { conflict: true; courseCharge?: true; setChild?: true }
 
 const ordersRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async (request, reply) => {
@@ -81,6 +85,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         qty: number
         isTakeout?: boolean
         selectedChoiceIds?: number[]
+        selectedFrameChoiceIds?: number[]
       }[]
       courseId?: number | null
     }
@@ -101,7 +106,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const menuItemIds = body.items.map((i) => i.menuItemId)
     const menuItems = await prisma.menuItem.findMany({
       where: { id: { in: menuItemIds }, storeId: request.storeId },
-      include: { optionGroups: { include: { choices: true } } },
+      include: {
+        optionGroups: { include: { choices: true } },
+        setFrames: { include: { choices: { include: { menuItem: true } } } },
+      },
     })
     const menuItemMap = new Map(menuItems.map((m) => [m.id, m]))
 
@@ -196,6 +204,60 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         )
     }
 
+    for (const item of body.items) {
+      const menuItem = menuItemMap.get(item.menuItemId)
+      const selectedFrameChoiceIds = item.selectedFrameChoiceIds ?? []
+      if (!menuItem?.isSet) {
+        if (item.selectedFrameChoiceIds !== undefined)
+          return sendError(
+            reply,
+            400,
+            ErrorCodes.Orders.SetFrameSelectionNotApplicable,
+            'セットではない商品にセット枠の選択は指定できません',
+          )
+        continue
+      }
+
+      const frameChoices = new Map(
+        menuItem.setFrames.flatMap((frame) =>
+          frame.choices.map((choice) => [
+            choice.id,
+            { frameId: frame.id, menuItem: choice.menuItem },
+          ]),
+        ),
+      )
+      if (selectedFrameChoiceIds.some((choiceId) => !frameChoices.has(choiceId)))
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Orders.InvalidSetFrameChoice,
+          '無効なセット枠の選択です',
+        )
+
+      const selectedFrameIds = selectedFrameChoiceIds.map(
+        (choiceId) => frameChoices.get(choiceId)?.frameId,
+      )
+      if (
+        selectedFrameIds.length !== menuItem.setFrames.length ||
+        new Set(selectedFrameIds).size !== selectedFrameIds.length ||
+        menuItem.setFrames.some((frame) => !selectedFrameIds.includes(frame.id))
+      )
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Orders.MissingSetFrameSelection,
+          'すべてのセット枠を1つずつ選択してください',
+        )
+
+      if (selectedFrameChoiceIds.some((choiceId) => frameChoices.get(choiceId)?.menuItem.soldOut))
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Orders.SetFrameChoiceSoldOut,
+          '選択されたセット商品の一部が品切れです',
+        )
+    }
+
     if (body.courseId != null) {
       const course = await prisma.course.findFirst({
         where: { id: body.courseId, storeId: request.storeId },
@@ -252,8 +314,8 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
             planMenuItemIds = new Set(planItems.map((p) => p.menuItemId))
           }
 
-          return Promise.all(
-            body.items.map((item) => {
+          const createdByItem = await Promise.all(
+            body.items.map(async (item) => {
               const isTakeout = item.isTakeout ?? false
               // 飲み放題プラン対象商品は店内注文に限り0円（テイクアウトはプラン対象外）
               const isPlanItem = !isTakeout && (planMenuItemIds?.has(item.menuItemId) ?? false)
@@ -264,7 +326,46 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
                 const option = choicesByItem.get(item.menuItemId)?.get(choiceId)
                 return option ? [option] : []
               })
-              return tx.orderItem.create({
+              if (menuItem?.isSet) {
+                const parent = await tx.orderItem.create({
+                  data: {
+                    groupId: body.groupId,
+                    menuItemId: item.menuItemId,
+                    menuItemName: menuItem.name,
+                    price: originalPrice,
+                    originalPrice,
+                    qty: item.qty,
+                    isTakeout,
+                    isSetCharge: true,
+                    status: 'served',
+                    storeId: request.storeId,
+                  },
+                  include: { options: true },
+                })
+                const children = await Promise.all(
+                  (item.selectedFrameChoiceIds ?? []).map((choiceId) => {
+                    const choice = menuItem.setFrames
+                      .flatMap((frame) => frame.choices)
+                      .find((candidate) => candidate.id === choiceId)
+                    return tx.orderItem.create({
+                      data: {
+                        groupId: body.groupId,
+                        menuItemId: choice?.menuItemId,
+                        menuItemName: choice?.menuItem.name ?? '',
+                        price: 0,
+                        originalPrice: choice?.menuItem.price,
+                        qty: item.qty,
+                        isTakeout,
+                        setOrderItemId: parent.id,
+                        storeId: request.storeId,
+                      },
+                      include: { options: true },
+                    })
+                  }),
+                )
+                return [parent, ...children]
+              }
+              const createdOrder = await tx.orderItem.create({
                 data: {
                   groupId: body.groupId,
                   menuItemId: item.menuItemId,
@@ -292,8 +393,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
                 },
                 include: { options: true },
               })
+              return [createdOrder]
             }),
           )
+          return createdByItem.flat()
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       )
@@ -366,18 +469,25 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           if (order.isCourseCharge) {
             return { conflict: true, courseCharge: true as const }
           }
-
-          if (qty >= order.qty) {
-            return tx.orderItem.update({
-              where: { id },
-              data: { status: 'cancelled' },
-            })
-          } else {
-            return tx.orderItem.update({
-              where: { id },
-              data: { qty: order.qty - qty },
-            })
+          if (order.setOrderItemId && !order.isSetCharge) {
+            return { conflict: true, setChild: true as const }
           }
+
+          const isFullCancel = qty >= order.qty
+          const data = isFullCancel ? { status: 'cancelled' as const } : { qty: order.qty - qty }
+          const children = order.isSetCharge
+            ? await tx.orderItem.findMany({ where: { setOrderItemId: order.id } })
+            : []
+          const updatedChildren = await Promise.all(
+            children.map((child) =>
+              tx.orderItem.update({
+                where: { id: child.id },
+                data: isFullCancel ? { status: 'cancelled' } : { qty: child.qty - qty },
+              }),
+            ),
+          )
+          const updatedOrder = await tx.orderItem.update({ where: { id }, data })
+          return { order: updatedOrder, children: updatedChildren }
           // Serializable にしないと、同一注文への同時キャンセルリクエストが両方とも
           // 古い qty を読んだまま更新し合い、片方の減算が失われる（lost update）
         },
@@ -405,6 +515,13 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           ErrorCodes.Orders.CourseChargeNotCancellable,
           'コース・飲み放題料金はこの操作では取消できません',
         )
+      if ('setChild' in result)
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Orders.SetChildNotCancellable,
+          'セットの内訳商品は単独で取消できません',
+        )
       return sendError(
         reply,
         409,
@@ -413,9 +530,9 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
 
-    const mapped = toOrderItem(result)
+    const mapped = toOrderItem(result.order)
     // 完全キャンセル（IDのみ）と数量変更（全フィールド）はクライアントの処理が異なるためイベントを分ける
-    if (result.status === 'cancelled') {
+    if (result.order.status === 'cancelled') {
       fastify.io
         .to(`store:${request.storeId}`)
         .to(`group:${mapped.groupId}`)
@@ -425,6 +542,20 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
         .to(`store:${request.storeId}`)
         .to(`group:${mapped.groupId}`)
         .emit('order:updated', mapped)
+    }
+    for (const child of result.children) {
+      const mappedChild = toOrderItem(child)
+      if (child.status === 'cancelled') {
+        fastify.io
+          .to(`store:${request.storeId}`)
+          .to(`group:${mappedChild.groupId}`)
+          .emit('order:cancelled', mappedChild.id)
+      } else {
+        fastify.io
+          .to(`store:${request.storeId}`)
+          .to(`group:${mappedChild.groupId}`)
+          .emit('order:updated', mappedChild)
+      }
     }
     return mapped
   })

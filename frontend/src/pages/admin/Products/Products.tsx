@@ -28,6 +28,18 @@ const toOptionGroupForms = (optionGroups: MenuItem['optionGroups']) =>
     })),
   }))
 
+const toSetFrameForms = (setFrames: MenuItem['setFrames']) =>
+  setFrames.map((frame) => ({
+    clientId: `set-frame-${frame.id}`,
+    name: frame.name,
+    sort: frame.sort,
+    choices: frame.choices.map((choice) => ({
+      clientId: `set-frame-choice-${choice.id}`,
+      menuItemId: choice.menuItemId,
+      sort: choice.sort,
+    })),
+  }))
+
 // ── メイン ───────────────────────────────────────────────────
 export default function Products() {
   const { t } = useTranslation()
@@ -70,6 +82,8 @@ export default function Products() {
             takeout: m.takeout,
             sort: m.sort,
             optionGroups: toOptionGroupForms(m.optionGroups),
+            isSet: m.isSet,
+            setFrames: toSetFrameForms(m.setFrames),
           })),
         )
       })
@@ -160,7 +174,15 @@ export default function Products() {
   }
 
   // ── 商品操作 ───────────────────────────────────────────────
-  const addProduct = async ({ name, price, subId, takeout, optionGroups }: ProductFormData) => {
+  const addProduct = async ({
+    name,
+    price,
+    subId,
+    takeout,
+    optionGroups,
+    isSet,
+    setFrames,
+  }: ProductFormData) => {
     const cat = cats.find((c) => c.subs.some((s) => s.id === subId))
     if (!cat) return
     try {
@@ -172,6 +194,8 @@ export default function Products() {
         soldOut: false,
         takeout,
         optionGroups,
+        isSet,
+        setFrames,
       })
       setProducts((prev) => [
         ...prev,
@@ -185,6 +209,8 @@ export default function Products() {
           takeout: item.takeout,
           sort: item.sort,
           optionGroups: toOptionGroupForms(item.optionGroups),
+          isSet: item.isSet,
+          setFrames: toSetFrameForms(item.setFrames),
         },
       ])
       setModal(null)
@@ -195,7 +221,7 @@ export default function Products() {
 
   const editProduct = async (
     id: number,
-    { name, price, subId, takeout, optionGroups }: ProductFormData,
+    { name, price, subId, takeout, optionGroups, isSet, setFrames }: ProductFormData,
   ) => {
     const cat = cats.find((c) => c.subs.some((s) => s.id === subId))
     if (!cat) return
@@ -207,6 +233,8 @@ export default function Products() {
         subCategoryId: subId,
         takeout,
         optionGroups,
+        isSet,
+        setFrames,
       })
       setProducts((prev) =>
         prev.map((p) =>
@@ -224,6 +252,15 @@ export default function Products() {
                   choices: group.choices.map((choice, choiceIndex) => ({
                     ...choice,
                     clientId: `choice-new-${groupIndex}-${choiceIndex}`,
+                  })),
+                })),
+                isSet,
+                setFrames: setFrames.map((frame, frameIndex) => ({
+                  ...frame,
+                  clientId: `set-frame-new-${frameIndex}`,
+                  choices: frame.choices.map((choice, choiceIndex) => ({
+                    ...choice,
+                    clientId: `set-frame-choice-new-${frameIndex}-${choiceIndex}`,
                   })),
                 })),
               }
@@ -386,6 +423,7 @@ export default function Products() {
       {modal?.type === 'addProduct' && (
         <ProductModal
           cats={cats}
+          products={products}
           initialSubId={selectedSubId}
           onConfirm={addProduct}
           onClose={() => setModal(null)}
@@ -394,6 +432,7 @@ export default function Products() {
       {modal?.type === 'editProduct' && (
         <ProductModal
           cats={cats}
+          products={products}
           product={modal.payload}
           onConfirm={(v) => editProduct(modal.payload.id, v)}
           onClose={() => setModal(null)}

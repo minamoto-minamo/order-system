@@ -14,6 +14,8 @@ function createItem(overrides: Partial<OrderItem> = {}): OrderItem {
     courseId: null,
     isCourseCharge: false,
     isDrinkPlanCharge: false,
+    isSetCharge: false,
+    setOrderItemId: null,
     orderedAt: '2026-07-23T00:00:00.000Z',
     options: [],
     ...overrides,

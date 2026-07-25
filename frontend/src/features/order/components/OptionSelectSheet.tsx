@@ -9,6 +9,7 @@ export type OptionedOrderLine = {
   item: MenuItem
   qty: number
   selectedChoiceIds: number[]
+  selectedFrameChoiceIds?: number[]
   options: { groupName: string; choiceName: string; extraPrice: number }[]
 }
 

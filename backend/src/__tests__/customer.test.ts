@@ -286,6 +286,53 @@ describe('GET /api/customer/groups/:id/menus — 飲み放題対象商品の返�
     expect(res.json()).toMatchObject({ drinkPlanMenuItemIds: [] })
     expect(mockDrinkPlanItemFindMany).not.toHaveBeenCalled()
   })
+
+  it('セット商品の枠と選択肢を返す', async () => {
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+    mockMenuItemFindMany.mockResolvedValue([
+      {
+        id: 1,
+        name: 'セット',
+        price: 1200,
+        soldOut: false,
+        takeout: 'both',
+        sort: 1,
+        categoryId: 1,
+        subCategoryId: 1,
+        isSet: true,
+        optionGroups: [],
+        setFrames: [
+          {
+            id: 10,
+            name: '主菜',
+            sort: 0,
+            choices: [
+              {
+                id: 101,
+                menuItemId: 2,
+                sort: 0,
+                menuItem: { name: '主菜A', price: 800, soldOut: false },
+              },
+            ],
+          },
+        ],
+      } as any,
+    ])
+    mockCategoryFindMany.mockResolvedValue([])
+    mockSubCategoryFindMany.mockResolvedValue([])
+
+    const res = await app.inject({ method: 'GET', url: `/api/customer/groups/${GROUP_ID}/menus` })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      menus: [
+        {
+          isSet: true,
+          setFrames: [{ id: 10, choices: [{ id: 101, menuItemId: 2, name: '主菜A' }] }],
+        },
+      ],
+    })
+  })
 })
 
 describe('POST /api/customer/orders — 飲み放題プラン対象商品の0円化', () => {
@@ -672,5 +719,182 @@ describe('POST /api/customer/orders — 商品オプション', () => {
         include: { options: true },
       }),
     )
+  })
+})
+
+describe('POST /api/customer/orders — セットメニュー', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGroupFindFirst.mockResolvedValue({ id: GROUP_ID, status: 'active', drinkPlanId: null })
+  })
+
+  const setMenu = {
+    id: 1,
+    name: 'セット',
+    price: 1200,
+    soldOut: false,
+    takeout: 'both',
+    isSet: true,
+    optionGroups: [],
+    setFrames: [
+      {
+        id: 10,
+        choices: [
+          { id: 101, menuItemId: 2, menuItem: { name: '主菜', price: 800, soldOut: false } },
+        ],
+      },
+      {
+        id: 11,
+        choices: [
+          { id: 102, menuItemId: 3, menuItem: { name: '副菜', price: 500, soldOut: false } },
+        ],
+      },
+    ],
+  }
+
+  it('各枠の選択が揃うとセット親子明細を作成する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([setMenu])
+    const create = jest.fn<any>().mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: data.isSetCharge ? 'set-parent' : `child-${data.menuItemId}`,
+        groupId: GROUP_ID,
+        menuItemId: data.menuItemId,
+        menuItemName: data.menuItemName,
+        price: data.price,
+        originalPrice: data.originalPrice,
+        qty: data.qty,
+        status: data.status ?? 'pending',
+        isTakeout: data.isTakeout,
+        courseId: null,
+        isCourseCharge: false,
+        isDrinkPlanCharge: false,
+        isSetCharge: data.isSetCharge ?? false,
+        setOrderItemId: data.setOrderItemId ?? null,
+        orderedAt: new Date(),
+        options: [],
+      }),
+    )
+    mockTx(create)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 1, qty: 2, selectedFrameChoiceIds: [101, 102] }],
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          menuItemId: 1,
+          price: 1200,
+          originalPrice: 1200,
+          qty: 2,
+          isSetCharge: true,
+          status: 'served',
+        }),
+      }),
+    )
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          menuItemId: 2,
+          price: 0,
+          originalPrice: 800,
+          qty: 2,
+          setOrderItemId: 'set-parent',
+        }),
+      }),
+    )
+  })
+
+  it.each([
+    [{ menuItemId: 1, qty: 1 }, 'customer.orders.missing_set_frame_selection'],
+    [
+      { menuItemId: 1, qty: 1, selectedFrameChoiceIds: [999] },
+      'customer.orders.invalid_set_frame_choice',
+    ],
+    [
+      { menuItemId: 1, qty: 1, selectedFrameChoiceIds: [101, 101] },
+      'customer.orders.missing_set_frame_selection',
+    ],
+  ])('不正なセット枠選択を拒否する', async (item, code) => {
+    mockMenuItemFindMany.mockResolvedValue([setMenu])
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: { groupId: GROUP_ID, items: [item] },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({ error: { code } })
+  })
+
+  it('品切れのセット選択肢を 409 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([
+      {
+        ...setMenu,
+        setFrames: [
+          {
+            ...setMenu.setFrames[0],
+            choices: [
+              {
+                ...setMenu.setFrames[0].choices[0],
+                menuItem: { name: '主菜', price: 800, soldOut: true },
+              },
+            ],
+          },
+          setMenu.setFrames[1],
+        ],
+      },
+    ] as any)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 1, qty: 1, selectedFrameChoiceIds: [101, 102] }],
+      },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({
+      error: { code: 'customer.orders.set_frame_choice_sold_out' },
+    })
+  })
+
+  it('通常商品へのセット枠選択指定を 400 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([
+      {
+        id: 2,
+        name: '通常',
+        price: 300,
+        soldOut: false,
+        takeout: 'both',
+        isSet: false,
+        optionGroups: [],
+        setFrames: [],
+      },
+    ] as any)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/customer/orders',
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 2, qty: 1, selectedFrameChoiceIds: [] }],
+      },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      error: { code: 'customer.orders.set_frame_selection_not_applicable' },
+    })
   })
 })

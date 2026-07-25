@@ -41,6 +41,8 @@ const items: MenuItem[] = [
     takeout: 'both',
     sort: 1,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
   {
     id: 2,
@@ -52,6 +54,8 @@ const items: MenuItem[] = [
     takeout: 'both',
     sort: 2,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
 ]
 
@@ -87,6 +91,7 @@ describe('CustomerMenuList', () => {
           getQty={() => 0}
           onQtyChange={() => undefined}
           onSelectOptionItem={() => undefined}
+          onSelectSetItem={() => undefined}
           footerVisible={false}
         />,
       )
@@ -97,5 +102,48 @@ describe('CustomerMenuList', () => {
     expect(container.textContent).toContain('¥0')
     expect(container.textContent).toContain('枝豆')
     expect(container.textContent).toContain('¥300')
+  })
+
+  it('セット商品選択時はセット用コールバックを呼ぶ', async () => {
+    const onSelectSetItem = jest.fn()
+    const setItem = {
+      ...items[0],
+      id: 3,
+      name: 'セット',
+      isSet: true,
+      setFrames: [
+        {
+          id: 10,
+          name: '主菜',
+          sort: 0,
+          choices: [],
+        },
+      ],
+    }
+    await act(async () => {
+      root.render(
+        <CustomerMenuList
+          categories={categories}
+          activeCatId={1}
+          onSelectCategory={() => undefined}
+          subs={subs}
+          activeSubId={null}
+          onSelectSub={() => undefined}
+          items={[setItem]}
+          drinkPlanMenuItemIds={[]}
+          getQty={() => 0}
+          onQtyChange={() => undefined}
+          onSelectOptionItem={() => undefined}
+          onSelectSetItem={onSelectSetItem}
+          footerVisible={false}
+        />,
+      )
+    })
+
+    const selectButton = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'orderOption.selectButton',
+    ) as HTMLButtonElement
+    await act(async () => selectButton.click())
+    expect(onSelectSetItem).toHaveBeenCalledWith(setItem)
   })
 })

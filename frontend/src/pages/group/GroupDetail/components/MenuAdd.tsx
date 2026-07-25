@@ -8,6 +8,7 @@ import {
   type OptionedOrderLine,
   OptionSelectSheet,
 } from '@/features/order/components/OptionSelectSheet'
+import { SetFrameSelectSheet } from '@/features/order/components/SetFrameSelectSheet'
 import { SYMBOL_ICONS } from '@/lib/icons'
 
 export function MenuAdd({
@@ -26,6 +27,7 @@ export function MenuAdd({
       item: MenuItem
       qty: number
       selectedChoiceIds?: number[]
+      selectedFrameChoiceIds?: number[]
     } & Partial<OptionedOrderLine>)[],
     isTakeout: boolean,
   ) => Promise<void>
@@ -37,6 +39,7 @@ export function MenuAdd({
   const [qtys, setQtys] = useState<Record<number, number>>({})
   const [optionedLines, setOptionedLines] = useState<OptionedOrderLine[]>([])
   const [optionTarget, setOptionTarget] = useState<MenuItem | null>(null)
+  const [setFrameTarget, setSetFrameTarget] = useState<MenuItem | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -88,6 +91,7 @@ export function MenuAdd({
     item: MenuItem
     qty: number
     selectedChoiceIds?: number[]
+    selectedFrameChoiceIds?: number[]
   } & Partial<OptionedOrderLine>)[] = [
     ...Object.entries(qtys)
       .filter(([, qty]) => qty > 0)
@@ -172,7 +176,16 @@ export function MenuAdd({
                     ¥{isDrinkPlanTarget ? '0' : item.price.toLocaleString()}
                   </div>
                 </div>
-                {item.optionGroups.length > 0 ? (
+                {item.isSet ? (
+                  <BaseButton
+                    variant="secondary"
+                    className="shrink-0 py-2 px-3 text-xs"
+                    disabled={item.soldOut}
+                    onClick={() => setSetFrameTarget(item)}
+                  >
+                    {t('orderOption.selectButton')}
+                  </BaseButton>
+                ) : item.optionGroups.length > 0 ? (
                   <BaseButton
                     variant="secondary"
                     className="shrink-0 py-2 px-3 text-xs"
@@ -220,6 +233,16 @@ export function MenuAdd({
         onAdd={(line) => {
           setOptionedLines((prev) => [...prev, line])
           setOptionTarget(null)
+        }}
+      />
+      <SetFrameSelectSheet
+        key={setFrameTarget?.id ?? 'empty'}
+        item={setFrameTarget}
+        open={setFrameTarget != null}
+        onClose={() => setSetFrameTarget(null)}
+        onAdd={(line) => {
+          setOptionedLines((prev) => [...prev, line])
+          setSetFrameTarget(null)
         }}
       />
     </div>

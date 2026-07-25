@@ -89,12 +89,24 @@ export function toMenuItem(m: {
   soldOut: boolean
   takeout: 'dine_in' | 'both' | 'takeout'
   sort: number
+  isSet?: boolean
   optionGroups?: {
     id: number
     name: string
     required: boolean
     sort: number
     choices: { id: number; name: string; extraPrice: number; sort: number }[]
+  }[]
+  setFrames?: {
+    id: number
+    name: string
+    sort: number
+    choices: {
+      id: number
+      menuItemId: number
+      sort: number
+      menuItem: { name: string; price: number; soldOut: boolean }
+    }[]
   }[]
 }) {
   return {
@@ -106,6 +118,7 @@ export function toMenuItem(m: {
     soldOut: m.soldOut,
     takeout: m.takeout,
     sort: m.sort,
+    isSet: m.isSet ?? false,
     optionGroups: (m.optionGroups ?? []).map((group) => ({
       id: group.id,
       name: group.name,
@@ -115,6 +128,19 @@ export function toMenuItem(m: {
         id: choice.id,
         name: choice.name,
         extraPrice: choice.extraPrice,
+        sort: choice.sort,
+      })),
+    })),
+    setFrames: (m.setFrames ?? []).map((frame) => ({
+      id: frame.id,
+      name: frame.name,
+      sort: frame.sort,
+      choices: frame.choices.map((choice) => ({
+        id: choice.id,
+        menuItemId: choice.menuItemId,
+        name: choice.menuItem.name,
+        price: choice.menuItem.price,
+        soldOut: choice.menuItem.soldOut,
         sort: choice.sort,
       })),
     })),
@@ -149,6 +175,8 @@ export function toOrderItem(o: {
   courseId: number | null
   isCourseCharge: boolean
   isDrinkPlanCharge: boolean
+  isSetCharge?: boolean
+  setOrderItemId?: string | null
   orderedAt: Date
   options?: {
     id: string
@@ -171,6 +199,8 @@ export function toOrderItem(o: {
     courseId: o.courseId,
     isCourseCharge: o.isCourseCharge,
     isDrinkPlanCharge: o.isDrinkPlanCharge,
+    isSetCharge: o.isSetCharge ?? false,
+    setOrderItemId: o.setOrderItemId ?? null,
     orderedAt: o.orderedAt.toISOString(),
     options: o.options ?? [],
   }
