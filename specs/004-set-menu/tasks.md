@@ -115,7 +115,7 @@ description: "Task list for セットメニュー機能"
 - [x] T030 `pnpm typecheck` を実行し、frontend/backend/sharedすべてで型エラーがないことを確認する
 - [x] T031 `pnpm lint` を実行し、Biomeのリントエラーがないことを確認する → 変更対象ファイルはクリーン（フォーマット差分を修正済み、コミット`7b98ff5`）。リポジトリ全体には本機能と無関係な既存lintエラーが別途あるため対象外（003-product-optionsと同じ扱い）
 - [x] T032 `pnpm test` を実行し、T005・T012・T013・T014・T025・T028のテストを含む全単体テストが通ることを確認する → backend 314件・frontend 103件、全通過（Claude側で独立検証済み）
-- [ ] T033 [quickstart.md](./quickstart.md) のシナリオ1〜5をe2eで手動検証する（Claude側で実行）
+- [x] T033 [quickstart.md](./quickstart.md) のシナリオ1〜5をe2eで手動検証する（Claude側で実行）→ `e2e/s14-set-menu.spec.ts`として正式なe2eテストコードを追加（Codex作成・Claude実行、コミット`742e823`）。シナリオ1〜5に対応する7ケース全て通過。既存e2eスイート（s01〜s13、計90件）を通しで実行し、リグレッションなしを確認
 
 ---
 
