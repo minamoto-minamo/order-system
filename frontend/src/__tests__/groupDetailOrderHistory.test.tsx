@@ -1,6 +1,6 @@
-import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { jest } from '@jest/globals'
 import type { OrderItem } from '@order-system/shared'
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
 
 await jest.unstable_mockModule('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -13,7 +13,10 @@ await jest.unstable_mockModule('@/lib/icons', () => ({
 
 const { OrderHistory } = await import('@/pages/group/GroupDetail/components/OrderHistory')
 
-function findElement(node: ReactNode, predicate: (element: ReactElement) => boolean): ReactElement | null {
+function findElement(
+  node: ReactNode,
+  predicate: (element: ReactElement) => boolean,
+): ReactElement | null {
   if (!isValidElement(node)) {
     return null
   }
@@ -45,9 +48,9 @@ describe('OrderHistory', () => {
         isTakeout: false,
         courseId: null,
         isCourseCharge: false,
-    isDrinkPlanCharge: false,
-    isSetCharge: false,
-    setOrderItemId: null,
+        isDrinkPlanCharge: false,
+        isSetCharge: false,
+        setOrderItemId: null,
         orderedAt: '2026-07-11T10:00:00.000Z',
         options: [],
       },
@@ -72,9 +75,7 @@ describe('OrderHistory', () => {
 
     const button = (
       foundStatusAction.type as (props: typeof foundStatusAction.props) => ReactElement
-    )(
-      foundStatusAction.props,
-    )
+    )(foundStatusAction.props)
 
     expect(button.props.className).toContain('min-h-10')
     expect(button.props.className).toContain('px-2.75')
