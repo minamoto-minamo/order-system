@@ -26,13 +26,18 @@ tags: [common]
 - 数量コントロール、キャンセルボタン、Complete / Serve ボタン（kitchen）
 - Header actions（`active` 状態のみ表示）: QRコード表示、席変更
 - Footer（注文履歴タブ）: 小計・税額・合計表示、会計リクエスト ボタン。`bill_requested` 以降は 会計キャンセル / 退店 ボタンに切り替わる
+- メニュー一覧の商品タップ時、商品オプション（`optionGroups`）またはセット構成（`isSet`/`setFrames`）を持つ商品は数量ステッパー直接操作の代わりに「オプションを選ぶ」ボタンを表示し、タップするとボトムシートが開く（`OptionSelectSheet` / `SetFrameSelectSheet`、`frontend/src/features/order/components/`）
+  - オプション: 分類ごとにラジオボタンで択一選択。`required: true` の分類が未選択の間は追加ボタンが無効
+  - セット: 枠ごとにラジオボタンで択一選択。**全ての枠が選択必須**（任意の枠はない）。品切れの選択肢はラジオボタンが無効化される
+  - いずれも数量ステッパーを持ち、確定すると確認モーダル（`MenuConfirmModal`）に内訳（`分類名: 選択肢名` または `枠名: 選択商品名`）と金額（オプションは加算後、セットはセット価格のみ）が表示される
+- 注文履歴タブに、コース明細（「コース」セクション）と同様の「セット」セクション（`OrderHistorySection`）が表示される。セットの親明細（セット価格・数量）の下に内訳2品がまとめて表示され、親明細にのみキャンセルボタンがある（内訳の個別キャンセルは提供しない）
 
 部分キャンセルのフローは数量選択 UI をサポートする必要がある。
 
 ## アクション
 
-- 注文追加 → `POST /api/orders`（バッチ）
-- キャンセル → `PUT /api/orders/:id/cancel`
+- 注文追加 → `POST /api/orders`（バッチ）。商品オプション付き商品は `items[].selectedChoiceIds`、セット商品は `items[].selectedFrameChoiceIds` を含める
+- キャンセル → `PUT /api/orders/:id/cancel`。セットの親明細をキャンセルすると、内訳の子明細にも同じ数量変更が連動する（同一トランザクション）。内訳の子明細を直接キャンセルすることはできない（409）
 - コース適用 → `POST /api/groups/:id/course`
 - コース人数変更 → `PUT /api/groups/:id/course`
 - コース解除 → `DELETE /api/groups/:id/course`

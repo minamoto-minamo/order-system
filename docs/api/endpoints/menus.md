@@ -36,11 +36,40 @@ tags: [menus, categories, api]
   "subCategoryId": 2,
   "soldOut": false,
   "takeout": "dine_in",
-  "sort": 0
+  "sort": 0,
+  "optionGroups": [
+    {
+      "id": 1,
+      "name": "辛さ",
+      "required": false,
+      "sort": 0,
+      "choices": [{ "id": 1, "name": "ピリ辛", "extraPrice": 0, "sort": 0 }]
+    }
+  ],
+  "isSet": false,
+  "setFrames": []
 }
 ```
 
 - `takeout`: `"dine_in"` | `"both"` | `"takeout"`
+- `optionGroups`: 商品オプション（分類・選択肢）。分類ごとに択一選択、`required: true` は注文時必須。`extraPrice` は正・0・負のいずれも可
+- `isSet`: セットメニュー（親商品）かどうか
+- `setFrames`: `isSet: true` の場合のみ意味を持つ、内訳の枠と選択肢。`choices[].name`/`price`/`soldOut` は参照先商品の**現在値**（スナップショットではなく都度JOIN）
+
+```json
+{
+  "setFrames": [
+    {
+      "id": 1,
+      "name": "ラーメン",
+      "sort": 0,
+      "choices": [
+        { "id": 1, "menuItemId": 10, "name": "味噌ラーメン", "price": 800, "soldOut": false, "sort": 0 }
+      ]
+    }
+  ]
+}
+```
 
 ### GET /api/menus — メニュー一覧
 
@@ -66,13 +95,25 @@ Request body（`name`, `price`, `categoryId`, `subCategoryId` は必須）:
   "categoryId": 1,
   "subCategoryId": 2,
   "soldOut": false,
-  "takeout": "dine_in"
+  "takeout": "dine_in",
+  "optionGroups": [
+    { "name": "辛さ", "required": false, "sort": 0, "choices": [{ "name": "ピリ辛", "extraPrice": 0, "sort": 0 }] }
+  ],
+  "isSet": false,
+  "setFrames": [
+    { "name": "ラーメン", "sort": 0, "choices": [{ "menuItemId": 10, "sort": 0 }] }
+  ]
 }
 ```
+
+- `optionGroups`/`setFrames` はいずれも省略可。両方同時に指定・保存することはできない（`isSet: true` かつ `optionGroups` が空でない場合はエラー）
+- `setFrames[].choices[].menuItemId` は同一店舗の実在する商品を指す必要がある
 
 Response 201: 作成した MenuItem オブジェクト
 Response 422: `menus.save.subcategory_not_found` — `subCategoryId` が存在しない場合
 Response 422: `menus.save.subcategory_mismatch` — `subCategoryId` の親カテゴリが `categoryId` と異なる場合
+Response 422: `menus.save.set_with_options_not_allowed` — `isSet: true` かつ `optionGroups` が空でない場合
+Response 422: `menus.save.set_frame_choice_menu_item_not_found` — `setFrames[].choices[].menuItemId` が同一店舗に存在しない場合
 Socket emit: `menu:created`（作成した MenuItem オブジェクト）
 
 ### PUT /api/menus/:id — メニュー更新
@@ -87,10 +128,15 @@ Request body（全フィールド省略可）:
 }
 ```
 
+- `optionGroups`/`setFrames` を指定した場合、それぞれ既存の分類・選択肢／枠・選択肢を**全置換**する（差分更新ではなく `deleteMany` + `create`）
+- `isSet` を `true` → `false` に変更して保存すると、既存の `setFrames` は削除される（フロントエンドは `isSet: false` の保存時に常に `setFrames: []` を送る）
+
 Response 200: 更新後の MenuItem オブジェクト
 Response 404: `menus.detail.not_found`
 Response 422: `menus.save.subcategory_not_found` — `subCategoryId` が存在しない場合
 Response 422: `menus.save.subcategory_mismatch` — `subCategoryId` の親カテゴリが `categoryId`（または既存の categoryId）と異なる場合
+Response 422: `menus.save.set_with_options_not_allowed` — `isSet: true` かつ `optionGroups` が空でない場合（`isSet` 省略時は既存値を使う）
+Response 422: `menus.save.set_frame_choice_menu_item_not_found` — `setFrames[].choices[].menuItemId` が同一店舗に存在しない、もしくは編集中の商品自身／他のセット商品を指す場合
 Socket emit: `menu:soldout`（`soldOut` が変化した場合のみ、`(menuItemId, soldOut)` の2引数）
 Socket emit: `menu:updated`（常に、更新後の MenuItem オブジェクト）
 
@@ -117,6 +163,8 @@ Response 409: `menus.delete.referenced_course` — コース（`CourseFoodItem`�
 Response 409: `menus.delete.referenced_drink_plan` — 飲み放題プラン（`DrinkPlanItem`）に含まれている場合
 Response 409: `menus.delete.referenced_by_plan_or_course` — 上記チェックと書き込みが競合した場合の最終防衛線（FK制約違反時のフォールバック）
 Socket emit: `menu:deleted`（削除した `menuItemId: number`）
+
+- コース・飲み放題プランと異なり、他のセット（`SetFrameChoice`）の選択肢として登録されている商品の削除はブロックしない。削除すると当該 `SetFrameChoice` も自動的に削除される（`onDelete: Cascade`）。過去の注文明細（`OrderItem`）は `menuItemName`/`originalPrice` のスナップショットを保持するため表示は変化しない
 
 ## Categories
 

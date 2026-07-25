@@ -60,7 +60,27 @@ Response 200:
 ```json
 {
   "menus": [
-    { "id": 3, "name": "生ビール", "price": 500, "categoryId": 1, "subCategoryId": null, "takeout": "both", "soldOut": false }
+    {
+      "id": 3,
+      "name": "生ビール",
+      "price": 500,
+      "categoryId": 1,
+      "subCategoryId": null,
+      "takeout": "both",
+      "soldOut": false,
+      "sort": 0,
+      "isSet": false,
+      "optionGroups": [
+        {
+          "id": 1,
+          "name": "氷の状態",
+          "required": true,
+          "sort": 0,
+          "choices": [{ "id": 1, "name": "ロック", "extraPrice": 0, "sort": 0 }]
+        }
+      ],
+      "setFrames": []
+    }
   ],
   "categories": [{ "id": 1, "name": "ドリンク", "sort": 0 }],
   "subCategories": [{ "id": 1, "name": "ビール", "sort": 0, "categoryId": 1 }]
@@ -68,6 +88,8 @@ Response 200:
 ```
 
 - `takeout`: `MenuItem.takeout` の値（`both` / `takeout` など）。`takeout` 専用商品は `POST /orders` で 422 になる（下記参照）
+- `optionGroups`: 商品オプション（[Menus](./menus.md) の `MenuItem` レスポンスと同形式）。003-product-options
+- `isSet` / `setFrames`: セットメニュー関連フィールド（[Menus](./menus.md) の `MenuItem` レスポンスと同形式。`setFrames[].choices[].name`/`price`/`soldOut` は参照先商品の現在値）。004-set-menu。このエンドポイントは `backend/src/lib/mappers.ts` の `toMenuItem` を使わず独自にinlineマッピングしているが、返す内容は `GET /menus` と同じ形
 
 Response 404: `customer.group.not_found`
 
@@ -117,7 +139,11 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
 ```json
 {
   "groupId": "018f1234-5678-7abc-def0-123456789abc",
-  "items": [{ "menuItemId": 3, "qty": 2 }]
+  "items": [
+    { "menuItemId": 3, "qty": 2 },
+    { "menuItemId": 8, "qty": 1, "selectedChoiceIds": [12] },
+    { "menuItemId": 20, "qty": 1, "selectedFrameChoiceIds": [101, 205] }
+  ]
 }
 ```
 
@@ -125,8 +151,10 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
 - `items`: 1件以上の配列、必須
   - `menuItemId`: integer（`minimum: 1`）、必須
   - `qty`: integer（`minimum: 1, maximum: 99`）、必須
-- `POST /api/orders`（スタッフ用、[Orders](./orders.md)）と異なり `isTakeout` / `courseId` は受け付けない。作成される `OrderItem` は常に `isTakeout: false`、`courseId: null`、`isCourseCharge: false`、`isDrinkPlanCharge: false` 固定（客用画面はテイクアウト・コース注文を扱わない）
-- `price` は `menuItemMap` から取得した注文時点の `MenuItem.price`。グループにドリンクプラン（`drinkPlanId`）が適用されている場合、`items` の各行ごとにプラン対象商品かどうかを個別に判定する。プラン対象商品は `price: 0`、プラン対象外の商品は通常どおり `originalPrice`（注文時点の `MenuItem.price`）で課金され、両者が混在する1リクエストも全体拒否せずそのまま部分受理する（プラン対象外の商品だけを理由に注文全体が拒否されることはない）。`originalPrice` には常に注文時点の `MenuItem.price` を保持する（飲み放題解除時の復元用）
+  - `selectedChoiceIds`（省略可）: 商品オプション（`ProductOptionChoice`）の選択。分類ごとに1つの choiceId のみ指定できる。003-product-options
+  - `selectedFrameChoiceIds`（省略可）: セットメニュー（`isSet: true` の商品）の枠選択。対象商品の全 `SetFrame` について、対応する `SetFrameChoice` のidをちょうど1つずつ指定する。004-set-menu
+- `POST /api/orders`（スタッフ用、[Orders](./orders.md)）と異なり `isTakeout` / `courseId` は受け付けない。作成される `OrderItem` は常に `isTakeout: false`、`courseId: null`、`isCourseCharge: false`、`isDrinkPlanCharge: false` 固定（客用画面はテイクアウト・コース注文を扱わない）。セット商品の親明細も同様に `isTakeout: false` で作成される
+- `price` は `menuItemMap` から取得した注文時点の `MenuItem.price`。グループにドリンクプラン（`drinkPlanId`）が適用されている場合、`items` の各行ごとにプラン対象商品かどうかを個別に判定する。プラン対象商品は `price: 0`、プラン対象外の商品は通常どおり `originalPrice`（注文時点の `MenuItem.price`）で課金され、両者が混在する1リクエストも全体拒否せずそのまま部分受理する（プラン対象外の商品だけを理由に注文全体が拒否されることはない）。`originalPrice` には常に注文時点の `MenuItem.price` を保持する（飲み放題解除時の復元用）。`selectedChoiceIds` を指定した場合は `price = Math.max(0, originalPrice + Σ選択オプションのextraPrice)`（0円未満はクランプ）。セット商品（`selectedFrameChoiceIds`）の価格計算は後述の「セットメニューの注文」を参照
 
 バリデーション順序と対応エラー:
 
@@ -135,12 +163,23 @@ Request body（JSON Schema でバリデーション。`additionalProperties: fal
 3. Response 422: `customer.orders.menu_items_not_found` — 存在しない `menuItemId` を含む。`details: { menuItemIds: number[] }`（見つからなかった ID の配列）
 4. Response 409: `customer.orders.sold_out` — 品切れ商品を含む。`details: { menuItemIds: number[], menuItemNames: string[] }`
 5. Response 422: `customer.orders.takeout_only` — `takeout: 'takeout'`（テイクアウト専用）の商品を含む
+6. Response 400: `customer.orders.invalid_option_choice` — `selectedChoiceIds` に、対象商品に属さない・実在しない choiceId が含まれる場合。003-product-options
+7. Response 400: `customer.orders.duplicate_option_group_selection` — 同一オプション分類から複数の選択肢が指定された場合
+8. Response 400: `customer.orders.missing_required_option` — `required: true` のオプション分類が未選択の場合
+9. Response 400: `customer.orders.set_frame_selection_not_applicable` — `isSet: false` の商品に `selectedFrameChoiceIds` が指定された場合。004-set-menu
+10. Response 400: `customer.orders.invalid_set_frame_choice` — `selectedFrameChoiceIds` に、対象商品に属さない・実在しない choiceId が含まれる場合
+11. Response 400: `customer.orders.missing_set_frame_selection` — セット商品の `SetFrame` に選択の過不足・重複がある場合
+12. Response 409: `customer.orders.set_frame_choice_sold_out` — 選択された `SetFrameChoice` の参照先商品が品切れの場合
 
 上記チェックを通過した後、DB トランザクション内でグループの現在ステータスを再取得して `active` であることを再確認してから `OrderItem` を作成する。会計依頼（`bill_requested`）等による同時更新との競合を防ぐためで、再確認時点で `active` でなくなっていた場合も Response 400: `customer.orders.closed` を返す（トランザクションはロールバックされ、作成は行われない）。トランザクションは Serializable 分離レベルで実行される。
 
 Response 409: `customer.orders.menu_item_deleted` — トランザクション中に対象 `menuItemId` が削除された場合
 Response 409: `customer.orders.conflict` — Serializable 分離レベルでの書き込み競合を検知した場合。もう一度リクエストすると解決する
 
-Response 201: 作成された order item の配列（[Orders](./orders.md) の POST と同形式）
+Response 201: 作成された order item の配列（[Orders](./orders.md) の POST と同形式。`options` / `isSetCharge` / `setOrderItemId` フィールドを含む）
 
-成功時は作成された各 order item について Socket.io `order:created`（payload: OrderItem）を `store:${storeId}` と `group:${groupId}` の両ルームへ emit する。
+成功時は作成された各 order item について Socket.io `order:created`（payload: OrderItem）を `store:${storeId}` と `group:${groupId}` の両ルームへ emit する。セット商品を含む場合、親明細・子明細それぞれについて個別に emit される。
+
+### セットメニューの注文（004-set-menu）
+
+挙動は [Orders](./orders.md) の「セットメニューの注文」と同じ（親明細＝セット価格・`isSetCharge: true`・`status: 'served'`、子明細＝`price: 0`・`setOrderItemId`で紐付け・`status: 'pending'`）。客用にはキャンセルAPIが存在しないため、セット注文の取消はスタッフ用 `PUT /api/orders/:id/cancel` を使う。
