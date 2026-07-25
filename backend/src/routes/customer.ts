@@ -30,6 +30,7 @@ const createOrderBodySchema = {
           menuItemId: { type: 'integer', minimum: 1 },
           qty: { type: 'integer', minimum: 1, maximum: 99 },
           selectedChoiceIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
+          selectedFrameChoiceIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
         },
         additionalProperties: false,
       },
@@ -74,6 +75,15 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
             orderBy: [{ sort: 'asc' }, { id: 'asc' }],
             include: { choices: { orderBy: [{ sort: 'asc' }, { id: 'asc' }] } },
           },
+          setFrames: {
+            orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+            include: {
+              choices: {
+                orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+                include: { menuItem: { select: { name: true, price: true, soldOut: true } } },
+              },
+            },
+          },
         },
       }),
       prisma.category.findMany({ where: { storeId: request.storeId }, orderBy: { sort: 'asc' } }),
@@ -99,6 +109,7 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         takeout: m.takeout,
         soldOut: m.soldOut,
         sort: m.sort,
+        isSet: m.isSet,
         optionGroups: (m.optionGroups ?? []).map((group) => ({
           id: group.id,
           name: group.name,
@@ -108,6 +119,19 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
             id: choice.id,
             name: choice.name,
             extraPrice: choice.extraPrice,
+            sort: choice.sort,
+          })),
+        })),
+        setFrames: (m.setFrames ?? []).map((frame) => ({
+          id: frame.id,
+          name: frame.name,
+          sort: frame.sort,
+          choices: frame.choices.map((choice) => ({
+            id: choice.id,
+            menuItemId: choice.menuItemId,
+            name: choice.menuItem.name,
+            price: choice.menuItem.price,
+            soldOut: choice.menuItem.soldOut,
             sort: choice.sort,
           })),
         })),
@@ -210,7 +234,12 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/orders', { schema: { body: createOrderBodySchema } }, async (request, reply) => {
     const body = request.body as {
       groupId: string
-      items: { menuItemId: number; qty: number; selectedChoiceIds?: number[] }[]
+      items: {
+        menuItemId: number
+        qty: number
+        selectedChoiceIds?: number[]
+        selectedFrameChoiceIds?: number[]
+      }[]
     }
 
     const group = await prisma.group.findFirst({
@@ -229,7 +258,10 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
     const menuItemIds = body.items.map((i) => i.menuItemId)
     const menuItems = await prisma.menuItem.findMany({
       where: { id: { in: menuItemIds }, storeId: request.storeId },
-      include: { optionGroups: { include: { choices: true } } },
+      include: {
+        optionGroups: { include: { choices: true } },
+        setFrames: { include: { choices: { include: { menuItem: true } } } },
+      },
     })
     const menuItemMap = new Map(menuItems.map((m) => [m.id, m]))
 
@@ -331,6 +363,60 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
         )
     }
 
+    for (const item of body.items) {
+      const menuItem = menuItemMap.get(item.menuItemId)
+      const selectedFrameChoiceIds = item.selectedFrameChoiceIds ?? []
+      if (!menuItem?.isSet) {
+        if (item.selectedFrameChoiceIds !== undefined)
+          return sendError(
+            reply,
+            400,
+            ErrorCodes.Customer.SetFrameSelectionNotApplicable,
+            'セットではない商品にセット枠の選択は指定できません',
+          )
+        continue
+      }
+
+      const frameChoices = new Map(
+        menuItem.setFrames.flatMap((frame) =>
+          frame.choices.map((choice) => [
+            choice.id,
+            { frameId: frame.id, menuItem: choice.menuItem },
+          ]),
+        ),
+      )
+      if (selectedFrameChoiceIds.some((choiceId) => !frameChoices.has(choiceId)))
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Customer.InvalidSetFrameChoice,
+          '無効なセット枠の選択です',
+        )
+
+      const selectedFrameIds = selectedFrameChoiceIds.map(
+        (choiceId) => frameChoices.get(choiceId)?.frameId,
+      )
+      if (
+        selectedFrameIds.length !== menuItem.setFrames.length ||
+        new Set(selectedFrameIds).size !== selectedFrameIds.length ||
+        menuItem.setFrames.some((frame) => !selectedFrameIds.includes(frame.id))
+      )
+        return sendError(
+          reply,
+          400,
+          ErrorCodes.Customer.MissingSetFrameSelection,
+          'すべてのセット枠を1つずつ選択してください',
+        )
+
+      if (selectedFrameChoiceIds.some((choiceId) => frameChoices.get(choiceId)?.menuItem.soldOut))
+        return sendError(
+          reply,
+          409,
+          ErrorCodes.Customer.SetFrameChoiceSoldOut,
+          '選択されたセット商品の一部が品切れです',
+        )
+    }
+
     let planMenuItemIds: Set<number> | null = null
     if (group.drinkPlanId) {
       const planItems = await prisma.drinkPlanItem.findMany({
@@ -349,8 +435,8 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
             select: { status: true },
           })
           if (current?.status !== 'active') return null
-          return Promise.all(
-            body.items.map((item) => {
+          const createdByItem = await Promise.all(
+            body.items.map(async (item) => {
               const isPlanItem = planMenuItemIds?.has(item.menuItemId) ?? false
               // 注文時点の MenuItem 単価を保持し、飲み放題解除時の復元にも使う
               const menuItem = menuItemMap.get(item.menuItemId)
@@ -359,7 +445,46 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
                 const option = choicesByItem.get(item.menuItemId)?.get(choiceId)
                 return option ? [option] : []
               })
-              return tx.orderItem.create({
+              if (menuItem?.isSet) {
+                const parent = await tx.orderItem.create({
+                  data: {
+                    groupId: body.groupId,
+                    menuItemId: item.menuItemId,
+                    menuItemName: menuItem.name,
+                    price: originalPrice,
+                    originalPrice,
+                    qty: item.qty,
+                    isTakeout: false,
+                    isSetCharge: true,
+                    status: 'served',
+                    storeId: request.storeId,
+                  },
+                  include: { options: true },
+                })
+                const children = await Promise.all(
+                  (item.selectedFrameChoiceIds ?? []).map((choiceId) => {
+                    const choice = menuItem.setFrames
+                      .flatMap((frame) => frame.choices)
+                      .find((candidate) => candidate.id === choiceId)
+                    return tx.orderItem.create({
+                      data: {
+                        groupId: body.groupId,
+                        menuItemId: choice?.menuItemId,
+                        menuItemName: choice?.menuItem.name ?? '',
+                        price: 0,
+                        originalPrice: choice?.menuItem.price,
+                        qty: item.qty,
+                        isTakeout: false,
+                        setOrderItemId: parent.id,
+                        storeId: request.storeId,
+                      },
+                      include: { options: true },
+                    })
+                  }),
+                )
+                return [parent, ...children]
+              }
+              const createdOrder = await tx.orderItem.create({
                 data: {
                   groupId: body.groupId,
                   menuItemId: item.menuItemId,
@@ -386,8 +511,10 @@ const customerRoutes: FastifyPluginAsync = async (fastify) => {
                 },
                 include: { options: true },
               })
+              return [createdOrder]
             }),
           )
+          return createdByItem.flat()
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       )

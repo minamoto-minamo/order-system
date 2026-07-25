@@ -13,6 +13,7 @@ import {
   type OptionedOrderLine,
   OptionSelectSheet,
 } from '@/features/order/components/OptionSelectSheet'
+import { SetFrameSelectSheet } from '@/features/order/components/SetFrameSelectSheet'
 import { useSocketListeners } from '@/hooks/useSocketListeners'
 import { api } from '@/lib/api'
 import { ApiError, apiErrorMessage } from '@/lib/apiError'
@@ -59,6 +60,7 @@ export default function CustomerOrder() {
   const [qtys, setQtys] = useState<Record<number, number>>({})
   const [optionedLines, setOptionedLines] = useState<OptionedOrderLine[]>([])
   const [optionTarget, setOptionTarget] = useState<MenuItem | null>(null)
+  const [setFrameTarget, setSetFrameTarget] = useState<MenuItem | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [calling, setCalling] = useState(false)
@@ -150,6 +152,7 @@ export default function CustomerOrder() {
     item: MenuItem
     qty: number
     selectedChoiceIds?: number[]
+    selectedFrameChoiceIds?: number[]
   } & Partial<OptionedOrderLine>)[] = [
     ...Object.entries(qtys)
       .filter(([, qty]) => qty > 0)
@@ -166,10 +169,11 @@ export default function CustomerOrder() {
     try {
       const created = await api.post<OrderItem[]>(EP.customerOrders, {
         groupId,
-        items: orderItems.map(({ item, qty, selectedChoiceIds }) => ({
+        items: orderItems.map(({ item, qty, selectedChoiceIds, selectedFrameChoiceIds }) => ({
           menuItemId: item.id,
           qty,
           selectedChoiceIds,
+          selectedFrameChoiceIds,
         })),
       })
       // order:created イベントの到着を待たず、レスポンスを直接反映して履歴タブに即時反映する
@@ -319,6 +323,7 @@ export default function CustomerOrder() {
           getQty={getQty}
           onQtyChange={setQty}
           onSelectOptionItem={setOptionTarget}
+          onSelectSetItem={setSetFrameTarget}
           footerVisible={orderItems.length > 0}
         />
       ) : (
@@ -352,6 +357,16 @@ export default function CustomerOrder() {
         onAdd={(line) => {
           setOptionedLines((prev) => [...prev, line])
           setOptionTarget(null)
+        }}
+      />
+      <SetFrameSelectSheet
+        key={setFrameTarget?.id ?? 'empty'}
+        item={setFrameTarget}
+        open={setFrameTarget != null}
+        onClose={() => setSetFrameTarget(null)}
+        onAdd={(line) => {
+          setOptionedLines((prev) => [...prev, line])
+          setSetFrameTarget(null)
         }}
       />
 

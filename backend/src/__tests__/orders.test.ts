@@ -807,10 +807,285 @@ describe('POST /api/orders — 商品オプション', () => {
   })
 })
 
+describe('POST /api/orders — セットメニュー', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGroupFindFirst.mockResolvedValue({
+      id: GROUP_ID,
+      status: 'active',
+      drinkPlanId: null,
+      courseId: null,
+    })
+  })
+
+  const setMenu = {
+    id: 1,
+    name: 'セット',
+    price: 1200,
+    soldOut: false,
+    takeout: 'both',
+    isSet: true,
+    optionGroups: [],
+    setFrames: [
+      {
+        id: 10,
+        choices: [
+          { id: 101, menuItemId: 2, menuItem: { name: '主菜', price: 800, soldOut: false } },
+        ],
+      },
+      {
+        id: 11,
+        choices: [
+          { id: 102, menuItemId: 3, menuItem: { name: '副菜', price: 500, soldOut: false } },
+        ],
+      },
+    ],
+  }
+
+  it('各枠の選択が揃うとセット親子明細を作成する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([setMenu])
+    const create = jest.fn<any>().mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: data.isSetCharge ? 'set-parent' : `child-${data.menuItemId}`,
+        groupId: GROUP_ID,
+        menuItemId: data.menuItemId,
+        menuItemName: data.menuItemName,
+        price: data.price,
+        originalPrice: data.originalPrice,
+        qty: data.qty,
+        status: data.status ?? 'pending',
+        isTakeout: data.isTakeout,
+        courseId: data.courseId ?? null,
+        isCourseCharge: false,
+        isDrinkPlanCharge: false,
+        isSetCharge: data.isSetCharge ?? false,
+        setOrderItemId: data.setOrderItemId ?? null,
+        orderedAt: new Date(),
+        options: [],
+      }),
+    )
+    mockTx(create)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 1, qty: 2, selectedFrameChoiceIds: [101, 102] }],
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          menuItemId: 1,
+          price: 1200,
+          originalPrice: 1200,
+          qty: 2,
+          isSetCharge: true,
+          status: 'served',
+        }),
+      }),
+    )
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          menuItemId: 2,
+          price: 0,
+          originalPrice: 800,
+          qty: 2,
+          setOrderItemId: 'set-parent',
+        }),
+      }),
+    )
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          menuItemId: 3,
+          price: 0,
+          originalPrice: 500,
+          qty: 2,
+          setOrderItemId: 'set-parent',
+        }),
+      }),
+    )
+  })
+
+  it.each([
+    [{ menuItemId: 1, qty: 1 }, 'orders.create.missing_set_frame_selection'],
+    [
+      { menuItemId: 1, qty: 1, selectedFrameChoiceIds: [999] },
+      'orders.create.invalid_set_frame_choice',
+    ],
+    [
+      { menuItemId: 1, qty: 1, selectedFrameChoiceIds: [101, 101] },
+      'orders.create.missing_set_frame_selection',
+    ],
+  ])('不正なセット枠選択を拒否する', async (item, code) => {
+    mockMenuItemFindMany.mockResolvedValue([setMenu])
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { groupId: GROUP_ID, items: [item] },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({ error: { code } })
+  })
+
+  it('品切れのセット選択肢を 409 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([
+      {
+        ...setMenu,
+        setFrames: [
+          {
+            ...setMenu.setFrames[0],
+            choices: [
+              {
+                ...setMenu.setFrames[0].choices[0],
+                menuItem: { name: '主菜', price: 800, soldOut: true },
+              },
+            ],
+          },
+          setMenu.setFrames[1],
+        ],
+      },
+    ] as any)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 1, qty: 1, selectedFrameChoiceIds: [101, 102] }],
+      },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { code: 'orders.create.set_frame_choice_sold_out' } })
+  })
+
+  it('通常商品へのセット枠選択指定を 400 で拒否する', async () => {
+    mockMenuItemFindMany.mockResolvedValue([
+      {
+        id: 2,
+        name: '通常',
+        price: 300,
+        soldOut: false,
+        takeout: 'both',
+        isSet: false,
+        optionGroups: [],
+        setFrames: [],
+      },
+    ] as any)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/orders',
+      headers: { cookie: `token=${token(app)}` },
+      payload: {
+        groupId: GROUP_ID,
+        items: [{ menuItemId: 2, qty: 1, selectedFrameChoiceIds: [] }],
+      },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({
+      error: { code: 'orders.create.set_frame_selection_not_applicable' },
+    })
+  })
+})
+
 describe('PUT /api/orders/:id/cancel — group/session close 後のガード', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>
   beforeAll(async () => {
     app = await buildTestApp()
+  })
+
+  it('セット親明細のキャンセルを全子明細にカスケードする', async () => {
+    const update = jest.fn<any>().mockImplementation(({ where, data }: any) =>
+      Promise.resolve({
+        id: where.id,
+        groupId: GROUP_ID,
+        menuItemId: where.id === 'item-1' ? 1 : 2,
+        menuItemName: 'test',
+        price: where.id === 'item-1' ? 1200 : 0,
+        qty: data.qty ?? 2,
+        status: data.status ?? 'pending',
+        isTakeout: false,
+        courseId: null,
+        isCourseCharge: false,
+        isDrinkPlanCharge: false,
+        isSetCharge: where.id === 'item-1',
+        setOrderItemId: where.id === 'item-1' ? null : 'item-1',
+        orderedAt: new Date(),
+        options: [],
+      }),
+    )
+    mockTransaction.mockImplementation(async (cb) =>
+      cb({
+        orderItem: {
+          findFirst: () =>
+            Promise.resolve({
+              id: 'item-1',
+              status: 'pending',
+              qty: 3,
+              isSetCharge: true,
+              setOrderItemId: null,
+              group: { status: 'active', session: { status: 'open' } },
+            }),
+          findMany: () =>
+            Promise.resolve([
+              { id: 'child-1', qty: 3 },
+              { id: 'child-2', qty: 3 },
+            ]),
+          update,
+        },
+      }),
+    )
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/orders/item-1/cancel',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 1 },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(update).toHaveBeenCalledWith({ where: { id: 'child-1' }, data: { qty: 2 } })
+    expect(update).toHaveBeenCalledWith({ where: { id: 'child-2' }, data: { qty: 2 } })
+    expect(update).toHaveBeenCalledWith({ where: { id: 'item-1' }, data: { qty: 2 } })
+  })
+
+  it('セット子明細の単独キャンセルを 409 で拒否する', async () => {
+    const update = jest.fn<any>()
+    mockCancelTx(
+      {
+        status: 'pending',
+        qty: 1,
+        isSetCharge: false,
+        setOrderItemId: 'set-parent',
+        group: { status: 'active', session: { status: 'open' } },
+      },
+      update,
+    )
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/orders/item-1/cancel',
+      headers: { cookie: `token=${token(app)}` },
+      payload: { qty: 1 },
+    })
+
+    expect(res.statusCode).toBe(409)
+    expect(res.json()).toMatchObject({ error: { code: 'orders.cancel.set_child_not_cancellable' } })
+    expect(update).not.toHaveBeenCalled()
   })
   afterAll(async () => {
     await app.close()
@@ -825,6 +1100,8 @@ describe('PUT /api/orders/:id/cancel — group/session close 後のガード', (
       qty: number
       group: { status: string; session: { status: string } }
       isCourseCharge?: boolean
+      isSetCharge?: boolean
+      setOrderItemId?: string | null
     },
     updateFn = jest.fn<any>(),
   ) {

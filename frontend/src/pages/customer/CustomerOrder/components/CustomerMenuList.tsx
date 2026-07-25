@@ -17,6 +17,7 @@ export function CustomerMenuList({
   getQty,
   onQtyChange,
   onSelectOptionItem,
+  onSelectSetItem,
   footerVisible,
 }: {
   categories: Category[]
@@ -30,6 +31,7 @@ export function CustomerMenuList({
   getQty: (id: number) => number
   onQtyChange: (id: number, val: number) => void
   onSelectOptionItem: (item: MenuItem) => void
+  onSelectSetItem: (item: MenuItem) => void
   footerVisible: boolean
 }) {
   const { t } = useTranslation()
@@ -84,7 +86,16 @@ export function CustomerMenuList({
                     ¥{isDrinkPlanTarget ? '0' : item.price.toLocaleString()}
                   </div>
                 </div>
-                {item.optionGroups.length > 0 ? (
+                {item.isSet ? (
+                  <button
+                    type="button"
+                    className="shrink-0 py-2 px-3 text-xs border border-line rounded-md text-ink bg-white"
+                    disabled={item.soldOut}
+                    onClick={() => onSelectSetItem(item)}
+                  >
+                    {t('orderOption.selectButton')}
+                  </button>
+                ) : item.optionGroups.length > 0 ? (
                   <button
                     type="button"
                     className="shrink-0 py-2 px-3 text-xs border border-line rounded-md text-ink bg-white"
