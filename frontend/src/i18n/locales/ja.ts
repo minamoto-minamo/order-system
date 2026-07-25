@@ -101,6 +101,7 @@ const ja = {
     confirmOrderTakeout: 'テイクアウト注文を確定する',
     menuTab: 'メニュー',
     courseTab: 'コース',
+    setTab: 'セット',
     courseActiveLabel: 'を適用中',
     drinkPlanActive: '有効',
     drinkPlanTarget: '飲み放題',

@@ -69,4 +69,68 @@ describe('partitionOrderItems', () => {
     expect(result.courseCharges.map((i) => i.id)).toEqual(['charge', 'plan-charge'])
     expect(result.cancelled.map((i) => i.id)).toEqual(['old-charge'])
   })
+
+  it('セットの内訳商品はステータスに関わらず setDishes にだけ入る', () => {
+    const items = [
+      makeItem({ id: 'set-dish-pending', setOrderItemId: 'set-1', price: 0, status: 'pending' }),
+      makeItem({ id: 'set-dish-served', setOrderItemId: 'set-1', price: 0, status: 'served' }),
+    ]
+    const result = partitionOrderItems(items)
+    expect(result.setDishes.map((i) => i.id)).toEqual(['set-dish-pending', 'set-dish-served'])
+    expect(result.active).toEqual([])
+    expect(result.served).toEqual([])
+  })
+
+  it('キャンセル済みのセット内訳商品はどこにも表示しない', () => {
+    const items = [
+      makeItem({
+        id: 'set-dish-cancelled',
+        setOrderItemId: 'set-1',
+        price: 0,
+        status: 'cancelled',
+      }),
+    ]
+    const result = partitionOrderItems(items)
+    expect(result.setDishes).toEqual([])
+    expect(result.cancelled).toEqual([])
+  })
+
+  it('セット課金明細は setCharges に、キャンセル済み課金明細は cancelled に入る', () => {
+    const items = [
+      makeItem({ id: 'set-1', isSetCharge: true, status: 'served' }),
+      makeItem({ id: 'set-2-cancelled', isSetCharge: true, status: 'cancelled' }),
+    ]
+    const result = partitionOrderItems(items)
+    expect(result.setCharges.map((i) => i.id)).toEqual(['set-1'])
+    expect(result.cancelled.map((i) => i.id)).toEqual(['set-2-cancelled'])
+  })
+
+  it('同じセット商品を2回注文しても setOrderItemId によりインスタンス単位で内訳が区別される', () => {
+    const items = [
+      makeItem({ id: 'set-1', menuItemId: 99, isSetCharge: true, status: 'served' }),
+      makeItem({ id: 'set-2', menuItemId: 99, isSetCharge: true, status: 'served' }),
+      makeItem({
+        id: 'set-1-dish',
+        menuItemId: 1,
+        setOrderItemId: 'set-1',
+        price: 0,
+        status: 'pending',
+      }),
+      makeItem({
+        id: 'set-2-dish',
+        menuItemId: 2,
+        setOrderItemId: 'set-2',
+        price: 0,
+        status: 'pending',
+      }),
+    ]
+    const result = partitionOrderItems(items)
+    expect(result.setCharges.map((i) => i.id)).toEqual(['set-1', 'set-2'])
+    expect(result.setDishes.filter((d) => d.setOrderItemId === 'set-1').map((i) => i.id)).toEqual([
+      'set-1-dish',
+    ])
+    expect(result.setDishes.filter((d) => d.setOrderItemId === 'set-2').map((i) => i.id)).toEqual([
+      'set-2-dish',
+    ])
+  })
 })

@@ -42,7 +42,8 @@ export function CustomerOrderHistory({
 }) {
   const { t } = useTranslation()
 
-  const { active, served, courseCharges, courseDishes } = partitionOrderItems(items)
+  const { active, served, courseCharges, courseDishes, setCharges, setDishes } =
+    partitionOrderItems(items)
   const activeGroups = groupItems(active)
   const servedGroups = groupItems(served)
   const { subtotal, tax: taxAmount } = calculateTaxTotals(items, tax)
@@ -86,6 +87,18 @@ export function CustomerOrderHistory({
                     ? []
                     : courseDishes.filter((d) => d.courseId === item.courseId)
                 }
+              />
+            ))}
+          </OrderHistorySection>
+        )}
+
+        {setCharges.length > 0 && (
+          <OrderHistorySection title={t('group.setTab')}>
+            {setCharges.map((item) => (
+              <HistoryCourseBlock
+                key={item.id}
+                charge={item}
+                dishes={setDishes.filter((d) => d.setOrderItemId === item.id)}
               />
             ))}
           </OrderHistorySection>
