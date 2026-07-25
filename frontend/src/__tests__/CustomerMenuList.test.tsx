@@ -41,6 +41,8 @@ const items: MenuItem[] = [
     takeout: 'both',
     sort: 1,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
   {
     id: 2,
@@ -52,6 +54,8 @@ const items: MenuItem[] = [
     takeout: 'both',
     sort: 2,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
 ]
 

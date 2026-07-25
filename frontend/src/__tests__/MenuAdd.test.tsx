@@ -72,6 +72,8 @@ const menus: MenuItem[] = [
     takeout: 'both',
     sort: 1,
     optionGroups: [],
+    isSet: false,
+    setFrames: [],
   },
 ]
 const activeDrinkPlan: DrinkPlan = { id: 5, name: '飲み放題', price: 1500, menuItemIds: [1] }

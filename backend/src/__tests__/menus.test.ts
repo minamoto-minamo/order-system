@@ -6,6 +6,7 @@ import Fastify from 'fastify'
 
 const mockOrderItemCount = jest.fn<(...args: unknown[]) => Promise<number>>()
 const mockMenuItemFindFirst = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockMenuItemFindMany = jest.fn<(...args: unknown[]) => Promise<unknown[]>>()
 const mockMenuItemCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemUpdate = jest.fn<(...args: unknown[]) => Promise<unknown>>()
 const mockMenuItemDelete = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -20,6 +21,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     orderItem: { count: mockOrderItemCount },
     menuItem: {
       findFirst: mockMenuItemFindFirst,
+      findMany: mockMenuItemFindMany,
       create: mockMenuItemCreate,
       update: mockMenuItemUpdate,
       delete: mockMenuItemDelete,
@@ -301,6 +303,319 @@ describe('POST/PUT /api/menus — オプション分類の全置換保存', () =
         }),
       }),
     )
+  })
+})
+
+describe('POST/PUT /api/menus — セット枠の全置換保存とバリデーション', () => {
+  let app: Awaited<ReturnType<typeof buildTestApp>>
+
+  beforeAll(async () => {
+    app = await buildTestApp()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  function token() {
+    return app.jwt.sign({
+      type: 'staff' as const,
+      userId: ADMIN_ID,
+      username: 'admin',
+      role: 'admin',
+      storeId: STORE_ID,
+    })
+  }
+
+  const setFrames = [
+    {
+      name: 'ラーメン',
+      sort: 0,
+      choices: [
+        { menuItemId: 10, sort: 0 },
+        { menuItemId: 11, sort: 1 },
+      ],
+    },
+  ]
+
+  it('作成時にセット枠・選択肢をnested writeで保存し、参照商品の現在値を返す', async () => {
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 10 }, { id: 11 }])
+    mockMenuItemCreate.mockResolvedValue({
+      id: 1,
+      name: 'ラーメンセット',
+      price: 1000,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      takeout: 'both',
+      sort: 0,
+      isSet: true,
+      optionGroups: [],
+      setFrames: [
+        {
+          id: 1,
+          name: 'ラーメン',
+          sort: 0,
+          choices: [
+            {
+              id: 1,
+              menuItemId: 10,
+              sort: 0,
+              menuItem: { name: '味噌ラーメン', price: 800, soldOut: false },
+            },
+          ],
+        },
+      ],
+    })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/menus',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        name: 'ラーメンセット',
+        price: 1000,
+        categoryId: 10,
+        subCategoryId: 100,
+        isSet: true,
+        setFrames,
+      },
+    })
+
+    expect(res.statusCode).toBe(201)
+    expect(res.json()).toMatchObject({
+      isSet: true,
+      setFrames: [{ choices: [{ menuItemId: 10, name: '味噌ラーメン', price: 800 }] }],
+    })
+    expect(mockMenuItemCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isSet: true,
+          setFrames: {
+            create: [
+              expect.objectContaining({
+                storeId: STORE_ID,
+                choices: { create: setFrames[0].choices },
+              }),
+            ],
+          },
+        }),
+      }),
+    )
+  })
+
+  it('更新時に既存セット枠を削除して空配列へ全置換する', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      isSet: true,
+      optionGroups: [],
+    })
+    mockMenuItemUpdate.mockResolvedValue({
+      id: 1,
+      name: 'ラーメンセット',
+      price: 1000,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      takeout: 'both',
+      sort: 0,
+      isSet: true,
+      optionGroups: [],
+      setFrames: [],
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { setFrames: [] },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ setFrames: { deleteMany: {}, create: [] } }),
+      }),
+    )
+  })
+
+  it('セットメニューを解除すると既存セット枠を削除する', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      isSet: true,
+      optionGroups: [],
+    })
+    mockMenuItemUpdate.mockResolvedValue({
+      id: 1,
+      name: 'ラーメンセット',
+      price: 1000,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      takeout: 'both',
+      sort: 0,
+      isSet: false,
+      optionGroups: [],
+      setFrames: [],
+    })
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { isSet: false, setFrames: [] },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(mockMenuItemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isSet: false,
+          setFrames: { deleteMany: {}, create: [] },
+        }),
+      }),
+    )
+  })
+
+  it('セットメニューへオプションを設定すると422を返す', async () => {
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/menus',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        name: 'ラーメンセット',
+        price: 1000,
+        categoryId: 10,
+        subCategoryId: 100,
+        isSet: true,
+        optionGroups: [{ name: 'サイズ', required: false, sort: 0, choices: [] }],
+      },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: { code: 'menus.save.set_with_options_not_allowed' },
+    })
+    expect(mockMenuItemCreate).not.toHaveBeenCalled()
+  })
+
+  it('存在しない商品をセット枠の選択肢に指定すると422を返す', async () => {
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 10 }])
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/menus',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        name: 'ラーメンセット',
+        price: 1000,
+        categoryId: 10,
+        subCategoryId: 100,
+        isSet: true,
+        setFrames,
+      },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: { code: 'menus.save.set_frame_choice_menu_item_not_found' },
+    })
+    expect(mockMenuItemCreate).not.toHaveBeenCalled()
+  })
+
+  it('別のセット商品を選択肢に指定すると422を返す', async () => {
+    mockSubCategoryFindFirst.mockResolvedValue({ id: 100, categoryId: 10 })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 10, isSet: true },
+      { id: 11, isSet: false },
+    ])
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/menus',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        name: 'ラーメンセット',
+        price: 1000,
+        categoryId: 10,
+        subCategoryId: 100,
+        isSet: true,
+        setFrames,
+      },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: { code: 'menus.save.set_frame_choice_menu_item_not_found' },
+    })
+    expect(mockMenuItemCreate).not.toHaveBeenCalled()
+  })
+
+  it('更新時に別のセット商品を選択肢に指定すると422を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      isSet: true,
+      optionGroups: [],
+    })
+    mockMenuItemFindMany.mockResolvedValue([
+      { id: 10, isSet: true },
+      { id: 11, isSet: false },
+    ])
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: { setFrames },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: { code: 'menus.save.set_frame_choice_menu_item_not_found' },
+    })
+    expect(mockMenuItemUpdate).not.toHaveBeenCalled()
+  })
+
+  it('更新対象の商品自身を選択肢に指定すると422を返す', async () => {
+    mockMenuItemFindFirst.mockResolvedValue({
+      id: 1,
+      categoryId: 10,
+      subCategoryId: 100,
+      soldOut: false,
+      isSet: true,
+      optionGroups: [],
+    })
+    mockMenuItemFindMany.mockResolvedValue([{ id: 1, isSet: false }])
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/menus/1',
+      headers: { cookie: `token=${token()}` },
+      payload: {
+        setFrames: [{ name: 'ラーメン', sort: 0, choices: [{ menuItemId: 1, sort: 0 }] }],
+      },
+    })
+
+    expect(res.statusCode).toBe(422)
+    expect(res.json()).toMatchObject({
+      error: { code: 'menus.save.set_frame_choice_menu_item_not_found' },
+    })
+    expect(mockMenuItemUpdate).not.toHaveBeenCalled()
   })
 })
 

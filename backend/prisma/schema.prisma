@@ -60,6 +60,7 @@ model Store {
   groups        Group[]
   orderItems    OrderItem[]
   optionGroups  ProductOptionGroup[]
+  setFrames     SetFrame[]
   setting       Setting?
   staff         Staff[]
 
@@ -159,6 +160,7 @@ model MenuItem {
   soldOut       Boolean     @default(false)
   takeout       TakeoutType @default(dine_in)
   sort          Int         @default(0)
+  isSet         Boolean     @default(false)
 
   store       Store       @relation(fields: [storeId], references: [id])
   category    Category    @relation(fields: [categoryId], references: [id])
@@ -168,6 +170,8 @@ model MenuItem {
   courseFoodItems CourseFoodItem[]
   orderItems      OrderItem[]
   optionGroups    ProductOptionGroup[]
+  setFrames       SetFrame[]       @relation("SetFrames")
+  setFrameChoices SetFrameChoice[] @relation("SetFrameChoiceProducts")
 
   @@index([categoryId])
   @@index([subCategoryId])
@@ -285,6 +289,8 @@ model OrderItem {
   // isCourseCharge:true の明細のうち、飲み放題の定額課金明細かどうか。
   // コース自身の料金明細と名前が偶然一致・事後変更されても区別できるようにするため
   isDrinkPlanCharge Boolean      @default(false)
+  isSetCharge       Boolean      @default(false)
+  setOrderItemId    String?
   orderedAt      DateTime        @default(now())
 
   store    Store     @relation(fields: [storeId], references: [id])
@@ -292,11 +298,42 @@ model OrderItem {
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   course   Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
   options  OrderItemOption[]
+  setParent   OrderItem?  @relation("SetBreakdown", fields: [setOrderItemId], references: [id], onDelete: Cascade)
+  setChildren OrderItem[] @relation("SetBreakdown")
 
   @@index([groupId])
   @@index([status])
   @@index([orderedAt])
   @@index([storeId])
+  @@index([setOrderItemId])
+}
+
+model SetFrame {
+  id         Int    @id @default(autoincrement())
+  storeId    Int
+  menuItemId Int
+  name       String
+  sort       Int    @default(0)
+
+  store    Store    @relation(fields: [storeId], references: [id])
+  menuItem MenuItem @relation("SetFrames", fields: [menuItemId], references: [id], onDelete: Cascade)
+  choices  SetFrameChoice[]
+
+  @@index([menuItemId])
+  @@index([storeId])
+}
+
+model SetFrameChoice {
+  id         Int @id @default(autoincrement())
+  frameId    Int
+  menuItemId Int
+  sort       Int @default(0)
+
+  frame    SetFrame @relation(fields: [frameId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation("SetFrameChoiceProducts", fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([frameId])
+  @@index([menuItemId])
 }
 
 model ProductOptionGroup {
